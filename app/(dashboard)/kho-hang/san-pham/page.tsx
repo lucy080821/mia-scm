@@ -50,7 +50,7 @@ function DaysOfStockBadge({ stock, avgDailySales }: { stock: number; avgDailySal
   if (days <= 3) return <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-100 text-red-600">{days} ngày</span>
   if (days <= 7) return <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-100 text-orange-600">{days} ngày</span>
   if (days <= 14) return <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-yellow-50 text-yellow-700">{days} ngày</span>
-  return <span className="text-xs text-gray-400">~{days} ngày</span>
+  return <span className="text-xs text-gray-400 whitespace-nowrap">~{days} ngày</span>
 }
 
 function DateElapsedBar({ manufactureDate, expiryDays }: { manufactureDate: string | null; expiryDays: number | null }) {
