@@ -6,6 +6,11 @@ export const metadata: Metadata = {
   title: 'Mia SCM',
   description: 'Hệ thống quản lý chuỗi cung ứng thông minh cho nhà phân phối FMCG tại Việt Nam',
   manifest: '/manifest.webmanifest',
+  icons: {
+    icon: [{ url: '/logo.svg', type: 'image/svg+xml' }],
+    shortcut: '/logo.svg',
+    apple: '/logo.svg',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',

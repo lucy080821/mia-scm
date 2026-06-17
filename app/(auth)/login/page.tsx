@@ -71,13 +71,13 @@ export default function LoginPage() {
           background: 'radial-gradient(ellipse 70% 60% at 50% 58%, rgba(14,165,233,0.09) 0%, transparent 70%)',
         }} />
 
-        {/* Logo */}
-        <div className="relative z-10 flex items-center gap-3 px-10 py-8">
-          <div className="flex items-center justify-center font-black text-white text-base rounded-xl"
-            style={{ width: 40, height: 40, background: 'linear-gradient(135deg,#0ea5e9,#0284c7)', flexShrink: 0 }}>M</div>
+        {/* Logo — absolute để luôn hiện góc trên trái */}
+        <div style={{ position: 'absolute', top: 24, left: 32, zIndex: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.svg" alt="Mia SCM" style={{ width: 38, height: 38, borderRadius: 10 }} />
           <div>
-            <p className="text-white font-bold text-lg leading-none">Mia SCM</p>
-            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', marginTop: 2 }}>Supply Chain Management</p>
+            <p style={{ color: '#fff', fontWeight: 700, fontSize: 17, lineHeight: 1 }}>Mia SCM</p>
+            <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: 10.5, marginTop: 3 }}>Supply Chain Management</p>
           </div>
         </div>
 
