@@ -1,0 +1,8 @@
+import { createClient } from '@supabase/supabase-js'
+
+// Chỉ dùng server-side (API routes) — KHÔNG import trong client components
+export const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { autoRefreshToken: false, persistSession: false } }
+)
