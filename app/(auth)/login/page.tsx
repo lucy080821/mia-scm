@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Eye, EyeOff, Package, Truck, ShoppingCart, ArrowRight, AlertCircle, CheckCircle2, ChevronLeft } from 'lucide-react'
+import { Eye, EyeOff, ArrowRight, AlertCircle, CheckCircle2, ChevronLeft, Package, Truck, ShoppingCart } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 type Mode = 'login' | 'forgot' | 'sent'
@@ -56,57 +56,165 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
-      {/* ── Hero left ── */}
-      <div className="flex-1 bg-gradient-to-br from-[#1e2a3a] to-[#1a3a5c] flex flex-col justify-between p-8 lg:p-12">
-        <div className="flex items-center gap-3">
-          <img src="/logo.svg" alt="Mia SCM" className="w-10 h-10 rounded-xl" />
+
+      {/* ── Hero left ─────────────────────────────────────────── */}
+      <div className="flex-1 relative flex flex-col overflow-hidden" style={{ background: '#0b1623' }}>
+
+        {/* Dot grid */}
+        <div className="absolute inset-0 pointer-events-none" style={{
+          backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(14,165,233,0.07) 1px, transparent 0)',
+          backgroundSize: '36px 36px',
+        }} />
+
+        {/* Ambient glow */}
+        <div className="absolute inset-0 pointer-events-none" style={{
+          background: 'radial-gradient(ellipse 70% 60% at 50% 55%, rgba(14,165,233,0.08) 0%, transparent 70%)',
+        }} />
+
+        {/* Logo */}
+        <div className="relative z-10 flex items-center gap-3 px-8 py-7">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-white text-sm"
+            style={{ background: 'linear-gradient(135deg,#0ea5e9,#0284c7)' }}>M</div>
           <div>
-            <p className="text-white font-bold text-xl leading-none">Mia SCM</p>
-            <p className="text-white/50 text-xs">Supply Chain Management</p>
+            <p className="text-white font-bold text-lg leading-none">Mia SCM</p>
+            <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.35)' }}>Supply Chain Management</p>
           </div>
         </div>
 
-        <div className="max-w-md">
-          <h1 className="text-3xl lg:text-4xl font-bold text-white leading-tight mb-4">
-            Quản lý chuỗi cung ứng thông minh cho doanh nghiệp Việt
+        {/* Main content */}
+        <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 pb-4">
+          <p className="text-xs font-semibold uppercase tracking-[3px] mb-3"
+            style={{ color: 'rgba(14,165,233,0.7)' }}>Nền tảng quản lý</p>
+          <h1 className="text-white font-bold text-center leading-tight mb-14"
+            style={{ fontSize: 'clamp(22px,2.5vw,30px)' }}>
+            Chuỗi cung ứng thông minh<br />
+            <span style={{ color: '#0ea5e9' }}>cho doanh nghiệp Việt</span>
           </h1>
-          <p className="text-white/60 text-base leading-relaxed mb-8">
-            Tối ưu kho hàng, giao hàng nhanh chóng và quản lý bán hàng hiệu quả với sức mạnh của AI.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4">
-            {[
-              { icon: Package, label: 'Kho hàng AI', desc: 'Dự báo tồn kho thông minh' },
-              { icon: Truck, label: 'Giao hàng tối ưu', desc: 'Lập tuyến tự động' },
-              { icon: ShoppingCart, label: 'Bán hàng thông minh', desc: 'Phân tích khách hàng' },
-            ].map(({ icon: Icon, label, desc }) => (
-              <div key={label} className="flex items-start gap-3 bg-white/10 rounded-xl p-3 flex-1">
-                <div className="w-8 h-8 bg-[#0ea5e9]/20 rounded-lg flex items-center justify-center shrink-0">
-                  <Icon size={16} className="text-[#0ea5e9]" />
-                </div>
-                <div>
-                  <p className="text-white text-sm font-medium leading-none">{label}</p>
-                  <p className="text-white/50 text-xs mt-0.5">{desc}</p>
-                </div>
+
+          {/* Triangle */}
+          <div className="relative" style={{ width: 360, height: 340 }}>
+
+            {/* SVG layer */}
+            <svg width="360" height="340" viewBox="0 0 360 340"
+              className="absolute inset-0" style={{ overflow: 'visible' }}>
+              <defs>
+                <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur stdDeviation="4" result="blur" />
+                  <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                </filter>
+                <filter id="glow-sm" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur stdDeviation="2" result="blur" />
+                  <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                </filter>
+                <linearGradient id="g-top-bl" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#0ea5e9" />
+                  <stop offset="100%" stopColor="#10b981" />
+                </linearGradient>
+                <linearGradient id="g-top-br" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#0ea5e9" />
+                  <stop offset="100%" stopColor="#f59e0b" />
+                </linearGradient>
+                <linearGradient id="g-bottom" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#10b981" />
+                  <stop offset="100%" stopColor="#f59e0b" />
+                </linearGradient>
+              </defs>
+
+              {/* Triangle fill */}
+              <polygon points="180,24 28,306 332,306"
+                fill="rgba(14,165,233,0.04)" stroke="none" />
+
+              {/* Edges */}
+              <line x1="180" y1="24" x2="28" y2="306"
+                stroke="url(#g-top-bl)" strokeWidth="1.5" filter="url(#glow-sm)" />
+              <line x1="180" y1="24" x2="332" y2="306"
+                stroke="url(#g-top-br)" strokeWidth="1.5" filter="url(#glow-sm)" />
+              <line x1="28" y1="306" x2="332" y2="306"
+                stroke="url(#g-bottom)" strokeWidth="1.5" filter="url(#glow-sm)" />
+
+              {/* Dashed center lines */}
+              <line x1="180" y1="212" x2="180" y2="24"
+                stroke="rgba(14,165,233,0.18)" strokeWidth="1" strokeDasharray="5,5" />
+              <line x1="180" y1="212" x2="28" y2="306"
+                stroke="rgba(16,185,129,0.18)" strokeWidth="1" strokeDasharray="5,5" />
+              <line x1="180" y1="212" x2="332" y2="306"
+                stroke="rgba(245,158,11,0.18)" strokeWidth="1" strokeDasharray="5,5" />
+
+              {/* Center node */}
+              <circle cx="180" cy="212" r="3" fill="rgba(255,255,255,0.25)" />
+              <circle cx="180" cy="212" r="8" fill="rgba(255,255,255,0.04)" />
+
+              {/* Vertex — top (Kho hàng) */}
+              <circle cx="180" cy="24" r="14" fill="rgba(14,165,233,0.12)" />
+              <circle cx="180" cy="24" r="6" fill="#0ea5e9" filter="url(#glow)" />
+
+              {/* Vertex — bottom-left (Bán hàng) */}
+              <circle cx="28" cy="306" r="14" fill="rgba(16,185,129,0.12)" />
+              <circle cx="28" cy="306" r="6" fill="#10b981" filter="url(#glow)" />
+
+              {/* Vertex — bottom-right (Logistics) */}
+              <circle cx="332" cy="306" r="14" fill="rgba(245,158,11,0.12)" />
+              <circle cx="332" cy="306" r="6" fill="#f59e0b" filter="url(#glow)" />
+            </svg>
+
+            {/* ── Card: Kho hàng — top center ── */}
+            <div className="absolute flex flex-col items-center text-center"
+              style={{ top: -80, left: '50%', transform: 'translateX(-50%)', width: 144 }}>
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-2.5"
+                style={{ background: 'rgba(14,165,233,0.12)', border: '1px solid rgba(14,165,233,0.35)' }}>
+                <Package size={22} color="#0ea5e9" />
               </div>
-            ))}
+              <p className="text-white font-bold text-sm leading-tight">Kho hàng AI</p>
+              <p className="text-[10px] leading-snug mt-1" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                Tồn kho · EOQ · ABC<br />Cảnh báo HSD
+              </p>
+            </div>
+
+            {/* ── Card: Bán hàng — bottom-left ── */}
+            <div className="absolute flex flex-col items-center text-center"
+              style={{ bottom: -16, left: -64, width: 136 }}>
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-2.5"
+                style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.35)' }}>
+                <ShoppingCart size={22} color="#10b981" />
+              </div>
+              <p className="text-white font-bold text-sm leading-tight">Bán hàng</p>
+              <p className="text-[10px] leading-snug mt-1" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                Đơn hàng · Báo giá<br />Công nợ · AI parse
+              </p>
+            </div>
+
+            {/* ── Card: Logistics — bottom-right ── */}
+            <div className="absolute flex flex-col items-center text-center"
+              style={{ bottom: -16, right: -64, width: 136 }}>
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-2.5"
+                style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.35)' }}>
+                <Truck size={22} color="#f59e0b" />
+              </div>
+              <p className="text-white font-bold text-sm leading-tight">Logistics</p>
+              <p className="text-[10px] leading-snug mt-1" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                Giao hàng · COD<br />Tracking · Tài xế
+              </p>
+            </div>
           </div>
         </div>
 
-        <div className="flex gap-8">
+        {/* Stats */}
+        <div className="relative z-10 flex gap-10 px-8 py-6"
+          style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
           {[['500+', 'Nhà phân phối'], ['99.9%', 'Uptime'], ['24/7', 'Hỗ trợ']].map(([num, label]) => (
             <div key={label}>
-              <p className="text-2xl font-bold text-white">{num}</p>
-              <p className="text-white/50 text-xs mt-0.5">{label}</p>
+              <p className="text-white font-bold text-xl">{num}</p>
+              <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>{label}</p>
             </div>
           ))}
         </div>
       </div>
 
-      {/* ── Right panel ── */}
+      {/* ── Right panel ───────────────────────────────────────── */}
       <div className="w-full lg:w-[460px] flex items-center justify-center p-8 bg-[#f0f2f5]">
         <div className="w-full max-w-sm">
 
-          {/* ── Đăng nhập ── */}
+          {/* Đăng nhập */}
           {mode === 'login' && (
             <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-[#e5e7eb] shadow-sm p-8 space-y-5">
               <div className="text-center mb-2">
@@ -164,7 +272,7 @@ export default function LoginPage() {
             </form>
           )}
 
-          {/* ── Quên mật khẩu ── */}
+          {/* Quên mật khẩu */}
           {mode === 'forgot' && (
             <form onSubmit={handleForgotSubmit} className="bg-white rounded-2xl border border-[#e5e7eb] shadow-sm p-8 space-y-5">
               <div>
@@ -203,7 +311,7 @@ export default function LoginPage() {
             </form>
           )}
 
-          {/* ── Đã gửi email ── */}
+          {/* Đã gửi email */}
           {mode === 'sent' && (
             <div className="bg-white rounded-2xl border border-[#e5e7eb] shadow-sm p-8 text-center space-y-4">
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
