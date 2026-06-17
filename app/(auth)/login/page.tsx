@@ -189,7 +189,18 @@ export default function LoginPage() {
       </div>
 
       {/* ── Right panel ───────────────────────────────────────── */}
-      <div className="w-full lg:w-[460px] flex items-center justify-center p-8 bg-[#f0f2f5] min-h-screen">
+      <div className="w-full lg:w-[460px] flex flex-col items-center justify-center p-8 bg-[#f0f2f5] min-h-screen">
+
+        {/* Logo — luôn hiển thị trên mobile, ẩn trên desktop (đã có ở hero) */}
+        <div className="flex lg:hidden items-center gap-3 mb-8">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/mia-logo.png" alt="Mia SCM" style={{ width: 52, height: 52, objectFit: 'contain' }} />
+          <div>
+            <p className="font-bold text-[#1e2a3a] text-xl leading-none">Mia SCM</p>
+            <p className="text-gray-400 text-xs mt-1">Supply Chain Management</p>
+          </div>
+        </div>
+
         <div className="w-full max-w-sm">
 
           {/* Đăng nhập */}
