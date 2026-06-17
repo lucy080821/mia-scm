@@ -29,7 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="vi" className="h-full">
       <head>
         <meta charSet="utf-8" />
-        <link rel="apple-touch-icon" href="/logo.svg" />
+        <link rel="apple-touch-icon" href="/mia-logo.png" />
       </head>
       <body className="h-full" suppressHydrationWarning>
         <ServiceWorkerRegistrar />

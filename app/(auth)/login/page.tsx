@@ -72,13 +72,9 @@ export default function LoginPage() {
         }} />
 
         {/* Logo — absolute để luôn hiện góc trên trái */}
-        <div style={{ position: 'absolute', top: 24, left: 32, zIndex: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ position: 'absolute', top: 20, left: 28, zIndex: 20 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/mia-logo.png" alt="Mia SCM" style={{ width: 44, height: 44, objectFit: 'contain' }} />
-          <div>
-            <p style={{ color: '#fff', fontWeight: 700, fontSize: 17, lineHeight: 1 }}>Mia SCM</p>
-            <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: 10.5, marginTop: 3 }}>Supply Chain Management</p>
-          </div>
+          <img src="/mia-logo.png" alt="Mia SCM" style={{ height: 56, width: 'auto', maxWidth: 220, objectFit: 'contain' }} />
         </div>
 
         {/* Main content */}
@@ -192,13 +188,9 @@ export default function LoginPage() {
       <div className="w-full lg:w-[460px] flex flex-col items-center justify-center p-8 bg-[#f0f2f5] min-h-screen">
 
         {/* Logo — luôn hiển thị trên mobile, ẩn trên desktop (đã có ở hero) */}
-        <div className="flex lg:hidden items-center gap-3 mb-8">
+        <div className="flex lg:hidden justify-center mb-8">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/mia-logo.png" alt="Mia SCM" style={{ width: 52, height: 52, objectFit: 'contain' }} />
-          <div>
-            <p className="font-bold text-[#1e2a3a] text-xl leading-none">Mia SCM</p>
-            <p className="text-gray-400 text-xs mt-1">Supply Chain Management</p>
-          </div>
+          <img src="/mia-logo.png" alt="Mia SCM" style={{ height: 64, width: 'auto', maxWidth: 240, objectFit: 'contain' }} />
         </div>
 
         <div className="w-full max-w-sm">
