@@ -58,7 +58,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex flex-col lg:flex-row">
 
       {/* ── Hero left ─────────────────────────────────────────── */}
-      <div className="flex-1 relative flex flex-col overflow-hidden" style={{ background: '#0b1623' }}>
+      <div className="flex-1 relative flex flex-col" style={{ background: '#0b1623', minHeight: '100vh' }}>
 
         {/* Dot grid */}
         <div className="absolute inset-0 pointer-events-none" style={{
@@ -68,130 +68,113 @@ export default function LoginPage() {
 
         {/* Ambient glow */}
         <div className="absolute inset-0 pointer-events-none" style={{
-          background: 'radial-gradient(ellipse 70% 60% at 50% 55%, rgba(14,165,233,0.08) 0%, transparent 70%)',
+          background: 'radial-gradient(ellipse 70% 60% at 50% 58%, rgba(14,165,233,0.09) 0%, transparent 70%)',
         }} />
 
         {/* Logo */}
-        <div className="relative z-10 flex items-center gap-3 px-8 py-7">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-white text-sm"
-            style={{ background: 'linear-gradient(135deg,#0ea5e9,#0284c7)' }}>M</div>
+        <div className="relative z-10 flex items-center gap-3 px-10 py-8">
+          <div className="flex items-center justify-center font-black text-white text-base rounded-xl"
+            style={{ width: 40, height: 40, background: 'linear-gradient(135deg,#0ea5e9,#0284c7)', flexShrink: 0 }}>M</div>
           <div>
             <p className="text-white font-bold text-lg leading-none">Mia SCM</p>
-            <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.35)' }}>Supply Chain Management</p>
+            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', marginTop: 2 }}>Supply Chain Management</p>
           </div>
         </div>
 
-        {/* Main content */}
-        <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 pb-4">
-          <p className="text-xs font-semibold uppercase tracking-[3px] mb-3"
-            style={{ color: 'rgba(14,165,233,0.7)' }}>Nền tảng quản lý</p>
-          <h1 className="text-white font-bold text-center leading-tight mb-14"
-            style={{ fontSize: 'clamp(22px,2.5vw,30px)' }}>
+        {/* Main content — flex-1, center vertically */}
+        <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6"
+          style={{ paddingTop: 16, paddingBottom: 32 }}>
+          <p className="text-xs font-semibold uppercase tracking-[3px] mb-4"
+            style={{ color: 'rgba(14,165,233,0.75)', letterSpacing: '0.2em' }}>Nền tảng quản lý</p>
+          <h1 className="text-white font-bold text-center leading-tight"
+            style={{ fontSize: 'clamp(20px,2.4vw,30px)', marginBottom: 64 }}>
             Chuỗi cung ứng thông minh<br />
             <span style={{ color: '#0ea5e9' }}>cho doanh nghiệp Việt</span>
           </h1>
 
-          {/* Triangle */}
-          <div className="relative" style={{ width: 360, height: 340 }}>
+          {/* Triangle wrapper — overflow visible, cards dùng absolute ra ngoài */}
+          <div style={{ position: 'relative', width: 320, height: 280 }}>
 
-            {/* SVG layer */}
-            <svg width="360" height="340" viewBox="0 0 360 340"
-              className="absolute inset-0" style={{ overflow: 'visible' }}>
+            {/* SVG — equilateral triangle: base=280, h≈242 */}
+            <svg width="320" height="280" viewBox="0 0 320 280"
+              style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>
               <defs>
-                <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-                  <feGaussianBlur stdDeviation="4" result="blur" />
+                <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+                  <feGaussianBlur stdDeviation="5" result="blur" />
                   <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
                 </filter>
-                <filter id="glow-sm" x="-50%" y="-50%" width="200%" height="200%">
-                  <feGaussianBlur stdDeviation="2" result="blur" />
+                <filter id="glow-sm" x="-60%" y="-60%" width="220%" height="220%">
+                  <feGaussianBlur stdDeviation="2.5" result="blur" />
                   <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
                 </filter>
-                <linearGradient id="g-top-bl" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#0ea5e9" />
-                  <stop offset="100%" stopColor="#10b981" />
+                <linearGradient id="g-tl" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#0ea5e9" /><stop offset="100%" stopColor="#10b981" />
                 </linearGradient>
-                <linearGradient id="g-top-br" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#0ea5e9" />
-                  <stop offset="100%" stopColor="#f59e0b" />
+                <linearGradient id="g-tr" x1="100%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="#0ea5e9" /><stop offset="100%" stopColor="#f59e0b" />
                 </linearGradient>
-                <linearGradient id="g-bottom" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#10b981" />
-                  <stop offset="100%" stopColor="#f59e0b" />
+                <linearGradient id="g-bt" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#10b981" /><stop offset="100%" stopColor="#f59e0b" />
                 </linearGradient>
               </defs>
 
-              {/* Triangle fill */}
-              <polygon points="180,24 28,306 332,306"
-                fill="rgba(14,165,233,0.04)" stroke="none" />
+              {/* Fill */}
+              <polygon points="160,16 20,264 300,264" fill="rgba(14,165,233,0.04)" />
 
               {/* Edges */}
-              <line x1="180" y1="24" x2="28" y2="306"
-                stroke="url(#g-top-bl)" strokeWidth="1.5" filter="url(#glow-sm)" />
-              <line x1="180" y1="24" x2="332" y2="306"
-                stroke="url(#g-top-br)" strokeWidth="1.5" filter="url(#glow-sm)" />
-              <line x1="28" y1="306" x2="332" y2="306"
-                stroke="url(#g-bottom)" strokeWidth="1.5" filter="url(#glow-sm)" />
+              <line x1="160" y1="16" x2="20"  y2="264" stroke="url(#g-tl)" strokeWidth="1.5" filter="url(#glow-sm)" />
+              <line x1="160" y1="16" x2="300" y2="264" stroke="url(#g-tr)" strokeWidth="1.5" filter="url(#glow-sm)" />
+              <line x1="20"  y1="264" x2="300" y2="264" stroke="url(#g-bt)" strokeWidth="1.5" filter="url(#glow-sm)" />
 
-              {/* Dashed center lines */}
-              <line x1="180" y1="212" x2="180" y2="24"
-                stroke="rgba(14,165,233,0.18)" strokeWidth="1" strokeDasharray="5,5" />
-              <line x1="180" y1="212" x2="28" y2="306"
-                stroke="rgba(16,185,129,0.18)" strokeWidth="1" strokeDasharray="5,5" />
-              <line x1="180" y1="212" x2="332" y2="306"
-                stroke="rgba(245,158,11,0.18)" strokeWidth="1" strokeDasharray="5,5" />
+              {/* Centroid ≈ (160,181) */}
+              <line x1="160" y1="181" x2="160" y2="16"  stroke="rgba(14,165,233,0.14)" strokeWidth="1" strokeDasharray="5,7" />
+              <line x1="160" y1="181" x2="20"  y2="264" stroke="rgba(16,185,129,0.14)" strokeWidth="1" strokeDasharray="5,7" />
+              <line x1="160" y1="181" x2="300" y2="264" stroke="rgba(245,158,11,0.14)" strokeWidth="1" strokeDasharray="5,7" />
+              <circle cx="160" cy="181" r="3" fill="rgba(255,255,255,0.28)" />
+              <circle cx="160" cy="181" r="9"  fill="rgba(255,255,255,0.04)" />
 
-              {/* Center node */}
-              <circle cx="180" cy="212" r="3" fill="rgba(255,255,255,0.25)" />
-              <circle cx="180" cy="212" r="8" fill="rgba(255,255,255,0.04)" />
+              {/* Vertex top — Kho hàng */}
+              <circle cx="160" cy="16"  r="16" fill="rgba(14,165,233,0.1)" />
+              <circle cx="160" cy="16"  r="6"  fill="#0ea5e9" filter="url(#glow)" />
 
-              {/* Vertex — top (Kho hàng) */}
-              <circle cx="180" cy="24" r="14" fill="rgba(14,165,233,0.12)" />
-              <circle cx="180" cy="24" r="6" fill="#0ea5e9" filter="url(#glow)" />
+              {/* Vertex BL — Bán hàng */}
+              <circle cx="20"  cy="264" r="16" fill="rgba(16,185,129,0.1)" />
+              <circle cx="20"  cy="264" r="6"  fill="#10b981" filter="url(#glow)" />
 
-              {/* Vertex — bottom-left (Bán hàng) */}
-              <circle cx="28" cy="306" r="14" fill="rgba(16,185,129,0.12)" />
-              <circle cx="28" cy="306" r="6" fill="#10b981" filter="url(#glow)" />
-
-              {/* Vertex — bottom-right (Logistics) */}
-              <circle cx="332" cy="306" r="14" fill="rgba(245,158,11,0.12)" />
-              <circle cx="332" cy="306" r="6" fill="#f59e0b" filter="url(#glow)" />
+              {/* Vertex BR — Logistics */}
+              <circle cx="300" cy="264" r="16" fill="rgba(245,158,11,0.1)" />
+              <circle cx="300" cy="264" r="6"  fill="#f59e0b" filter="url(#glow)" />
             </svg>
 
-            {/* ── Card: Kho hàng — top center ── */}
-            <div className="absolute flex flex-col items-center text-center"
-              style={{ top: -80, left: '50%', transform: 'translateX(-50%)', width: 144 }}>
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-2.5"
-                style={{ background: 'rgba(14,165,233,0.12)', border: '1px solid rgba(14,165,233,0.35)' }}>
-                <Package size={22} color="#0ea5e9" />
+            {/* Card: Kho hàng — trên đỉnh */}
+            <div style={{ position: 'absolute', top: -120, left: '50%', transform: 'translateX(-50%)', width: 160, textAlign: 'center' }}>
+              <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(14,165,233,0.13)', border: '1px solid rgba(14,165,233,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px' }}>
+                <Package size={24} color="#0ea5e9" />
               </div>
-              <p className="text-white font-bold text-sm leading-tight">Kho hàng AI</p>
-              <p className="text-[10px] leading-snug mt-1" style={{ color: 'rgba(255,255,255,0.38)' }}>
+              <p style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>Kho hàng AI</p>
+              <p style={{ color: 'rgba(255,255,255,0.42)', fontSize: 10, lineHeight: 1.6, marginTop: 4 }}>
                 Tồn kho · EOQ · ABC<br />Cảnh báo HSD
               </p>
             </div>
 
-            {/* ── Card: Bán hàng — bottom-left ── */}
-            <div className="absolute flex flex-col items-center text-center"
-              style={{ bottom: -16, left: -64, width: 136 }}>
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-2.5"
-                style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.35)' }}>
-                <ShoppingCart size={22} color="#10b981" />
+            {/* Card: Bán hàng — đỉnh trái */}
+            <div style={{ position: 'absolute', bottom: -100, left: -120, width: 150, textAlign: 'center' }}>
+              <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(16,185,129,0.13)', border: '1px solid rgba(16,185,129,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px' }}>
+                <ShoppingCart size={24} color="#10b981" />
               </div>
-              <p className="text-white font-bold text-sm leading-tight">Bán hàng</p>
-              <p className="text-[10px] leading-snug mt-1" style={{ color: 'rgba(255,255,255,0.38)' }}>
+              <p style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>Bán hàng</p>
+              <p style={{ color: 'rgba(255,255,255,0.42)', fontSize: 10, lineHeight: 1.6, marginTop: 4 }}>
                 Đơn hàng · Báo giá<br />Công nợ · AI parse
               </p>
             </div>
 
-            {/* ── Card: Logistics — bottom-right ── */}
-            <div className="absolute flex flex-col items-center text-center"
-              style={{ bottom: -16, right: -64, width: 136 }}>
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-2.5"
-                style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.35)' }}>
-                <Truck size={22} color="#f59e0b" />
+            {/* Card: Logistics — đỉnh phải */}
+            <div style={{ position: 'absolute', bottom: -100, right: -120, width: 150, textAlign: 'center' }}>
+              <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(245,158,11,0.13)', border: '1px solid rgba(245,158,11,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px' }}>
+                <Truck size={24} color="#f59e0b" />
               </div>
-              <p className="text-white font-bold text-sm leading-tight">Logistics</p>
-              <p className="text-[10px] leading-snug mt-1" style={{ color: 'rgba(255,255,255,0.38)' }}>
+              <p style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>Logistics</p>
+              <p style={{ color: 'rgba(255,255,255,0.42)', fontSize: 10, lineHeight: 1.6, marginTop: 4 }}>
                 Giao hàng · COD<br />Tracking · Tài xế
               </p>
             </div>
@@ -199,12 +182,12 @@ export default function LoginPage() {
         </div>
 
         {/* Stats */}
-        <div className="relative z-10 flex gap-10 px-8 py-6"
-          style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        <div className="relative z-10 flex gap-12 px-10 py-7"
+          style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
           {[['500+', 'Nhà phân phối'], ['99.9%', 'Uptime'], ['24/7', 'Hỗ trợ']].map(([num, label]) => (
             <div key={label}>
               <p className="text-white font-bold text-xl">{num}</p>
-              <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>{label}</p>
+              <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.38)' }}>{label}</p>
             </div>
           ))}
         </div>
