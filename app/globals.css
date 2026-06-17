@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+@theme {
+  --color-navy: #1e2a3a;
+  --color-navy-light: #1a3a5c;
+  --color-sky: #0ea5e9;
+  --color-page-bg: #f0f2f5;
+  --color-border: #e5e7eb;
+  --color-text-primary: #1e2a3a;
+  --color-text-secondary: #6b7280;
+
+  --font-sans: -apple-system, "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #f0f2f5;
+  color: #1e2a3a;
+}
+
+/* Cursor pointer cho mọi element tương tác */
+button,
+a,
+[role="button"],
+label[for],
+select,
+input[type="checkbox"],
+input[type="radio"],
+input[type="file"],
+summary {
+  cursor: pointer !important;
+}
+
+/* Scrollbar tùy chỉnh */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f0f2f5;
+}
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
