@@ -7,9 +7,9 @@ export const metadata: Metadata = {
   description: 'Hệ thống quản lý chuỗi cung ứng thông minh cho nhà phân phối FMCG tại Việt Nam',
   manifest: '/manifest.webmanifest',
   icons: {
-    icon: [{ url: '/logo.svg', type: 'image/svg+xml' }],
-    shortcut: '/logo.svg',
-    apple: '/logo.svg',
+    icon: [{ url: '/mia-logo.png', type: 'image/png' }],
+    shortcut: '/mia-logo.png',
+    apple: '/mia-logo.png',
   },
   appleWebApp: {
     capable: true,

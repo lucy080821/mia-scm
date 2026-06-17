@@ -74,7 +74,7 @@ export default function LoginPage() {
         {/* Logo — absolute để luôn hiện góc trên trái */}
         <div style={{ position: 'absolute', top: 24, left: 32, zIndex: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.svg" alt="Mia SCM" style={{ width: 38, height: 38, borderRadius: 10 }} />
+          <img src="/mia-logo.png" alt="Mia SCM" style={{ width: 44, height: 44, objectFit: 'contain' }} />
           <div>
             <p style={{ color: '#fff', fontWeight: 700, fontSize: 17, lineHeight: 1 }}>Mia SCM</p>
             <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: 10.5, marginTop: 3 }}>Supply Chain Management</p>
