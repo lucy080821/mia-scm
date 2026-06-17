@@ -1,12 +1,12 @@
 <svg width="96" height="96" viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#38bdf8"/>
-      <stop offset="100%" stop-color="#0ea5e9"/>
-    </linearGradient>
-  </defs>
-  <rect width="96" height="96" rx="22" fill="url(#bg)"/>
-  <rect x="14" y="34" width="34" height="28" rx="14" fill="none" stroke="white" stroke-width="6.5"/>
-  <rect x="48" y="34" width="34" height="28" rx="14" fill="none" stroke="white" stroke-width="6.5"/>
-  <rect x="49" y="37.5" width="12" height="21" fill="url(#bg)"/>
+  <rect width="96" height="96" rx="22" fill="#0d1823"/>
+
+  <!-- Top triangle: Kho hàng AI — sky blue -->
+  <polygon points="48,11 31,39 65,39" fill="#0ea5e9"/>
+
+  <!-- Bottom-left: Bán hàng — emerald -->
+  <polygon points="14,67 31,39 48,67" fill="#10b981"/>
+
+  <!-- Bottom-right: Logistics — amber -->
+  <polygon points="82,67 65,39 48,67" fill="#f59e0b"/>
 </svg>
