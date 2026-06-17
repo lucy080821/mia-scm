@@ -58,7 +58,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex flex-col lg:flex-row">
 
       {/* ── Hero left ─────────────────────────────────────────── */}
-      <div className="flex-1 relative flex flex-col" style={{ background: '#0b1623', minHeight: '100vh' }}>
+      <div className="hidden lg:flex flex-1 relative flex-col" style={{ background: '#0b1623' }}>
 
         {/* Dot grid */}
         <div className="absolute inset-0 pointer-events-none" style={{
@@ -189,7 +189,7 @@ export default function LoginPage() {
       </div>
 
       {/* ── Right panel ───────────────────────────────────────── */}
-      <div className="w-full lg:w-[460px] flex items-center justify-center p-8 bg-[#f0f2f5]">
+      <div className="w-full lg:w-[460px] flex items-center justify-center p-8 bg-[#f0f2f5] min-h-screen">
         <div className="w-full max-w-sm">
 
           {/* Đăng nhập */}
