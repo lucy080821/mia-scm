@@ -62,11 +62,13 @@ const CONFIGS: ImportConfig[] = [
       { key: 'expiry_days',      label: 'Tổng HSD (ngày)',     type: 'number',  hint: 'Tính từ ngày SX. VD: 180 = 6 tháng. Để trống nếu không HSD' },
       { key: 'manufacture_date', label: 'Ngày sản xuất lô',   type: 'date',    hint: 'DD/MM/YYYY. Dùng để tính % HSD còn lại' },
       { key: 'status',           label: 'Trạng thái',          type: 'enum',    enum: ['active', 'inactive'], hint: 'active hoặc inactive' },
+      { key: 'warehouse_code',   label: 'Mã kho (tồn đầu)',                    hint: 'Mã kho để nhập tồn ban đầu. Để trống nếu nhập riêng ở bước Tồn kho' },
+      { key: 'initial_quantity', label: 'Số lượng tồn đầu',   type: 'number',  hint: 'Số lượng tồn kho ban đầu tại kho trên' },
     ],
     sampleRows: [
-      ['CMK0001', 'Bánh muffin socola chip Chocomilk 90g', 'Bánh kẹo', 'Công ty Chocomilk', 'gói', '12000', '18000', '200', '180', '01/01/2026', 'active'],
-      ['CMK0002', 'Sữa chua ăn không đường Chocomilk 100g', 'Sữa', 'Công ty Chocomilk', 'hộp', '12000', '17000', '300', '30', '01/06/2026', 'active'],
-      ['CMK0003', 'Bánh cracker vị rau củ Chocomilk 200g', 'Bánh kẹo', 'Công ty Chocomilk', 'hộp', '23000', '32000', '150', '270', '15/03/2026', 'active'],
+      ['CMK0001', 'Bánh muffin socola chip Chocomilk 90g', 'Bánh kẹo', 'Công ty Chocomilk', 'gói', '12000', '18000', '200', '180', '01/01/2026', 'active', 'KHO-HCM', '500'],
+      ['CMK0002', 'Sữa chua ăn không đường Chocomilk 100g', 'Sữa', 'Công ty Chocomilk', 'hộp', '12000', '17000', '300', '30', '01/06/2026', 'active', 'KHO-HCM', '800'],
+      ['CMK0003', 'Bánh cracker vị rau củ Chocomilk 200g', 'Bánh kẹo', 'Công ty Chocomilk', 'hộp', '23000', '32000', '150', '270', '15/03/2026', 'active', '', ''],
     ],
   },
   {
@@ -599,6 +601,7 @@ export default function NhapLieuPage() {
       )}
 
       <ImportPanel key={activeTab} config={config} />
+
     </div>
   )
 }

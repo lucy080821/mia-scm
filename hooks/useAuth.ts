@@ -43,6 +43,11 @@ export function useAuth() {
     const name     = profile?.full_name ?? u.user_metadata?.full_name ?? u.email?.split('@')[0] ?? 'User'
     const role     = profile?.role ?? u.user_metadata?.role ?? 'admin'   // DB là source of truth
     const tenantId = profile?.tenant_id ?? u.user_metadata?.tenant_id ?? DEFAULT_TENANT.id
+
+    // Sync role vào user_metadata để middleware đọc được đúng role
+    if (role !== u.user_metadata?.role) {
+      supabase.auth.updateUser({ data: { role } })
+    }
     console.log('[useAuth] final role:', role)
 
     // Resolve tenant — prefer localStorage so user's saved settings survive a page refresh

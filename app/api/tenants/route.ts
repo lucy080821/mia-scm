@@ -34,10 +34,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = await req.json()
-  const { name, slug, adminEmail, adminPassword, enabledModules, address, phone, taxCode } = body
+  const { name, slug, adminEmail, adminPassword, enabledModules, address, phone, taxCode, plan } = body
 
   if (!name || !slug || !adminEmail || !adminPassword)
     return NextResponse.json({ error: 'Thiếu thông tin bắt buộc' }, { status: 400 })
+
+  const VALID_PLANS = ['starter', 'growth', 'enterprise']
+  const chosenPlan = VALID_PLANS.includes(plan) ? plan : 'starter'
 
   // Kiểm tra slug trùng
   const { data: existing } = await supabaseAdmin
@@ -51,6 +54,7 @@ export async function POST(req: NextRequest) {
     .insert({
       slug,
       name,
+      plan:             chosenPlan,
       primary_color:    '#0ea5e9',
       enabled_modules:  enabledModules ?? ['ban-hang', 'kho-hang', 'logistics', 'mua-hang', 'tai-chinh', 'bao-cao'],
       address:          address || null,

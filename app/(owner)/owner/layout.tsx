@@ -5,15 +5,31 @@ import { useAuth } from '@/hooks/useAuth'
 import {
   LayoutDashboard, Building2, Users, Settings,
   Crown, LogOut, ChevronRight, Bell,
+  Activity, CreditCard, ClipboardList,
 } from 'lucide-react'
 import Link from 'next/link'
 
 const NAV = [
-  { href: '/owner/dashboard', label: 'Tổng quan', icon: LayoutDashboard },
-  { href: '/owner/companies', label: 'Công ty', icon: Building2 },
-  { href: '/owner/accounts',  label: 'Tài khoản owner', icon: Users },
-  { href: '/owner/settings',  label: 'Cài đặt', icon: Settings },
+  { href: '/owner/dashboard',     label: 'Tong quan',       icon: LayoutDashboard },
+  { href: '/owner/companies',     label: 'Cong ty',          icon: Building2 },
+  { href: '/owner/health',        label: 'Health',           icon: Activity },
+  { href: '/owner/billing',       label: 'Billing & Plan',   icon: CreditCard },
+  { href: '/owner/activity',      label: 'Activity Log',     icon: ClipboardList },
+  { href: '/owner/notifications', label: 'Thong bao',        icon: Bell },
+  { href: '/owner/accounts',      label: 'Tai khoan owner',  icon: Users },
+  { href: '/owner/settings',      label: 'Cai dat',          icon: Settings },
 ]
+
+const NAV_LABELS: Record<string, string> = {
+  '/owner/dashboard':     'Tổng quan',
+  '/owner/companies':     'Công ty',
+  '/owner/health':        'Health',
+  '/owner/billing':       'Billing & Plan',
+  '/owner/activity':      'Activity Log',
+  '/owner/notifications': 'Thông báo',
+  '/owner/accounts':      'Tài khoản owner',
+  '/owner/settings':      'Cài đặt',
+}
 
 export default function OwnerLayout({ children }: { children: React.ReactNode }) {
   const { user, signOut } = useAuth()
@@ -43,6 +59,8 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
 
   const initials = user?.name.split(' ').pop()?.charAt(0).toUpperCase() ?? '?'
 
+  const currentNav = NAV.find(n => pathname === n.href || pathname.startsWith(n.href + '/'))
+
   return (
     <div className="flex h-screen bg-[#f8fafc] overflow-hidden">
       {/* Sidebar */}
@@ -61,8 +79,9 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5">
-          {NAV.map(({ href, label, icon: Icon }) => {
+        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+          {NAV.map(({ href, label: _label, icon: Icon }) => {
+            const label = NAV_LABELS[href] ?? _label
             const active = pathname === href || pathname.startsWith(href + '/')
             return (
               <Link key={href} href={href}
@@ -103,19 +122,16 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
         {/* Topbar */}
         <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0">
           <div className="flex items-center gap-2">
-            {NAV.find(n => pathname === n.href || pathname.startsWith(n.href + '/'))
-              ? (() => {
-                  const current = NAV.find(n => pathname === n.href || pathname.startsWith(n.href + '/'))!
-                  const Icon = current.icon
-                  return (
-                    <div className="flex items-center gap-2 text-[#0f172a]">
-                      <Icon size={16} className="text-amber-500" />
-                      <span className="text-sm font-semibold">{current.label}</span>
-                    </div>
-                  )
-                })()
-              : null
-            }
+            {currentNav && (() => {
+              const Icon = currentNav.icon
+              const label = NAV_LABELS[currentNav.href] ?? currentNav.label
+              return (
+                <div className="flex items-center gap-2 text-[#0f172a]">
+                  <Icon size={16} className="text-amber-500" />
+                  <span className="text-sm font-semibold">{label}</span>
+                </div>
+              )
+            })()}
           </div>
           <div className="flex items-center gap-3">
             <button className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors relative">

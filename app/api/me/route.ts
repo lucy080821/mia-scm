@@ -28,7 +28,18 @@ export async function GET(req: NextRequest) {
       profile = res.data
     }
 
-    return NextResponse.json(profile ?? null)
+    // Lấy plan từ tenants table để luôn trả về giá trị mới nhất
+    let tenant_plan: string | null = null
+    if (profile?.tenant_id) {
+      const { data: tenant } = await supabaseAdmin
+        .from('tenants')
+        .select('plan')
+        .eq('id', profile.tenant_id)
+        .single()
+      tenant_plan = tenant?.plan ?? null
+    }
+
+    return NextResponse.json(profile ? { ...profile, tenant_plan } : null)
   }
 
   if (emailParam) {

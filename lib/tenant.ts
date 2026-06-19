@@ -5,7 +5,7 @@ export interface TenantConfig {
   logoUrl?: string
   primaryColor: string
   enabledModules: string[]
-  plan: 'basic' | 'pro' | 'enterprise'
+  plan: 'starter' | 'growth' | 'enterprise' | 'basic' | 'pro'
   address?: string
   phone?: string
   taxCode?: string

@@ -54,30 +54,40 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Đã đăng nhập đang vào login → về dashboard
-  if (user && pathname === '/login') {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
-  }
-
   if (user) {
     const role = (user.user_metadata?.role ?? 'sales') as Role
+
+    // Đã đăng nhập đang vào login → về đúng home theo role
+    if (pathname === '/login') {
+      return NextResponse.redirect(new URL(
+        role === 'owner' ? '/owner/dashboard' : '/dashboard',
+        request.url,
+      ))
+    }
+
+    // Owner chỉ được ở /owner/* — mọi route khác đều về owner dashboard
+    if (role === 'owner' && !pathname.startsWith('/owner')) {
+      return NextResponse.redirect(new URL('/owner/dashboard', request.url))
+    }
+
+    // Non-owner không được vào /owner/*
+    if (pathname.startsWith('/owner') && role !== 'owner') {
+      return NextResponse.redirect(new URL('/dashboard?denied=1', request.url))
+    }
 
     // Tài xế chỉ được vào app tài xế
     if (role === 'driver' && !pathname.startsWith('/mobile') && !pathname.startsWith('/giao-hang')) {
       return NextResponse.redirect(new URL('/giao-hang', request.url))
     }
 
-    // Kiểm tra quyền theo module
-    const matched = Object.entries(ROUTE_MODULE)
-      .find(([prefix]) => pathname.startsWith(prefix))
+    // Kiểm tra quyền theo module (không áp dụng cho owner)
+    if (role !== 'owner') {
+      const matched = Object.entries(ROUTE_MODULE)
+        .find(([prefix]) => pathname.startsWith(prefix))
 
-    if (matched && !canAccessModule(role, matched[1])) {
-      return NextResponse.redirect(new URL('/dashboard?denied=1', request.url))
-    }
-
-    // Owner panel chỉ dành cho owner
-    if (pathname.startsWith('/owner') && role !== 'owner') {
-      return NextResponse.redirect(new URL('/dashboard?denied=1', request.url))
+      if (matched && !canAccessModule(role, matched[1])) {
+        return NextResponse.redirect(new URL('/dashboard?denied=1', request.url))
+      }
     }
   }
 

@@ -159,5 +159,24 @@ export async function GET(req: NextRequest) {
     )
   }
 
+  // ─── Tồn kho hiện tại ────────────────────────────────────────────────────
+  if (type === 'inventory_current') {
+    const { data } = await supabaseAdmin
+      .from('inventory')
+      .select('quantity, product:products ( id, name, sku, unit )')
+      .gt('quantity', 0)
+      .order('quantity', { ascending: false })
+      .limit(50)
+
+    const items = (data ?? []).map((row: any) => ({
+      sku:  row.product?.sku  ?? '—',
+      name: row.product?.name ?? 'Unknown',
+      unit: row.product?.unit ?? '',
+      qty:  row.quantity ?? 0,
+    }))
+
+    return NextResponse.json(items)
+  }
+
   return NextResponse.json({ error: 'Invalid type' }, { status: 400 })
 }

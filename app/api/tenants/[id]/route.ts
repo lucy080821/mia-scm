@@ -18,16 +18,18 @@ async function getCallerInfo(req: NextRequest) {
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const caller = await getCallerInfo(req)
-  if (!caller || caller.role !== 'admin')
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  if (caller.tenant_id !== id)
+  // Owner có thể sửa bất kỳ tenant nào; admin chỉ sửa được tenant của mình
+  const isOwner = caller.role === 'owner'
+  const isAdminOfTenant = caller.role === 'admin' && caller.tenant_id === id
+  if (!isOwner && !isAdminOfTenant)
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = await req.json()
-  const { name, address, phone, tax_code, primary_color, logo_url, enabled_modules, plan: _plan } = body
-  void _plan // plan không cập nhật qua UI — chốt tay trong DB
+  const { name, address, phone, tax_code, primary_color, logo_url, enabled_modules, plan } = body
 
+  const VALID_PLANS = ['starter', 'growth', 'enterprise']
   const updateData: Record<string, unknown> = {}
   if (name !== undefined)             updateData.name = name
   if (address !== undefined)          updateData.address = address
@@ -36,6 +38,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (primary_color !== undefined)    updateData.primary_color = primary_color
   if (logo_url !== undefined)         updateData.logo_url = logo_url
   if (enabled_modules !== undefined)  updateData.enabled_modules = enabled_modules
+  // Only owner can change plan
+  if (plan !== undefined && isOwner) {
+    if (!VALID_PLANS.includes(plan))
+      return NextResponse.json({ error: 'Plan không hợp lệ' }, { status: 400 })
+    updateData.plan = plan
+  }
 
   const { data, error } = await supabaseAdmin
     .from('tenants')

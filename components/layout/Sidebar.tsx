@@ -8,7 +8,7 @@ import {
   UserCheck, PieChart, Settings, Wrench,
   X, ChevronDown, ChevronRight, LogOut,
   DollarSign, TrendingUp, TrendingDown, BarChart2, CreditCard, UserCog,
-  FileSpreadsheet,
+  FileSpreadsheet, Briefcase,
 } from 'lucide-react'
 import { useState } from 'react'
 import { canAccess } from '@/lib/auth-client'
@@ -73,7 +73,8 @@ const navConfig = [
       { label: 'Nhân viên',    href: '/cai-dat/nhan-vien',        icon: UserCog },
       { label: 'Nhập liệu',   href: '/cai-dat/nhap-lieu',        icon: ArrowDownToLine },
       { label: 'Danh mục',    href: '/cai-dat/danh-muc',         icon: Settings },
-      { label: 'Hệ thống',    href: '/cai-dat/he-thong',         icon: Wrench },
+      { label: 'Nghiệp vụ',  href: '/cai-dat/nghiep-vu',        icon: Briefcase },
+      { label: 'Hệ thống',   href: '/cai-dat/he-thong',         icon: Wrench },
     ],
   },
 ]

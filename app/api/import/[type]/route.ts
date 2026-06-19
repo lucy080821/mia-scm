@@ -59,7 +59,7 @@ export async function POST(
             .from('categories').select('id').ilike('name', row.category.trim()).maybeSingle()
           categoryId = data?.id ?? null
         }
-        const { error } = await supabaseAdmin.from('products').insert({
+        const { data: productData, error } = await supabaseAdmin.from('products').insert({
           sku:              row.sku?.trim(),
           name:             row.name?.trim(),
           category_id:      categoryId,
@@ -72,8 +72,25 @@ export async function POST(
           manufacture_date: toDate(row.manufacture_date),
           status:           row.status?.trim() || 'active',
           tenant_id:        caller.tenant_id,
-        })
+        }).select('id').single()
         if (error) throw new Error(error.message)
+
+        // Tạo inventory record nếu có warehouse_code và initial_quantity
+        const initQty = toNum(row.initial_quantity)
+        if (row.warehouse_code?.trim() && initQty && initQty > 0 && productData) {
+          const { data: wh } = await supabaseAdmin
+            .from('warehouses').select('id').eq('code', row.warehouse_code.trim()).maybeSingle()
+          if (wh) {
+            await supabaseAdmin.from('inventory').insert({
+              product_id:   productData.id,
+              warehouse_id: wh.id,
+              quantity:     initQty,
+              lot_number:   null,
+              tenant_id:    caller.tenant_id,
+            })
+          }
+        }
+
         inserted++
       } catch (e: unknown) {
         errors.push({ line: i + 2, message: e instanceof Error ? e.message : String(e) })
