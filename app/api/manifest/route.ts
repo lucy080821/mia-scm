@@ -4,6 +4,16 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 
 export const dynamic = 'force-dynamic'
 
+function mimeFromUrl(url: string): string {
+  const ext = url.split('?')[0].split('.').pop()?.toLowerCase()
+  const map: Record<string, string> = {
+    png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+    webp: 'image/webp', svg: 'image/svg+xml', gif: 'image/gif',
+    avif: 'image/avif',
+  }
+  return map[ext ?? ''] ?? 'image/png'
+}
+
 export async function GET() {
   let name = 'Mia SCM'
   let shortName = 'Mia SCM'
@@ -31,9 +41,10 @@ export async function GET() {
   const icons: Array<{ src: string; sizes: string; type: string; purpose: string }> = []
 
   if (logoUrl) {
-    icons.push({ src: logoUrl, sizes: '192x192', type: 'image/png', purpose: 'any' })
-    icons.push({ src: logoUrl, sizes: '512x512', type: 'image/png', purpose: 'any' })
-    icons.push({ src: logoUrl, sizes: '512x512', type: 'image/png', purpose: 'maskable' })
+    const mime = mimeFromUrl(logoUrl)
+    icons.push({ src: logoUrl, sizes: '192x192', type: mime, purpose: 'any' })
+    icons.push({ src: logoUrl, sizes: '512x512', type: mime, purpose: 'any' })
+    icons.push({ src: logoUrl, sizes: '512x512', type: mime, purpose: 'maskable' })
   }
 
   // Fallback icon Mia SCM
