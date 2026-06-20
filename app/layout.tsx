@@ -12,8 +12,8 @@ export const metadata: Metadata = {
     title: 'Mia SCM',
   },
   icons: {
-    icon: '/mia-logo.png',
-    apple: '/mia-logo.png',
+    icon: '/api/favicon',
+    apple: '/api/logo',
   },
 }
 

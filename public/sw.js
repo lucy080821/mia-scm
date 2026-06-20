@@ -1,8 +1,7 @@
-const CACHE_NAME = 'mia-scm-v1'
+const CACHE_NAME = 'mia-scm-v2'
 const STATIC_ASSETS = [
   '/',
   '/dashboard',
-  '/logo.svg',
 ]
 
 // Install: cache static assets
