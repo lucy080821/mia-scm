@@ -31,13 +31,15 @@ export async function GET() {
   const icons: Array<{ src: string; sizes: string; type: string; purpose: string }> = []
 
   if (logoUrl) {
-    icons.push({ src: logoUrl, sizes: 'any', type: 'image/png', purpose: 'any' })
-    icons.push({ src: logoUrl, sizes: 'any', type: 'image/png', purpose: 'maskable' })
+    icons.push({ src: logoUrl, sizes: '192x192', type: 'image/png', purpose: 'any' })
+    icons.push({ src: logoUrl, sizes: '512x512', type: 'image/png', purpose: 'any' })
+    icons.push({ src: logoUrl, sizes: '512x512', type: 'image/png', purpose: 'maskable' })
   }
 
   // Fallback icon Mia SCM
-  icons.push({ src: '/mia-logo.png', sizes: 'any', type: 'image/png', purpose: 'any' })
-  icons.push({ src: '/mia-logo.png', sizes: 'any', type: 'image/png', purpose: 'maskable' })
+  icons.push({ src: '/mia-logo.png', sizes: '192x192', type: 'image/png', purpose: 'any' })
+  icons.push({ src: '/mia-logo.png', sizes: '512x512', type: 'image/png', purpose: 'any' })
+  icons.push({ src: '/mia-logo.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' })
 
   const manifest = {
     name,
