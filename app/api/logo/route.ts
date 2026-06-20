@@ -4,6 +4,10 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 
 export const dynamic = 'force-dynamic'
 
+/**
+ * Proxy logo của tenant qua server — tránh bị CDN bên ngoài chặn hotlink.
+ * Chrome PWA installer fetch icon từ origin này nên luôn được phục vụ.
+ */
 export async function GET(req: NextRequest) {
   const origin = new URL(req.url).origin
 
@@ -17,7 +21,9 @@ export async function GET(req: NextRequest) {
         .single()
 
       if (data?.logo_url) {
-        const imgRes = await fetch(data.logo_url, { headers: { 'User-Agent': 'MiaSCM/1.0' } })
+        const imgRes = await fetch(data.logo_url, {
+          headers: { 'User-Agent': 'MiaSCM/1.0' },
+        })
         if (imgRes.ok) {
           const contentType = imgRes.headers.get('content-type') ?? 'image/png'
           const buffer = await imgRes.arrayBuffer()
@@ -32,8 +38,6 @@ export async function GET(req: NextRequest) {
     }
   } catch {}
 
-  return NextResponse.redirect(`${origin}/mia-logo.png`, {
-    status: 302,
-    headers: { 'Cache-Control': 'no-cache, no-store' },
-  })
+  // Fallback: Mia SCM default logo
+  return NextResponse.redirect(`${origin}/mia-logo.png`, { status: 302 })
 }

@@ -40,11 +40,11 @@ export async function GET() {
 
   const icons: Array<{ src: string; sizes: string; type: string; purpose: string }> = []
 
+  // Dùng /api/logo để proxy — tránh CDN bên ngoài chặn hotlink khi Chrome tải icon PWA
   if (logoUrl) {
-    const mime = mimeFromUrl(logoUrl)
-    icons.push({ src: logoUrl, sizes: '192x192', type: mime, purpose: 'any' })
-    icons.push({ src: logoUrl, sizes: '512x512', type: mime, purpose: 'any' })
-    icons.push({ src: logoUrl, sizes: '512x512', type: mime, purpose: 'maskable' })
+    icons.push({ src: '/api/logo', sizes: '192x192', type: 'image/png', purpose: 'any' })
+    icons.push({ src: '/api/logo', sizes: '512x512', type: 'image/png', purpose: 'any' })
+    icons.push({ src: '/api/logo', sizes: '512x512', type: 'image/png', purpose: 'maskable' })
   }
 
   // Fallback icon Mia SCM
