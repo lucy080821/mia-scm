@@ -1,11 +1,10 @@
-﻿'use client'
-import { useEffect, useRef, useState } from 'react'
+'use client'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import {
   Bell, X, ShoppingCart, Package, Truck, ClipboardList,
-  AlertTriangle, CheckCircle2, Clock, ChevronRight,
+  CheckCircle2, Clock, ChevronRight,
 } from 'lucide-react'
 import Link from 'next/link'
-import { generateInventoryNotifs, generateDebtNotifs } from '@/lib/stock-alerts'
 
 export type NotifType = 'order' | 'inventory' | 'delivery' | 'purchase' | 'system'
 
@@ -14,70 +13,26 @@ export interface Notification {
   type: NotifType
   title: string
   message: string
-  time: string   // ISO
+  time: string
   read: boolean
   href?: string
 }
 
-// Bump version to clear stale localStorage when notification schema changes
-const STORAGE_KEY = 'mia_notifs_v2'
+// Lưu trạng thái đã đọc / đã xóa theo ID
+const STATE_KEY = 'mia_notifs_state_v1'
 
-const STATIC_NOTIFS: Notification[] = [
-  {
-    id: 'ord-1', type: 'order', read: false,
-    title: 'Đơn hàng mới cần xác nhận',
-    message: 'SO-240524-018 từ Cty TNHH Minh Phát — 45,200,000 đ',
-    time: new Date(Date.now() - 8 * 60_000).toISOString(),
-    href: '/ban-hang/don-hang-ban',
-  },
-  {
-    id: 'del-1', type: 'delivery', read: false,
-    title: 'Đơn vận chuyển bị trễ',
-    message: 'DV-240522-004 — Tài xế Nguyễn Văn Hùng báo trễ 2 giờ',
-    time: new Date(Date.now() - 47 * 60_000).toISOString(),
-    href: '/logistics/don-van-chuyen',
-  },
-  {
-    id: 'pur-1', type: 'purchase', read: false,
-    title: 'Đơn mua hàng chờ duyệt',
-    message: 'PO-240524-007 — Công ty CP Dầu nhớt Việt — 128,000,000 đ',
-    time: new Date(Date.now() - 2 * 3_600_000).toISOString(),
-    href: '/mua-hang/don-mua-hang',
-  },
-  {
-    id: 'ord-2', type: 'order', read: true,
-    title: 'Đơn hàng hoàn thành',
-    message: 'SO-240521-011 — Cty CP XYZ — đã giao thành công',
-    time: new Date(Date.now() - 5 * 3_600_000).toISOString(),
-    href: '/ban-hang/don-hang-ban',
-  },
-  {
-    id: 'del-2', type: 'delivery', read: true,
-    title: 'Giao hàng thành công',
-    message: 'DV-240521-008 — 15 điểm giao — hoàn thành lúc 16:30',
-    time: new Date(Date.now() - 8 * 3_600_000).toISOString(),
-    href: '/logistics/don-van-chuyen',
-  },
-]
+interface NotifState { read: string[]; dismissed: string[] }
 
-function buildFresh(): Notification[] {
-  return [
-    ...(generateInventoryNotifs() as Notification[]),
-    ...(generateDebtNotifs() as Notification[]),
-    ...STATIC_NOTIFS,
-  ]
-}
-
-function loadNotifs(): Notification[] {
-  if (typeof window === 'undefined') return buildFresh()
+function loadState(): NotifState {
+  if (typeof window === 'undefined') return { read: [], dismissed: [] }
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? JSON.parse(raw) : buildFresh()
-  } catch { return buildFresh() }
+    const raw = localStorage.getItem(STATE_KEY)
+    return raw ? JSON.parse(raw) : { read: [], dismissed: [] }
+  } catch { return { read: [], dismissed: [] } }
 }
 
-function saveNotifs(notifs: Notification[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(notifs))
+function saveState(s: NotifState) {
+  localStorage.setItem(STATE_KEY, JSON.stringify(s))
   window.dispatchEvent(new Event('mia:notif-updated'))
 }
 
@@ -97,47 +52,66 @@ const TYPE_META: Record<NotifType, { icon: React.ElementType; bg: string; color:
   system:    { icon: Bell,         bg: 'bg-gray-50',   color: 'text-gray-500' },
 }
 
-interface Props {
-  onClose: () => void
-}
+interface Props { onClose: () => void }
 
 export default function NotificationPanel({ onClose }: Props) {
-  const [notifs, setNotifs] = useState<Notification[]>([])
-  const [filter, setFilter] = useState<'all' | 'unread'>('all')
-  const panelRef = useRef<HTMLDivElement>(null)
+  const [notifs, setNotifs]   = useState<Notification[]>([])
+  const [loading, setLoading] = useState(true)
+  const [filter, setFilter]   = useState<'all' | 'unread'>('all')
+  const panelRef              = useRef<HTMLDivElement>(null)
+
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch('/api/notifications')
+      if (!res.ok) return
+      const raw: Omit<Notification, 'read'>[] = await res.json()
+      const state = loadState()
+      const readSet      = new Set(state.read)
+      const dismissedSet = new Set(state.dismissed)
+
+      setNotifs(
+        raw
+          .filter(n => !dismissedSet.has(n.id))
+          .map(n => ({ ...n, read: readSet.has(n.id) }))
+      )
+    } catch {}
+    setLoading(false)
+  }, [])
 
   useEffect(() => {
-    setNotifs(loadNotifs())
+    refresh()
     const handler = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        onClose()
-      }
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) onClose()
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
-  }, [onClose])
+  }, [onClose, refresh])
 
   const markRead = (id: string) => {
-    const next = notifs.map(n => n.id === id ? { ...n, read: true } : n)
-    setNotifs(next)
-    saveNotifs(next)
+    const state = loadState()
+    if (!state.read.includes(id)) {
+      saveState({ ...state, read: [...state.read, id] })
+    }
+    setNotifs(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
   }
 
   const markAllRead = () => {
-    const next = notifs.map(n => ({ ...n, read: true }))
-    setNotifs(next)
-    saveNotifs(next)
+    const state = loadState()
+    const allIds = notifs.map(n => n.id)
+    const merged = Array.from(new Set([...state.read, ...allIds]))
+    saveState({ ...state, read: merged })
+    setNotifs(prev => prev.map(n => ({ ...n, read: true })))
   }
 
   const remove = (id: string, e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    const next = notifs.filter(n => n.id !== id)
-    setNotifs(next)
-    saveNotifs(next)
+    const state = loadState()
+    saveState({ ...state, dismissed: [...state.dismissed, id] })
+    setNotifs(prev => prev.filter(n => n.id !== id))
   }
 
-  const displayed = filter === 'unread' ? notifs.filter(n => !n.read) : notifs
+  const displayed   = filter === 'unread' ? notifs.filter(n => !n.read) : notifs
   const unreadCount = notifs.filter(n => !n.read).length
 
   return (
@@ -156,16 +130,14 @@ export default function NotificationPanel({ onClose }: Props) {
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          {unreadCount > 0 && (
-            <button
-              onClick={markAllRead}
-              className="text-[11px] text-[var(--mia-primary)] hover:text-[#0284c7] font-medium transition-colors"
-            >
-              Đọc tất cả
-            </button>
-          )}
-        </div>
+        {unreadCount > 0 && (
+          <button
+            onClick={markAllRead}
+            className="text-[11px] text-[var(--mia-primary)] font-medium hover:opacity-70 transition-opacity"
+          >
+            Đọc tất cả
+          </button>
+        )}
       </div>
 
       {/* Filter tabs */}
@@ -175,7 +147,9 @@ export default function NotificationPanel({ onClose }: Props) {
             key={f}
             onClick={() => setFilter(f)}
             className={`flex-1 py-2 text-xs font-medium transition-colors border-b-2 -mb-px
-              ${filter === f ? 'border-[var(--mia-primary)] text-[var(--mia-primary)]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+              ${filter === f
+                ? 'border-[var(--mia-primary)] text-[var(--mia-primary)]'
+                : 'border-transparent text-gray-500 hover:text-gray-700'}`}
           >
             {f === 'all' ? 'Tất cả' : `Chưa đọc${unreadCount > 0 ? ` (${unreadCount})` : ''}`}
           </button>
@@ -184,7 +158,11 @@ export default function NotificationPanel({ onClose }: Props) {
 
       {/* List */}
       <div className="overflow-y-auto flex-1">
-        {displayed.length === 0 ? (
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="w-5 h-5 border-2 border-[var(--mia-primary)] border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : displayed.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <CheckCircle2 size={32} className="text-gray-300 mb-2" />
             <p className="text-sm text-gray-400">Không có thông báo nào</p>
@@ -199,17 +177,12 @@ export default function NotificationPanel({ onClose }: Props) {
                   ${!notif.read ? 'bg-sky-50/40' : ''}`}
                 onClick={() => markRead(notif.id)}
               >
-                {/* Unread dot */}
                 {!notif.read && (
                   <span className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[var(--mia-primary)]" />
                 )}
-
-                {/* Icon */}
                 <div className={`w-8 h-8 rounded-lg ${meta.bg} flex items-center justify-center shrink-0 mt-0.5`}>
                   <Icon size={15} className={meta.color} />
                 </div>
-
-                {/* Content */}
                 <div className="flex-1 min-w-0">
                   <p className={`text-xs leading-snug ${!notif.read ? 'font-semibold text-[#1e2a3a]' : 'font-medium text-gray-700'}`}>
                     {notif.title}
@@ -220,8 +193,6 @@ export default function NotificationPanel({ onClose }: Props) {
                     <span className="text-[10px] text-gray-400">{relativeTime(notif.time)}</span>
                   </div>
                 </div>
-
-                {/* Remove button */}
                 <button
                   onClick={e => remove(notif.id, e)}
                   className="opacity-0 group-hover:opacity-100 transition-opacity w-5 h-5 flex items-center justify-center rounded hover:bg-gray-200 text-gray-400 shrink-0 mt-0.5"
@@ -232,9 +203,7 @@ export default function NotificationPanel({ onClose }: Props) {
             )
 
             return notif.href ? (
-              <Link key={notif.id} href={notif.href} onClick={onClose}>
-                {inner}
-              </Link>
+              <Link key={notif.id} href={notif.href} onClick={onClose}>{inner}</Link>
             ) : (
               <div key={notif.id}>{inner}</div>
             )
@@ -248,10 +217,9 @@ export default function NotificationPanel({ onClose }: Props) {
           <Link
             href="/ban-hang/don-hang-ban"
             onClick={onClose}
-            className="flex items-center justify-center gap-1 py-3 text-xs text-[var(--mia-primary)] hover:text-[#0284c7] font-medium transition-colors"
+            className="flex items-center justify-center gap-1 py-3 text-xs text-[var(--mia-primary)] font-medium hover:opacity-70 transition-opacity"
           >
-            Xem tất cả hoạt động
-            <ChevronRight size={13} />
+            Xem tất cả hoạt động <ChevronRight size={13} />
           </Link>
         </div>
       )}
@@ -261,14 +229,29 @@ export default function NotificationPanel({ onClose }: Props) {
 
 export function useBellState() {
   const [count, setCount] = useState(0)
+
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch('/api/notifications')
+      if (!res.ok) return
+      const raw: { id: string }[] = await res.json()
+      const state      = loadState()
+      const readSet    = new Set(state.read)
+      const dimSet     = new Set(state.dismissed)
+      setCount(raw.filter(n => !readSet.has(n.id) && !dimSet.has(n.id)).length)
+    } catch {}
+  }, [])
+
   useEffect(() => {
-    const refresh = () => {
-      const notifs = loadNotifs()
-      setCount(notifs.filter(n => !n.read).length)
-    }
     refresh()
     window.addEventListener('mia:notif-updated', refresh)
-    return () => window.removeEventListener('mia:notif-updated', refresh)
-  }, [])
+    // Refresh mỗi 60 giây để cập nhật thông báo mới
+    const timer = setInterval(refresh, 60_000)
+    return () => {
+      window.removeEventListener('mia:notif-updated', refresh)
+      clearInterval(timer)
+    }
+  }, [refresh])
+
   return count
 }

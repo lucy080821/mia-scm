@@ -30,8 +30,17 @@ export default function TenantManifestSync() {
     }
     titleMeta.content = tenant.name ?? 'Mia SCM'
 
-    // apple-touch-icon — chỉ ghi đè khi tenant có logo riêng
     if (tenant.logoUrl) {
+      // favicon
+      let favicon = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
+      if (!favicon) {
+        favicon = document.createElement('link')
+        favicon.rel = 'icon'
+        document.head.appendChild(favicon)
+      }
+      favicon.href = tenant.logoUrl
+
+      // apple-touch-icon
       let appleIcon = document.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]')
       if (!appleIcon) {
         appleIcon = document.createElement('link')
