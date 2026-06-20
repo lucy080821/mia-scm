@@ -114,7 +114,7 @@ function PageTitle({ name, subtitle }: { name: string; subtitle: string }) {
   return (
     <div className="flex items-center justify-between mb-5">
       <div>
-        <h1 className="text-xl font-bold text-[#1e2a3a]">Xin chào, {name.split(' ').pop()} 👋</h1>
+        <h1 className="text-xl font-bold text-[#1e2a3a]">Xin chào, {name} 👋</h1>
         <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>
       </div>
       <span className="text-xs text-gray-400 bg-white border border-[#e5e7eb] rounded-lg px-3 py-1.5">{today}</span>
@@ -1350,7 +1350,7 @@ export default function DashboardPage() {
   // Dùng full_name nếu hợp lệ (không phải tên công ty); fallback về email username
   const rawName = user?.name ?? ''
   const tenantName = tenant.name ?? ''
-  const name = rawName && rawName.toLowerCase() !== tenantName.toLowerCase()
+  const name = rawName && !rawName.toLowerCase().includes(tenantName.toLowerCase())
     ? rawName
     : (user?.email?.split('@')[0] ?? 'bạn')
 
