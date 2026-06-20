@@ -1,7 +1,20 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { getServerTenantId } from '@/lib/server-auth'
+
+export const dynamic = 'force-dynamic'
+
+const EMPTY_RESPONSE = {
+  kpis: { revenue: 0, yearRevenue: 0, newOrders: 0, delivering: 0, customers: 0, lowStock: 0 },
+  recentOrders: [], recentDeliveries: [], topCustomers: [], lowStockItems: [],
+  pendingReceipts: [], pendingIssues: [], vehicles: [], myDeliveries: [],
+  revenueMonthly: [], inventoryStatus: [], topProducts: [], deliveryWeekly: [],
+}
 
 export async function GET() {
+  const tenantId = await getServerTenantId()
+  if (!tenantId) return NextResponse.json(EMPTY_RESPONSE)
+
   const now = new Date()
   const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
   const yearStart  = `${now.getFullYear()}-01-01`
@@ -34,50 +47,57 @@ export async function GET() {
     { data: weekDeliveries },
   ] = await Promise.all([
     // Revenue this month (completed orders)
-    supabaseAdmin.from('sales_orders').select('final_amount').gte('order_date', monthStart).eq('status', 'completed'),
+    supabaseAdmin.from('sales_orders').select('final_amount').eq('tenant_id', tenantId).gte('order_date', monthStart).eq('status', 'completed'),
     // New orders this month
-    supabaseAdmin.from('sales_orders').select('id', { count: 'exact', head: true }).gte('order_date', monthStart),
+    supabaseAdmin.from('sales_orders').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).gte('order_date', monthStart),
     // Currently delivering
-    supabaseAdmin.from('deliveries').select('id', { count: 'exact', head: false }).in('status', ['picking', 'delivering']),
+    supabaseAdmin.from('deliveries').select('id', { count: 'exact', head: false }).eq('tenant_id', tenantId).in('status', ['picking', 'delivering']),
     // Total active customers
-    supabaseAdmin.from('customers').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+    supabaseAdmin.from('customers').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('status', 'active'),
     // Low stock items (for lowStock KPI)
-    supabaseAdmin.from('inventory').select('quantity, min_stock:products(min_stock, sku, name, unit)').gt('min_stock', 0),
+    supabaseAdmin.from('inventory').select('quantity, min_stock:products(min_stock, sku, name, unit)').eq('tenant_id', tenantId),
     // All inventory for donut chart
-    supabaseAdmin.from('inventory').select('quantity, product:products(min_stock)').limit(2000),
+    supabaseAdmin.from('inventory').select('quantity, product:products(min_stock)').eq('tenant_id', tenantId).limit(2000),
     // Recent orders (last 6)
     supabaseAdmin.from('sales_orders')
       .select('id, code, order_date, status, final_amount, customer:customers(name)')
+      .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false }).limit(6),
     // Recent deliveries (last 6)
     supabaseAdmin.from('deliveries')
       .select('id, code, status, planned_date, route, driver:drivers(name), sales_order:sales_orders(code)')
+      .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false }).limit(6),
     // Pending stock receipts
     supabaseAdmin.from('stock_receipts')
       .select('id, code, receipt_date, status, supplier:suppliers(name)')
+      .eq('tenant_id', tenantId)
       .in('status', ['pending', 'qc_check'])
       .order('created_at', { ascending: false }).limit(8),
     // Pending stock issues
     supabaseAdmin.from('stock_issues')
       .select('id, code, issue_date, status, warehouse:warehouses(name), sales_order:sales_orders(code)')
+      .eq('tenant_id', tenantId)
       .eq('status', 'pending')
       .order('created_at', { ascending: false }).limit(8),
     // Vehicles status
-    supabaseAdmin.from('vehicles').select('id, plate, type, status, driver:drivers(name)').limit(10),
+    supabaseAdmin.from('vehicles').select('id, plate, type, status, driver:drivers(name)').eq('tenant_id', tenantId).limit(10),
     // Drivers delivering today
     supabaseAdmin.from('deliveries')
       .select('id, code, status, route, driver:drivers(name, phone), sales_order:sales_orders(code, customer:customers(name, address))')
+      .eq('tenant_id', tenantId)
       .eq('planned_date', today).order('created_at', { ascending: false }),
     // Revenue last 6 months for chart
-    supabaseAdmin.from('sales_orders').select('order_date, final_amount').eq('status', 'completed').gte('order_date', sixStart),
+    supabaseAdmin.from('sales_orders').select('order_date, final_amount').eq('tenant_id', tenantId).eq('status', 'completed').gte('order_date', sixStart),
     // Sales order items for top products bar chart (all orders)
     supabaseAdmin.from('sales_order_items')
       .select('subtotal, product:products(name, sku)')
+      .eq('tenant_id', tenantId)
       .limit(2000),
     // Deliveries last 7 days (for weekly performance chart)
     supabaseAdmin.from('deliveries')
       .select('planned_date, status')
+      .eq('tenant_id', tenantId)
       .gte('planned_date', sevenStart)
       .limit(500),
   ])
@@ -141,7 +161,7 @@ export async function GET() {
 
   // Revenue year-to-date
   const { data: yearOrders } = await supabaseAdmin
-    .from('sales_orders').select('final_amount').gte('order_date', yearStart).eq('status', 'completed')
+    .from('sales_orders').select('final_amount').eq('tenant_id', tenantId).gte('order_date', yearStart).eq('status', 'completed')
 
   const revenue     = (ordersThisMonth ?? []).reduce((s: number, o: any) => s + (o.final_amount ?? 0), 0)
   const yearRevenue = (yearOrders ?? []).reduce((s: number, o: any) => s + (o.final_amount ?? 0), 0)
@@ -162,6 +182,7 @@ export async function GET() {
   const { data: topCustomerData } = await supabaseAdmin
     .from('sales_orders')
     .select('final_amount, customer:customers(name)')
+    .eq('tenant_id', tenantId)
     .eq('status', 'completed')
     .gte('order_date', monthStart)
 

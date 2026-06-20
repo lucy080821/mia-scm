@@ -1,10 +1,11 @@
-'use client'
+﻿'use client'
 import { useState, useEffect } from 'react'
 import { Plus, Search, RotateCcw, CheckCircle, X, Trash2, AlertTriangle } from 'lucide-react'
 import PageHeader from '@/components/layout/PageHeader'
 import { formatVND, formatDate } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
+import { useTenant } from '@/contexts/TenantContext'
 
 interface ReturnItem { id: number; product_id: string; name: string; unit: string; qty: number; price: number }
 interface ReturnOrder {
@@ -128,7 +129,7 @@ function CreateReturnModal({ onClose, onCreate, customers, products }: {
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1">Khách hàng <span className="text-red-400">*</span></label>
               <select value={customerId} onChange={e => setCustomerId(e.target.value)}
-                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] bg-white">
+                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] bg-white">
                 <option value="">-- Chọn khách hàng --</option>
                 {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
@@ -137,17 +138,17 @@ function CreateReturnModal({ onClose, onCreate, customers, products }: {
               <label className="block text-xs font-semibold text-gray-500 mb-1">Đơn hàng gốc (SO)</label>
               <input value={orderId} onChange={e => setOrderId(e.target.value)}
                 placeholder="VD: SO-260615-001"
-                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1">Ngày trả <span className="text-red-400">*</span></label>
               <input type="date" value={date} onChange={e => setDate(e.target.value)}
-                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1">Phương thức hoàn tiền</label>
               <select value={refundMethod} onChange={e => setRefundMethod(e.target.value)}
-                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] bg-white">
+                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] bg-white">
                 <option value="transfer">Chuyển khoản</option>
                 <option value="cash">Tiền mặt</option>
                 <option value="credit">Trừ vào đơn tiếp theo</option>
@@ -156,14 +157,14 @@ function CreateReturnModal({ onClose, onCreate, customers, products }: {
             <div className="col-span-2">
               <label className="block text-xs font-semibold text-gray-500 mb-1">Lý do trả hàng <span className="text-red-400">*</span></label>
               <select value={reason} onChange={e => setReason(e.target.value)}
-                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] bg-white">
+                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] bg-white">
                 <option value="">-- Chọn lý do --</option>
                 {RETURN_REASONS.map(r => <option key={r}>{r}</option>)}
               </select>
               {reason === 'Khác' && (
                 <input value={customReason} onChange={e => setCustomReason(e.target.value)}
                   placeholder="Mô tả lý do cụ thể..."
-                  className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] mt-2" />
+                  className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] mt-2" />
               )}
             </div>
           </div>
@@ -172,7 +173,7 @@ function CreateReturnModal({ onClose, onCreate, customers, products }: {
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Hàng trả lại</h3>
               <button onClick={addRow}
-                className="flex items-center gap-1 px-2.5 py-1 bg-[#0ea5e9]/10 text-[#0ea5e9] rounded-lg text-xs font-semibold hover:bg-[#0ea5e9]/20 transition-colors">
+                className="flex items-center gap-1 px-2.5 py-1 bg-[var(--mia-primary)]/10 text-[var(--mia-primary)] rounded-lg text-xs font-semibold hover:bg-[var(--mia-primary)]/20 transition-colors">
                 <Plus size={12} /> Thêm dòng
               </button>
             </div>
@@ -190,7 +191,7 @@ function CreateReturnModal({ onClose, onCreate, customers, products }: {
                     <tr key={it.id} className="border-b border-[#f0f2f5] last:border-0">
                       <td className="px-3 py-2 min-w-[180px]">
                         <select value={it.product_id} onChange={e => selectProduct(it.id, e.target.value)}
-                          className="w-full h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] bg-white">
+                          className="w-full h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] bg-white">
                           <option value="">-- Chọn SP --</option>
                           {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                         </select>
@@ -198,12 +199,12 @@ function CreateReturnModal({ onClose, onCreate, customers, products }: {
                       <td className="px-3 py-2 w-16 text-xs text-gray-500">{it.unit || '—'}</td>
                       <td className="px-3 py-2 w-20">
                         <input type="number" min={1} value={it.qty || ''} onChange={e => setItemField(it.id, 'qty', +e.target.value)}
-                          className="w-16 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] text-center" />
+                          className="w-16 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] text-center" />
                       </td>
                       <td className="px-3 py-2 w-32">
                         <input type="number" min={0} value={it.price || ''} onChange={e => setItemField(it.id, 'price', +e.target.value)}
                           placeholder="0"
-                          className="w-28 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                          className="w-28 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
                       </td>
                       <td className="px-3 py-2 text-xs font-semibold text-red-600 whitespace-nowrap">
                         {it.qty * it.price > 0 ? `-${formatVND(it.qty * it.price)}` : '—'}
@@ -227,7 +228,7 @@ function CreateReturnModal({ onClose, onCreate, customers, products }: {
               <label className="block text-xs font-semibold text-gray-500 mb-1">Ghi chú</label>
               <textarea value={note} onChange={e => setNote(e.target.value)} rows={2}
                 placeholder="Tình trạng hàng, số lô..."
-                className="w-full px-3 py-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] resize-none" />
+                className="w-full px-3 py-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] resize-none" />
             </div>
             <div className="w-48 shrink-0 bg-red-50 rounded-xl p-4 flex flex-col justify-center gap-1">
               <p className="text-xs text-gray-500">Tổng hoàn tiền</p>
@@ -250,7 +251,7 @@ function CreateReturnModal({ onClose, onCreate, customers, products }: {
         <div className="px-6 py-4 border-t border-[#e5e7eb] flex justify-end gap-2">
           <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border border-[#e5e7eb] rounded-lg hover:bg-gray-50 transition-colors">Hủy</button>
           <button onClick={handleSubmit} disabled={saving}
-            className="px-5 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50">
+            className="px-5 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50">
             <RotateCcw size={13} className="inline mr-1.5" />{saving ? 'Đang lưu...' : 'Tạo phiếu trả'}
           </button>
         </div>
@@ -342,7 +343,7 @@ function DetailModal({ r, onClose, onApprove, onComplete, onReject }: {
                   Từ chối
                 </button>
                 <button onClick={async () => { await updateStatus('approved'); onApprove(r.id); onClose() }}
-                  className="px-4 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all">
+                  className="px-4 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all">
                   Duyệt trả hàng
                 </button>
               </>
@@ -370,6 +371,7 @@ function DetailModal({ r, onClose, onApprove, onComplete, onReject }: {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function TraHangPage() {
+  const { id: tenantId } = useTenant()
   const [returns,      setReturns]      = useState<ReturnOrder[]>([])
   const [loading,      setLoading]      = useState(true)
   const [customers,    setCustomers]    = useState<{ id: string; name: string }[]>([])
@@ -383,11 +385,13 @@ export default function TraHangPage() {
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2500) }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
+    if (!tenantId) return
     Promise.all([
       fetch('/api/sales-returns').then(r => r.json()),
-      supabase.from('customers').select('id, name').eq('status', 'active').order('name'),
-      supabase.from('products').select('id, name, unit, sale_price').eq('status', 'active').order('name'),
+      supabase.from('customers').select('id, name').eq('tenant_id', tenantId).eq('status', 'active').order('name'),
+      supabase.from('products').select('id, name, unit, sale_price').eq('tenant_id', tenantId).eq('status', 'active').order('name'),
     ]).then(([ret, { data: cust }, { data: prod }]) => {
       if (ret?.error) { setNoTable(true) } else {
         setReturns((ret ?? []).map((r: any) => ({
@@ -402,7 +406,7 @@ export default function TraHangPage() {
       setProducts(prod ?? [])
       setLoading(false)
     }).catch(() => setLoading(false))
-  }, [])
+  }, [tenantId])
 
   const filtered = returns.filter(r => {
     const matchSearch = r.customer.toLowerCase().includes(search.toLowerCase()) || (r.code ?? '').includes(search)
@@ -420,7 +424,7 @@ export default function TraHangPage() {
   return (
     <div>
       <PageHeader title="Trả hàng bán" subtitle="Quản lý đổi trả hàng từ khách hàng">
-        <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all">
+        <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all">
           <Plus size={15} /> Tạo phiếu trả
         </button>
       </PageHeader>
@@ -461,7 +465,7 @@ export default function TraHangPage() {
               const LABELS: Record<string, string> = { all: 'Tất cả', pending: 'Chờ duyệt', approved: 'Đã duyệt', completed: 'Hoàn thành', rejected: 'Từ chối' }
               return (
                 <button key={s} onClick={() => setStatusFilter(s)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-[#0ea5e9] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-[var(--mia-primary)] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                   {LABELS[s]}
                 </button>
               )
@@ -487,7 +491,7 @@ export default function TraHangPage() {
                 const s = STATUS_MAP[r.status]
                 return (
                   <tr key={r.id} className="border-b border-[#f0f2f5] hover:bg-gray-50/50 transition-colors">
-                    <td className="px-4 py-3 text-sm font-medium text-[#0ea5e9]">{r.code || r.id}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-[var(--mia-primary)]">{r.code || r.id}</td>
                     <td className="px-4 py-3 text-xs text-gray-400">{r.orderId}</td>
                     <td className="px-4 py-3 text-sm font-medium text-[#1e2a3a]">{r.customer}</td>
                     <td className="px-4 py-3 text-xs text-gray-500 max-w-[180px] truncate">{r.reason}</td>
@@ -498,7 +502,7 @@ export default function TraHangPage() {
                     <td className="px-4 py-3">
                       <button onClick={() => setDetail(r)}
                         className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all hover:scale-[1.02] active:scale-95 whitespace-nowrap ${
-                          r.status === 'pending'  ? 'bg-[#0ea5e9] text-white hover:bg-[#0284c7]' :
+                          r.status === 'pending'  ? 'bg-[var(--mia-primary)] text-white hover:opacity-90' :
                           r.status === 'approved' ? 'bg-green-600 text-white hover:bg-green-700' :
                           'bg-gray-100 text-gray-600 hover:bg-gray-200'
                         }`}>

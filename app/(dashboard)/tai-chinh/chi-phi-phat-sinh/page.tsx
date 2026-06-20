@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { Plus, Search, X, Trash2, Upload, Download, CheckCircle, AlertCircle, FileSpreadsheet } from 'lucide-react'
 import * as XLSX from 'xlsx'
@@ -356,11 +356,11 @@ export default function ChiPhiPhatSinhPage() {
         <div className="flex items-center gap-2">
           <ExportButton module="tai-chinh" />
           <button onClick={() => setShowImport(true)}
-            className="flex items-center gap-2 px-4 py-2 border border-[#0ea5e9] text-[#0ea5e9] text-sm font-medium rounded-lg hover:bg-sky-50 transition-colors">
+            className="flex items-center gap-2 px-4 py-2 border border-[var(--mia-primary)] text-[var(--mia-primary)] text-sm font-medium rounded-lg hover:bg-sky-50 transition-colors">
             <Upload size={15}/> Nhập hàng loạt
           </button>
           <button onClick={openForm}
-            className="flex items-center gap-2 px-4 py-2 bg-[#0ea5e9] text-white text-sm font-medium rounded-lg hover:bg-sky-600 transition-colors">
+            className="flex items-center gap-2 px-4 py-2 bg-[var(--mia-primary)] text-white text-sm font-medium rounded-lg hover:bg-sky-600 transition-colors">
             <Plus size={16}/> Thêm chi phí
           </button>
         </div>
@@ -479,7 +479,7 @@ export default function ChiPhiPhatSinhPage() {
                           placeholder="VD: Tiếp thị, Văn phòng phẩm..."
                           className={`flex-1 border rounded-lg px-3 py-1.5 text-sm outline-none focus:border-sky-400 ${newCatError ? 'border-red-400' : 'border-gray-200'}`}/>
                         <button onClick={confirmNewCat}
-                          className="px-3 py-1.5 bg-[#0ea5e9] text-white text-xs font-semibold rounded-lg hover:bg-sky-600 transition-colors whitespace-nowrap">
+                          className="px-3 py-1.5 bg-[var(--mia-primary)] text-white text-xs font-semibold rounded-lg hover:bg-sky-600 transition-colors whitespace-nowrap">
                           Thêm
                         </button>
                         <button onClick={cancelNewCat} className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors">
@@ -536,7 +536,7 @@ export default function ChiPhiPhatSinhPage() {
                 Hủy
               </button>
               <button onClick={handleSave}
-                className="px-5 py-2 text-sm font-medium bg-[#0ea5e9] text-white rounded-lg hover:bg-sky-600 transition-colors">
+                className="px-5 py-2 text-sm font-medium bg-[var(--mia-primary)] text-white rounded-lg hover:bg-sky-600 transition-colors">
                 {addingCat ? 'Xác nhận loại' : 'Lưu chi phí'}
               </button>
             </div>
@@ -657,7 +657,7 @@ export default function ChiPhiPhatSinhPage() {
                 </button>
                 {validCount > 0 && (
                   <button onClick={submitImport} disabled={importing}
-                    className="flex items-center gap-2 px-5 py-2 text-sm font-medium bg-[#0ea5e9] text-white rounded-lg hover:bg-sky-600 transition-colors disabled:opacity-60">
+                    className="flex items-center gap-2 px-5 py-2 text-sm font-medium bg-[var(--mia-primary)] text-white rounded-lg hover:bg-sky-600 transition-colors disabled:opacity-60">
                     <Upload size={14}/>
                     {importing ? 'Đang nhập...' : `Nhập ${validCount} dòng`}
                   </button>

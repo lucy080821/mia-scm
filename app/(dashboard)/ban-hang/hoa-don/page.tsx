@@ -1,22 +1,14 @@
-'use client'
+﻿'use client'
 import { useState, useEffect, useRef } from 'react'
 import { Printer, Download, Plus, X, ChevronDown, Pencil, Building2, Upload, Check } from 'lucide-react'
 import PageHeader from '@/components/layout/PageHeader'
 import { formatVND, formatDate } from '@/lib/utils'
+import { useTenant } from '@/contexts/TenantContext'
 
 interface LineItem { id: number; name: string; unit: string; qty: number; price: number; discount: number }
 type Customer = { id: string; name: string; address: string; tax_code: string; phone: string }
 type Product  = { id: string; sku: string; name: string; unit: string; sale_price: number }
 type CompanyInfo = { name: string; address: string; tax_code: string; phone: string; email: string; logo: string }
-
-const DEFAULT_COMPANY: CompanyInfo = {
-  name: 'Công ty TNHH Mia Distribution',
-  address: '123 Lê Lợi, Q.1, TP.HCM',
-  tax_code: '0312000000',
-  phone: '028 1234 5678',
-  email: '',
-  logo: '',
-}
 
 const DEFAULT_FORM = {
   customer: '', address: '', tax_code: '', order_ref: '',
@@ -30,16 +22,27 @@ function genNo() {
 }
 
 export default function InvoicePage() {
+  const tenant = useTenant()
+
+  const tenantCompany: CompanyInfo = {
+    name:     tenant.name,
+    address:  tenant.address ?? '',
+    tax_code: tenant.taxCode ?? '',
+    phone:    tenant.phone ?? '',
+    email:    '',
+    logo:     tenant.logoUrl ?? '',
+  }
+
   const [form,    setForm]    = useState({ ...DEFAULT_FORM })
   const [items,   setItems]   = useState<LineItem[]>([])
   const [nextId,  setNextId]  = useState(1)
   const [toast,   setToast]   = useState('')
   const [vatPct,  setVatPct]  = useState(10)
 
-  // Company (tenant) info
-  const [company,     setCompany]     = useState<CompanyInfo>({ ...DEFAULT_COMPANY })
+  // Company info — khởi tạo từ tenant, cho phép chỉnh thêm (email, logo riêng)
+  const [company,     setCompany]     = useState<CompanyInfo>(tenantCompany)
   const [editCompany, setEditCompany] = useState(false)
-  const [editCo,      setEditCo]      = useState<CompanyInfo>({ ...DEFAULT_COMPANY })
+  const [editCo,      setEditCo]      = useState<CompanyInfo>(tenantCompany)
   const logoRef = useRef<HTMLInputElement>(null)
 
   // Autocomplete
@@ -48,14 +51,22 @@ export default function InvoicePage() {
   const [custOpen,  setCustOpen]  = useState(false)
   const [prodOpen,  setProdOpen]  = useState<number | null>(null)
 
+  // Sync khi tenant thay đổi (đăng nhập công ty khác)
   useEffect(() => {
-    const saved = localStorage.getItem('mia_invoice_company')
-    if (saved) { try { const c = JSON.parse(saved); setCompany(c); setEditCo(c) } catch {} }
+    const storageKey = `mia_invoice_company_${tenant.id}`
+    const saved = localStorage.getItem(storageKey)
+    if (saved) {
+      try { const c = JSON.parse(saved); setCompany(c); setEditCo(c) } catch {}
+    } else {
+      // Lấy thẳng từ tenant nếu chưa có custom data
+      setCompany(tenantCompany); setEditCo(tenantCompany)
+    }
     fetch('/api/customers').then(r => r.json())
       .then(d => setCustomers(Array.isArray(d) ? d : (d?.data ?? []))).catch(() => {})
     fetch('/api/products').then(r => r.json())
       .then(d => setProducts(Array.isArray(d) ? d : (d?.data ?? []))).catch(() => {})
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenant.id])
 
   const setF = (k: keyof typeof DEFAULT_FORM, v: string) => setForm(f => ({ ...f, [k]: v }))
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2500) }
@@ -94,7 +105,7 @@ export default function InvoicePage() {
   const openEdit = () => { setEditCo({ ...company }); setEditCompany(true) }
   const saveCompany = () => {
     setCompany({ ...editCo })
-    localStorage.setItem('mia_invoice_company', JSON.stringify(editCo))
+    localStorage.setItem(`mia_invoice_company_${tenant.id}`, JSON.stringify(editCo))
     setEditCompany(false); showToast('Đã lưu thông tin công ty')
   }
 
@@ -287,7 +298,7 @@ export default function InvoicePage() {
     <div>
       <PageHeader title="Xuất hóa đơn" subtitle="Tạo và quản lý hóa đơn bán hàng">
         <button onClick={handleNew}
-          className="flex items-center gap-2 px-4 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all">
+          className="flex items-center gap-2 px-4 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all">
           <Plus size={15} /> Hóa đơn mới
         </button>
       </PageHeader>
@@ -299,12 +310,12 @@ export default function InvoicePage() {
           <div className="bg-white rounded-xl border border-[#e5e7eb] overflow-hidden">
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#e5e7eb]">
               <div className="flex items-center gap-2.5">
-                <Building2 size={15} className="text-[#0ea5e9]" />
+                <Building2 size={15} className="text-[var(--mia-primary)]" />
                 <span className="text-sm font-semibold text-[#1e2a3a]">Thông tin công ty xuất hóa đơn</span>
               </div>
               {!editCompany && (
                 <button onClick={openEdit}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-500 border border-[#e5e7eb] rounded-lg hover:bg-gray-50 hover:text-[#0ea5e9] hover:border-[#0ea5e9] transition-all">
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-500 border border-[#e5e7eb] rounded-lg hover:bg-gray-50 hover:text-[var(--mia-primary)] hover:border-[var(--mia-primary)] transition-all">
                   <Pencil size={11} /> Chỉnh sửa
                 </button>
               )}
@@ -341,7 +352,7 @@ export default function InvoicePage() {
                     <div className="flex flex-col gap-2">
                       <input ref={logoRef} type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
                       <button onClick={() => logoRef.current?.click()}
-                        className="flex items-center gap-1.5 px-3 py-1.5 border border-[#e5e7eb] text-xs text-gray-600 rounded-lg hover:bg-gray-50 hover:border-[#0ea5e9] hover:text-[#0ea5e9] transition-all">
+                        className="flex items-center gap-1.5 px-3 py-1.5 border border-[#e5e7eb] text-xs text-gray-600 rounded-lg hover:bg-gray-50 hover:border-[var(--mia-primary)] hover:text-[var(--mia-primary)] transition-all">
                         <Upload size={11} /> Tải logo lên
                       </button>
                       {editCo.logo && (
@@ -363,7 +374,7 @@ export default function InvoicePage() {
                     <div key={key} className={label === 'Địa chỉ' ? 'sm:col-span-2' : ''}>
                       <label className="block text-xs font-medium text-gray-600 mb-1.5">{label}</label>
                       <input value={editCo[key]} onChange={e => setEditCo(c => ({ ...c, [key]: e.target.value }))}
-                        className="w-full px-3 py-2 border border-[#e5e7eb] rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#0ea5e9]" />
+                        className="w-full px-3 py-2 border border-[#e5e7eb] rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[var(--mia-primary)]" />
                     </div>
                   ))}
                 </div>
@@ -372,7 +383,7 @@ export default function InvoicePage() {
                   <button onClick={() => setEditCompany(false)}
                     className="px-4 py-2 text-sm text-gray-500 border border-[#e5e7eb] rounded-lg hover:bg-gray-50 transition-colors">Hủy</button>
                   <button onClick={saveCompany}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-[#1e2a3a] text-white text-sm font-semibold rounded-lg hover:bg-[#0ea5e9] hover:scale-[1.02] active:scale-95 transition-all">
+                    className="flex items-center gap-1.5 px-4 py-2 bg-[#1e2a3a] text-white text-sm font-semibold rounded-lg hover:bg-[var(--mia-primary)] hover:scale-[1.02] active:scale-95 transition-all">
                     <Check size={13} /> Lưu mặc định
                   </button>
                 </div>
@@ -394,7 +405,7 @@ export default function InvoicePage() {
                     onFocus={() => setCustOpen(true)}
                     onBlur={() => setTimeout(() => setCustOpen(false), 150)}
                     placeholder="Tìm tên khách hàng..."
-                    className="w-full px-3 py-2 pr-8 border border-[#e5e7eb] rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#0ea5e9]" />
+                    className="w-full px-3 py-2 pr-8 border border-[#e5e7eb] rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[var(--mia-primary)]" />
                   <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                 </div>
                 {custOpen && custMatches.length > 0 && (
@@ -414,33 +425,33 @@ export default function InvoicePage() {
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">Mã số thuế</label>
                 <input value={form.tax_code} onChange={e => setF('tax_code', e.target.value)}
                   placeholder="Tự điền khi chọn khách hàng"
-                  className="w-full px-3 py-2 border border-[#e5e7eb] rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#0ea5e9]" />
+                  className="w-full px-3 py-2 border border-[#e5e7eb] rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[var(--mia-primary)]" />
               </div>
 
               <div className="sm:col-span-2">
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">Địa chỉ</label>
                 <input value={form.address} onChange={e => setF('address', e.target.value)}
                   placeholder="Tự điền khi chọn khách hàng"
-                  className="w-full px-3 py-2 border border-[#e5e7eb] rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#0ea5e9]" />
+                  className="w-full px-3 py-2 border border-[#e5e7eb] rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[var(--mia-primary)]" />
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">Mã đơn hàng</label>
                 <input value={form.order_ref} onChange={e => setF('order_ref', e.target.value)}
                   placeholder="VD: DH-260601-001"
-                  className="w-full px-3 py-2 border border-[#e5e7eb] rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#0ea5e9]" />
+                  className="w-full px-3 py-2 border border-[#e5e7eb] rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[var(--mia-primary)]" />
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">Ngày hóa đơn</label>
                 <input type="date" value={form.invoice_date} onChange={e => setF('invoice_date', e.target.value)}
-                  className="w-full px-3 py-2 border border-[#e5e7eb] rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#0ea5e9]" />
+                  className="w-full px-3 py-2 border border-[#e5e7eb] rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[var(--mia-primary)]" />
               </div>
 
               <div className="sm:col-span-2">
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">Số hóa đơn</label>
                 <input value={form.invoice_no} onChange={e => setF('invoice_no', e.target.value)}
-                  className="w-full px-3 py-2 border border-[#e5e7eb] rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#0ea5e9]" />
+                  className="w-full px-3 py-2 border border-[#e5e7eb] rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[var(--mia-primary)]" />
               </div>
             </div>
           </div>
@@ -450,7 +461,7 @@ export default function InvoicePage() {
             <div className="flex items-center justify-between px-5 py-3 border-b border-[#e5e7eb]">
               <h2 className="text-sm font-semibold text-[#1e2a3a]">Chi tiết hàng hóa</h2>
               <button onClick={handleAddLine}
-                className="flex items-center gap-1.5 px-3 py-1.5 border border-[#e5e7eb] text-sm text-gray-600 rounded-lg hover:bg-gray-50 hover:border-[#0ea5e9] hover:text-[#0ea5e9] transition-colors">
+                className="flex items-center gap-1.5 px-3 py-1.5 border border-[#e5e7eb] text-sm text-gray-600 rounded-lg hover:bg-gray-50 hover:border-[var(--mia-primary)] hover:text-[var(--mia-primary)] transition-colors">
                 <Plus size={13} /> Thêm dòng
               </button>
             </div>
@@ -538,7 +549,7 @@ export default function InvoicePage() {
                 </div>
                 <div className="flex justify-between text-base font-bold border-t border-[#e5e7eb] pt-2">
                   <span className="text-[#1e2a3a]">Tổng cộng:</span>
-                  <span className="text-[#0ea5e9]">{formatVND(total)}</span>
+                  <span className="text-[var(--mia-primary)]">{formatVND(total)}</span>
                 </div>
               </div>
             </div>
@@ -548,7 +559,7 @@ export default function InvoicePage() {
           <div className="bg-white rounded-xl border border-[#e5e7eb] p-5">
             <label className="block text-sm font-semibold text-[#1e2a3a] mb-2">Ghi chú / Điều khoản</label>
             <textarea rows={3} value={form.note} onChange={e => setF('note', e.target.value)}
-              className="w-full px-3 py-2 border border-[#e5e7eb] rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#0ea5e9] resize-none" />
+              className="w-full px-3 py-2 border border-[#e5e7eb] rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[var(--mia-primary)] resize-none" />
             <div className="flex justify-end gap-3 mt-4">
               <button onClick={() => showToast('Đã lưu bản nháp')}
                 className="flex items-center gap-1.5 px-4 py-2 border border-[#e5e7eb] text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 hover:scale-[1.02] active:scale-95 transition-all">
@@ -559,7 +570,7 @@ export default function InvoicePage() {
                 <Printer size={14} /> In hóa đơn
               </button>
               <button onClick={handleDownload}
-                className="flex items-center gap-1.5 px-4 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all">
+                className="flex items-center gap-1.5 px-4 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all">
                 <Download size={14} /> Xuất PDF
               </button>
             </div>
@@ -598,11 +609,11 @@ export default function InvoicePage() {
               </div>
               <div className="bg-sky-50 rounded-lg p-3 flex items-center justify-between">
                 <span className="text-xs text-gray-500">Tổng tiền hàng</span>
-                <span className="text-sm font-bold text-[#0ea5e9]">{formatVND(subtotal)}</span>
+                <span className="text-sm font-bold text-[var(--mia-primary)]">{formatVND(subtotal)}</span>
               </div>
               <div className="bg-sky-50 rounded-lg p-3 flex items-center justify-between">
                 <span className="text-xs text-gray-500">Tổng thanh toán</span>
-                <span className="text-base font-bold text-[#0ea5e9]">{formatVND(total)}</span>
+                <span className="text-base font-bold text-[var(--mia-primary)]">{formatVND(total)}</span>
               </div>
             </div>
           </div>

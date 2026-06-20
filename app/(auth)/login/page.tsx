@@ -1,8 +1,9 @@
-'use client'
+﻿'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, ArrowRight, AlertCircle, CheckCircle2, ChevronLeft, Package, Truck, ShoppingCart } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { clearTenantFromStorage } from '@/lib/tenant'
 
 type Mode = 'login' | 'forgot' | 'sent'
 
@@ -25,6 +26,8 @@ export default function LoginPage() {
     try {
       const { error, data } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
       if (error) throw error
+      // Xóa tenant cũ trong localStorage để tránh hiển thị branding sai của công ty khác
+      clearTenantFromStorage()
       const profileRes = await fetch('/api/me', {
         headers: { Authorization: `Bearer ${data.session?.access_token ?? ''}` },
       })
@@ -217,7 +220,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   autoFocus
-                  className="w-full px-4 py-3 border-2 border-[#e5e7eb] rounded-xl text-sm text-[#1e2a3a] placeholder-gray-300 focus:outline-none focus:border-[#0ea5e9] focus:ring-2 focus:ring-[#0ea5e9]/20 transition-all"
+                  className="w-full px-4 py-3 border-2 border-[#e5e7eb] rounded-xl text-sm text-[#1e2a3a] placeholder-gray-300 focus:outline-none focus:border-[var(--mia-primary)] focus:ring-2 focus:ring-[var(--mia-primary)]/20 transition-all"
                 />
               </div>
 
@@ -225,7 +228,7 @@ export default function LoginPage() {
                 <div className="flex items-center justify-between mb-2">
                   <label className="block text-sm font-semibold text-[#1e2a3a]">Mật khẩu</label>
                   <button type="button" onClick={() => { setError(''); setResetEmail(email); setMode('forgot') }}
-                    className="text-xs text-[#0ea5e9] hover:underline">
+                    className="text-xs text-[var(--mia-primary)] hover:underline">
                     Quên mật khẩu?
                   </button>
                 </div>
@@ -235,7 +238,7 @@ export default function LoginPage() {
                     placeholder="••••••••"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
-                    className="w-full px-4 py-3 pr-11 border-2 border-[#e5e7eb] rounded-xl text-sm text-[#1e2a3a] placeholder-gray-300 focus:outline-none focus:border-[#0ea5e9] focus:ring-2 focus:ring-[#0ea5e9]/20 transition-all"
+                    className="w-full px-4 py-3 pr-11 border-2 border-[#e5e7eb] rounded-xl text-sm text-[#1e2a3a] placeholder-gray-300 focus:outline-none focus:border-[var(--mia-primary)] focus:ring-2 focus:ring-[var(--mia-primary)]/20 transition-all"
                   />
                   <button type="button" onClick={() => setShowPwd(v => !v)}
                     className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
@@ -245,7 +248,7 @@ export default function LoginPage() {
               </div>
 
               <button type="submit" disabled={loading || !email.trim() || !password}
-                className="w-full bg-[#0ea5e9] hover:bg-[#0284c7] text-white font-bold py-3.5 px-4 rounded-xl transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100">
+                className="w-full bg-[var(--mia-primary)] hover:opacity-90 text-white font-bold py-3.5 px-4 rounded-xl transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100">
                 {loading
                   ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Đang đăng nhập...</>
                   : <>Đăng nhập <ArrowRight size={16} /></>}
@@ -279,12 +282,12 @@ export default function LoginPage() {
                   value={resetEmail}
                   onChange={e => setResetEmail(e.target.value)}
                   autoFocus
-                  className="w-full px-4 py-3 border-2 border-[#e5e7eb] rounded-xl text-sm text-[#1e2a3a] placeholder-gray-300 focus:outline-none focus:border-[#0ea5e9] focus:ring-2 focus:ring-[#0ea5e9]/20 transition-all"
+                  className="w-full px-4 py-3 border-2 border-[#e5e7eb] rounded-xl text-sm text-[#1e2a3a] placeholder-gray-300 focus:outline-none focus:border-[var(--mia-primary)] focus:ring-2 focus:ring-[var(--mia-primary)]/20 transition-all"
                 />
               </div>
 
               <button type="submit" disabled={resetLoading || !resetEmail.trim()}
-                className="w-full bg-[#0ea5e9] hover:bg-[#0284c7] text-white font-bold py-3.5 px-4 rounded-xl transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100">
+                className="w-full bg-[var(--mia-primary)] hover:opacity-90 text-white font-bold py-3.5 px-4 rounded-xl transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100">
                 {resetLoading
                   ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Đang gửi...</>
                   : <>Gửi link đặt lại <ArrowRight size={16} /></>}
@@ -309,7 +312,7 @@ export default function LoginPage() {
                 </p>
               </div>
               <button type="button" onClick={() => { setError(''); setMode('forgot') }}
-                className="text-sm text-[#0ea5e9] hover:underline">
+                className="text-sm text-[var(--mia-primary)] hover:underline">
                 Gửi lại email
               </button>
               <div className="pt-2">
@@ -323,7 +326,7 @@ export default function LoginPage() {
 
           <p className="mt-5 text-center text-xs text-gray-400">
             Chưa có tài khoản?{' '}
-            <a href="#" className="text-[#0ea5e9] hover:underline font-medium">Liên hệ dùng thử miễn phí</a>
+            <a href="#" className="text-[var(--mia-primary)] hover:underline font-medium">Liên hệ dùng thử miễn phí</a>
           </p>
         </div>
       </div>

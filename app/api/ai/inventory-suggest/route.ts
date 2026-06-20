@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getInventorySuggestions } from '@/lib/groq'
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { supabaseAdmin } from '@/lib/supabase-admin'
+import { getServerTenantId } from '@/lib/server-auth'
 
 export async function POST(req: NextRequest) {
   try {
+    const tenantId = await getServerTenantId()
     const body = await req.json().catch(() => ({}))
 
     // Nếu client gửi sẵn data thì dùng, không thì query DB
@@ -16,10 +13,11 @@ export async function POST(req: NextRequest) {
     let recentMovements = body.recentMovements as any[] | undefined
 
     if (!alertItems || alertItems.length === 0) {
-      const { data: inv } = await supabaseAdmin
+      const query = supabaseAdmin
         .from('inventory')
         .select('quantity, product:products(id, sku, name, unit, min_stock), warehouse:warehouses(name)')
         .limit(200)
+      const { data: inv } = tenantId ? await query.eq('tenant_id', tenantId) : await query
 
       if (inv) {
         type Row = { quantity: number; product: any; warehouse: any }
@@ -39,8 +37,12 @@ export async function POST(req: NextRequest) {
 
     if (!recentMovements) {
       const [{ data: receipts }, { data: issues }] = await Promise.all([
-        supabaseAdmin.from('stock_receipts').select('code, receipt_date').order('receipt_date', { ascending: false }).limit(10),
-        supabaseAdmin.from('stock_issues').select('code, issue_date').order('issue_date', { ascending: false }).limit(10),
+        tenantId
+          ? supabaseAdmin.from('stock_receipts').select('code, receipt_date').eq('tenant_id', tenantId).order('receipt_date', { ascending: false }).limit(10)
+          : supabaseAdmin.from('stock_receipts').select('code, receipt_date').order('receipt_date', { ascending: false }).limit(10),
+        tenantId
+          ? supabaseAdmin.from('stock_issues').select('code, issue_date').eq('tenant_id', tenantId).order('issue_date', { ascending: false }).limit(10)
+          : supabaseAdmin.from('stock_issues').select('code, issue_date').order('issue_date', { ascending: false }).limit(10),
       ])
       recentMovements = [
         ...(receipts ?? []).map((r: any) => ({ code: r.code, type: 'in', date: r.receipt_date })),

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { useState, useRef, useEffect } from 'react'
 import { Download, Calendar, Loader2, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -89,7 +89,7 @@ export default function ExportButton({ module, label }: Props) {
     <div className="relative" ref={panelRef}>
       <button
         onClick={() => setOpen(v => !v)}
-        className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-gray-600 bg-white border border-[#e5e7eb] rounded-lg hover:bg-gray-50 hover:border-[#0ea5e9] hover:text-[#0ea5e9] transition-all"
+        className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-gray-600 bg-white border border-[#e5e7eb] rounded-lg hover:bg-gray-50 hover:border-[var(--mia-primary)] hover:text-[var(--mia-primary)] transition-all"
       >
         <Download size={13} />
         {label ?? 'Xuất Excel'}
@@ -99,7 +99,7 @@ export default function ExportButton({ module, label }: Props) {
         <div className="absolute right-0 top-full mt-2 z-50 bg-white rounded-xl border border-[#e5e7eb] shadow-xl p-4 w-72">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-1.5">
-              <Calendar size={14} className="text-[#0ea5e9]" />
+              <Calendar size={14} className="text-[var(--mia-primary)]" />
               <span className="text-xs font-semibold text-[#1e2a3a]">
                 Xuất {MODULE_LABEL[module]}
               </span>
@@ -119,7 +119,7 @@ export default function ExportButton({ module, label }: Props) {
                 value={from}
                 max={to}
                 onChange={e => setFrom(e.target.value)}
-                className="w-full text-xs border border-[#e5e7eb] rounded-lg px-2.5 py-1.5 outline-none focus:border-[#0ea5e9]"
+                className="w-full text-xs border border-[#e5e7eb] rounded-lg px-2.5 py-1.5 outline-none focus:border-[var(--mia-primary)]"
               />
             </div>
             <div>
@@ -132,7 +132,7 @@ export default function ExportButton({ module, label }: Props) {
                 min={from}
                 max={new Date().toISOString().slice(0, 10)}
                 onChange={e => setTo(e.target.value)}
-                className="w-full text-xs border border-[#e5e7eb] rounded-lg px-2.5 py-1.5 outline-none focus:border-[#0ea5e9]"
+                className="w-full text-xs border border-[#e5e7eb] rounded-lg px-2.5 py-1.5 outline-none focus:border-[var(--mia-primary)]"
               />
             </div>
 
@@ -143,7 +143,7 @@ export default function ExportButton({ module, label }: Props) {
             <button
               onClick={handleExport}
               disabled={loading}
-              className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-white bg-[#0ea5e9] hover:bg-[#0284c7] rounded-lg transition-colors disabled:opacity-60"
+              className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-white bg-[var(--mia-primary)] hover:opacity-90 rounded-lg transition-colors disabled:opacity-60"
             >
               {loading
                 ? <><Loader2 size={13} className="animate-spin" /> Đang xuất...</>

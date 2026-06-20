@@ -5,11 +5,14 @@ import ServiceWorkerRegistrar from '@/components/layout/ServiceWorkerRegistrar'
 export const metadata: Metadata = {
   title: 'Mia SCM',
   description: 'Hệ thống quản lý chuỗi cung ứng thông minh cho nhà phân phối FMCG tại Việt Nam',
-  manifest: '/manifest.webmanifest',
+  manifest: '/api/manifest',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
     title: 'Mia SCM',
+  },
+  icons: {
+    apple: '/mia-logo.png',
   },
 }
 

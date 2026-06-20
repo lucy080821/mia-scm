@@ -12,12 +12,22 @@
   --font-sans: -apple-system, "Segoe UI", sans-serif;
 }
 
+:root {
+  --mia-font: -apple-system, "Segoe UI", sans-serif;
+  --mia-font-size: 14px;
+  --mia-primary: #0ea5e9;
+}
+
 * {
   box-sizing: border-box;
 }
 
+html {
+  font-size: var(--mia-font-size);
+}
+
 body {
-  font-family: var(--font-sans);
+  font-family: var(--mia-font);
   background-color: #f0f2f5;
   color: #1e2a3a;
 }

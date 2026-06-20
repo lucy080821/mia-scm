@@ -3,9 +3,13 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { getServerTenantId } from '@/lib/server-auth'
 
 export async function GET() {
+  const tenantId = await getServerTenantId()
+  if (!tenantId) return NextResponse.json([])
+
   const { data, error } = await supabaseAdmin
     .from('customers')
     .select('id, name, address, tax_code, phone')
+    .eq('tenant_id', tenantId)
     .eq('status', 'active')
     .order('name')
     .limit(500)

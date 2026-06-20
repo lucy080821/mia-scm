@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import React, { useState, useEffect } from 'react'
 import {
   GitBranch, Package, DollarSign, Hash, Truck, FileText,
@@ -20,7 +20,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void 
     <button
       type="button" onClick={onChange}
       className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 focus:outline-none cursor-pointer hover:opacity-90
-        ${checked ? 'bg-[#0ea5e9]' : 'bg-gray-200'}`}
+        ${checked ? 'bg-[var(--mia-primary)]' : 'bg-gray-200'}`}
     >
       <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform duration-200
         ${checked ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
@@ -32,7 +32,7 @@ function Radio({ checked, onChange, label, desc }: { checked: boolean; onChange:
   return (
     <label className="flex items-start gap-3 cursor-pointer group" onClick={onChange}>
       <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors
-        ${checked ? 'border-[#0ea5e9] bg-[#0ea5e9]' : 'border-gray-300 group-hover:border-gray-400'}`}>
+        ${checked ? 'border-[var(--mia-primary)] bg-[var(--mia-primary)]' : 'border-gray-300 group-hover:border-gray-400'}`}>
         {checked && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
       </div>
       <div>
@@ -79,7 +79,7 @@ function NumInput({ label, value, onChange, min, unit }: {
         <input
           type="number" min={min ?? 0} value={value}
           onChange={e => onChange(Number(e.target.value))}
-          className="w-24 h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]"
+          className="w-24 h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]"
         />
         {unit && <span className="text-sm text-gray-400">{unit}</span>}
       </div>
@@ -133,7 +133,7 @@ function ApprovalTab({ s, set, color }: { s: BusinessSettings; set: (p: Partial<
             <input
               type="number" min={0} value={s.orderAutoApproveLimit}
               onChange={e => set({ orderAutoApproveLimit: Number(e.target.value) })}
-              className="w-40 h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]"
+              className="w-40 h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]"
             />
             <span className="text-sm text-gray-400">đồng</span>
             <span className="text-xs text-gray-300 italic">(0 = không dùng)</span>
@@ -279,7 +279,7 @@ function FinanceTab({ s, set, color }: { s: BusinessSettings; set: (p: Partial<B
               <select
                 value={s.defaultVatRate}
                 onChange={e => set({ defaultVatRate: Number(e.target.value) })}
-                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]"
+                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]"
               >
                 {[0, 5, 8, 10].map(r => <option key={r} value={r}>{r}%</option>)}
               </select>
@@ -306,7 +306,7 @@ function FinanceTab({ s, set, color }: { s: BusinessSettings; set: (p: Partial<B
                 <button key={v} onClick={() => set({ priceRounding: v })}
                   className={`px-3 py-2 rounded-lg text-sm border-2 transition-all font-medium
                     ${s.priceRounding === v
-                      ? 'border-[#0ea5e9] bg-sky-50 text-sky-700'
+                      ? 'border-[var(--mia-primary)] bg-sky-50 text-sky-700'
                       : 'border-[#e5e7eb] text-gray-500 hover:border-gray-300'}`}
                   style={s.priceRounding === v ? { borderColor: color, color, backgroundColor: color + '15' } : {}}>
                   {label}
@@ -341,7 +341,7 @@ function FinanceTab({ s, set, color }: { s: BusinessSettings; set: (p: Partial<B
               <input
                 type="number" min={0} value={s.blockOverdueDays}
                 onChange={e => set({ blockOverdueDays: Number(e.target.value) })}
-                className="w-16 h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]"
+                className="w-16 h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]"
               />
               <span className="text-sm text-gray-400">ngày</span>
             </div>
@@ -355,7 +355,7 @@ function FinanceTab({ s, set, color }: { s: BusinessSettings; set: (p: Partial<B
           <select
             value={s.fiscalYearStart}
             onChange={e => set({ fiscalYearStart: Number(e.target.value) })}
-            className="w-48 h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]"
+            className="w-48 h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]"
           >
             {MONTHS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
           </select>
@@ -417,19 +417,19 @@ function NumberingTab({ s, set, color }: { s: BusinessSettings; set: (p: Partial
                     value={rule.prefix}
                     onChange={e => updateRule(key, { prefix: e.target.value.toUpperCase() })}
                     maxLength={6}
-                    className="h-8 px-2 text-sm font-mono border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] w-full"
+                    className="h-8 px-2 text-sm font-mono border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] w-full"
                   />
                   <select
                     value={rule.format}
                     onChange={e => updateRule(key, { format: e.target.value })}
-                    className="h-8 px-2 text-xs font-mono border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] w-full"
+                    className="h-8 px-2 text-xs font-mono border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] w-full"
                   >
                     {FORMAT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                   <input
                     type="number" min={1} value={rule.counter}
                     onChange={e => updateRule(key, { counter: Math.max(1, Number(e.target.value)) })}
-                    className="h-8 px-2 text-sm font-mono border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] w-full"
+                    className="h-8 px-2 text-sm font-mono border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] w-full"
                   />
                   <span className="text-xs font-mono text-sky-600 bg-sky-50 px-2 py-1 rounded-lg w-fit">
                     {previewNumbering(rule)}
@@ -498,20 +498,20 @@ function LogisticsTab({ s, set, color }: { s: BusinessSettings; set: (p: Partial
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Giờ bắt đầu (T2–T6)</label>
             <input type="time" value={s.workStart}
               onChange={e => set({ workStart: e.target.value })}
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Giờ kết thúc (T2–T6)</label>
             <input type="time" value={s.workEnd}
               onChange={e => set({ workEnd: e.target.value })}
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
           </div>
           {s.workDays[5] && (
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1.5">Giờ kết thúc Thứ 7</label>
               <input type="time" value={s.workSatEnd}
                 onChange={e => set({ workSatEnd: e.target.value })}
-                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
             </div>
           )}
         </div>
@@ -521,7 +521,7 @@ function LogisticsTab({ s, set, color }: { s: BusinessSettings; set: (p: Partial
           <div className="flex items-center gap-3">
             <input type="time" value={s.cutoffTime}
               onChange={e => set({ cutoffTime: e.target.value })}
-              className="h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+              className="h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
             <p className="text-xs text-gray-400">Đơn nhận trước giờ này → giao trong ngày. Sau cut-off → giao ngày hôm sau</p>
           </div>
         </div>
@@ -565,7 +565,7 @@ function LogisticsTab({ s, set, color }: { s: BusinessSettings; set: (p: Partial
                     <span className="text-sm text-gray-400">mỗi</span>
                     <input type="number" min={1} value={s.codReconcileDays}
                       onChange={e => set({ codReconcileDays: Number(e.target.value) })}
-                      className="w-16 h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                      className="w-16 h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
                     <span className="text-sm text-gray-400">ngày</span>
                   </div>
                 </div>
@@ -602,20 +602,20 @@ function DocumentsTab({ s, set, color }: { s: BusinessSettings; set: (p: Partial
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Ngân hàng</label>
             <input value={s.bankName} onChange={e => set({ bankName: e.target.value })}
               placeholder="Vietcombank – Chi nhánh TP.HCM"
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1.5">Số tài khoản</label>
               <input value={s.bankAccount} onChange={e => set({ bankAccount: e.target.value })}
                 placeholder="0123456789"
-                className="w-full h-9 px-3 text-sm font-mono border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                className="w-full h-9 px-3 text-sm font-mono border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1.5">Chủ tài khoản</label>
               <input value={s.bankOwner} onChange={e => set({ bankOwner: e.target.value })}
                 placeholder="CONG TY TNHH ABC"
-                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
             </div>
           </div>
         </div>
@@ -626,12 +626,12 @@ function DocumentsTab({ s, set, color }: { s: BusinessSettings; set: (p: Partial
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Điều khoản thanh toán mặc định</label>
             <textarea rows={3} value={s.invoiceTerms} onChange={e => set({ invoiceTerms: e.target.value })}
-              className="w-full px-3 py-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] resize-none" />
+              className="w-full px-3 py-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] resize-none" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Ghi chú cuối hóa đơn / báo giá</label>
             <textarea rows={2} value={s.invoiceFooter} onChange={e => set({ invoiceFooter: e.target.value })}
-              className="w-full px-3 py-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] resize-none" />
+              className="w-full px-3 py-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] resize-none" />
           </div>
         </div>
       </Card>

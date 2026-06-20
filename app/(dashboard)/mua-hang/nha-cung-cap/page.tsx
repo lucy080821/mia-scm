@@ -1,10 +1,11 @@
-'use client'
+﻿'use client'
 import { useState, useEffect } from 'react'
 import { Plus, Search, Building2, Star, Phone, Mail, X, MapPin, Clock, TrendingUp } from 'lucide-react'
 import PageHeader from '@/components/layout/PageHeader'
 import ExportButton from '@/components/ui/ExportButton'
 import { formatVND } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
+import { useTenant } from '@/contexts/TenantContext'
 
 interface Supplier {
   id: string; code: string; name: string; type: string
@@ -90,7 +91,7 @@ function SupplierFormModal({ initial, existingCodes, onSave, onClose }: {
   )
 
   const inputCls = (err?: string) =>
-    `w-full px-3 py-2 text-sm border rounded-lg outline-none transition-colors focus:border-[#0ea5e9] focus:ring-1 focus:ring-[#0ea5e9]/20 ${err ? 'border-red-400' : 'border-[#e5e7eb]'}`
+    `w-full px-3 py-2 text-sm border rounded-lg outline-none transition-colors focus:border-[var(--mia-primary)] focus:ring-1 focus:ring-[var(--mia-primary)]/20 ${err ? 'border-red-400' : 'border-[#e5e7eb]'}`
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
@@ -179,7 +180,7 @@ function SupplierFormModal({ initial, existingCodes, onSave, onClose }: {
             Hủy
           </button>
           <button onClick={handleSubmit}
-            className="flex-1 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-xl hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all">
+            className="flex-1 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-xl hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all">
             {isEdit ? 'Lưu thay đổi' : 'Thêm nhà cung cấp'}
           </button>
         </div>
@@ -235,11 +236,11 @@ function SupplierDetailDrawer({ supplier, onClose, onEdit }: {
 
           <div className="space-y-2">
             <a href={`tel:${supplier.phone}`} className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
-              <Phone size={14} className="text-[#0ea5e9]" />
+              <Phone size={14} className="text-[var(--mia-primary)]" />
               <span className="text-sm text-[#1e2a3a]">{supplier.phone}</span>
             </a>
             <a href={`mailto:${supplier.email}`} className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
-              <Mail size={14} className="text-[#0ea5e9]" />
+              <Mail size={14} className="text-[var(--mia-primary)]" />
               <span className="text-sm text-[#1e2a3a]">{supplier.email}</span>
             </a>
             <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl">
@@ -263,7 +264,7 @@ function SupplierDetailDrawer({ supplier, onClose, onEdit }: {
               <p className="text-xs text-gray-500">Tổng đơn mua</p>
             </div>
             <div className="bg-gray-50 rounded-xl p-3 text-center">
-              <p className="text-base font-bold text-[#0ea5e9]">{formatVND(supplier.total_amount)}</p>
+              <p className="text-base font-bold text-[var(--mia-primary)]">{formatVND(supplier.total_amount)}</p>
               <p className="text-xs text-gray-500">Tổng giá trị</p>
             </div>
           </div>
@@ -276,7 +277,7 @@ function SupplierDetailDrawer({ supplier, onClose, onEdit }: {
         </div>
 
         <div className="px-5 py-4 border-t border-[#e5e7eb]">
-          <button onClick={onEdit} className="w-full py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-xl hover:bg-[#0284c7] transition-all hover:scale-[1.02] active:scale-95">
+          <button onClick={onEdit} className="w-full py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-all hover:scale-[1.02] active:scale-95">
             Chỉnh sửa thông tin
           </button>
         </div>
@@ -288,11 +289,14 @@ function SupplierDetailDrawer({ supplier, onClose, onEdit }: {
 const PAGE_SIZE = 20
 
 export default function NhaCungCapPage() {
+  const { id: tenantId } = useTenant()
   const [suppliers, setSuppliers] = useState<Supplier[]>(INITIAL_SUPPLIERS)
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
+    if (!tenantId) return
     async function load() {
-      const { data } = await supabase.from('suppliers').select('*').order('created_at', { ascending: false })
+      const { data } = await supabase.from('suppliers').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false })
       if (!data) return
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       setSuppliers(data.map((s: any) => ({
@@ -315,7 +319,7 @@ export default function NhaCungCapPage() {
       })))
     }
     load()
-  }, [])
+  }, [tenantId])
 
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -385,7 +389,7 @@ export default function NhaCungCapPage() {
         <ExportButton module="mua-hang" />
         <button
           onClick={() => setFormTarget('new')}
-          className="flex items-center gap-2 px-4 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all">
+          className="flex items-center gap-2 px-4 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all">
           <Plus size={15} /> Thêm NCC
         </button>
       </PageHeader>
@@ -428,7 +432,7 @@ export default function NhaCungCapPage() {
               const LABELS: Record<string, string> = { all: 'Tất cả', active: 'Đang HT', paused: 'Tạm ngừng', inactive: 'Ngừng HĐ' }
               return (
                 <button key={s} onClick={() => setStatusFilter(s)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-[#0ea5e9] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-[var(--mia-primary)] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                   {LABELS[s]}
                 </button>
               )
@@ -462,7 +466,7 @@ export default function NhaCungCapPage() {
                   </td>
                   <td className="px-4 py-3 text-xs text-gray-500">{s.type}</td>
                   <td className="px-4 py-3">
-                    <p className="text-xs text-[#0ea5e9]">{s.phone}</p>
+                    <p className="text-xs text-[var(--mia-primary)]">{s.phone}</p>
                     <p className="text-[10px] text-gray-400 truncate max-w-[140px]">{s.email}</p>
                   </td>
                   <td className="px-4 py-3 text-xs text-gray-600">{s.payment_term} ngày</td>
@@ -478,7 +482,7 @@ export default function NhaCungCapPage() {
                   </td>
                   <td className="px-4 py-3">
                     <button onClick={() => setSelected(s)}
-                      className="px-3 py-1.5 border border-[#e5e7eb] text-gray-600 text-xs font-medium rounded-lg hover:bg-gray-50 hover:border-[#0ea5e9] hover:text-[#0ea5e9] transition-colors">
+                      className="px-3 py-1.5 border border-[#e5e7eb] text-gray-600 text-xs font-medium rounded-lg hover:bg-gray-50 hover:border-[var(--mia-primary)] hover:text-[var(--mia-primary)] transition-colors">
                       Chi tiết
                     </button>
                   </td>
@@ -495,7 +499,7 @@ export default function NhaCungCapPage() {
                 className="h-7 px-2 rounded-lg border border-[#e5e7eb] text-xs text-gray-500 hover:bg-gray-50 disabled:opacity-40 transition-colors">‹</button>
               {Array.from({ length: Math.ceil(filtered.length / PAGE_SIZE) }, (_, i) => i + 1).map(n => (
                 <button key={n} onClick={() => setPage(n)}
-                  className={`h-7 w-7 flex items-center justify-center rounded-lg text-xs transition-colors ${n === page ? 'bg-[#0ea5e9] text-white font-semibold' : 'border border-[#e5e7eb] text-gray-600 hover:bg-gray-50'}`}>
+                  className={`h-7 w-7 flex items-center justify-center rounded-lg text-xs transition-colors ${n === page ? 'bg-[var(--mia-primary)] text-white font-semibold' : 'border border-[#e5e7eb] text-gray-600 hover:bg-gray-50'}`}>
                   {n}
                 </button>
               ))}

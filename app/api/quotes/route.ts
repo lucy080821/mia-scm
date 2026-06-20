@@ -3,6 +3,9 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { getServerTenantId } from '@/lib/server-auth'
 
 export async function GET() {
+  const tenantId = await getServerTenantId()
+  if (!tenantId) return NextResponse.json([])
+
   const { data, error } = await supabaseAdmin
     .from('quotes')
     .select(`
@@ -10,6 +13,7 @@ export async function GET() {
       customer:customers ( id, name ),
       items:quote_items ( id, product_id, product_name, unit, qty, unit_price, discount_pct, subtotal )
     `)
+    .eq('tenant_id', tenantId)
     .order('created_at', { ascending: false })
     .limit(200)
 

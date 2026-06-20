@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { getServerTenantId } from '@/lib/server-auth'
 
 export async function GET(req: NextRequest) {
+  const tenantId = await getServerTenantId()
+  if (!tenantId) return NextResponse.json([])
+
   const { searchParams } = new URL(req.url)
   const type = searchParams.get('type')
 
   // ─── Top products by revenue ──────────────────────────────────────────────
   if (type === 'top_products') {
-    const { data: orders } = await supabaseAdmin.from('sales_orders').select('id').eq('status', 'completed')
+    const { data: orders } = await supabaseAdmin.from('sales_orders').select('id').eq('tenant_id', tenantId).eq('status', 'completed')
     const orderIds = (orders ?? []).map(o => o.id)
     if (!orderIds.length) return NextResponse.json([])
 
@@ -34,8 +38,9 @@ export async function GET(req: NextRequest) {
     const [{ data: ordersData }, { data: usersData }] = await Promise.all([
       supabaseAdmin.from('sales_orders')
         .select('assigned_to, final_amount, status')
+        .eq('tenant_id', tenantId)
         .not('assigned_to', 'is', null),
-      supabaseAdmin.from('users').select('id, full_name, employee_code'),
+      supabaseAdmin.from('users').select('id, full_name, employee_code').eq('tenant_id', tenantId),
     ])
 
     const userMap = Object.fromEntries(
@@ -60,7 +65,7 @@ export async function GET(req: NextRequest) {
 
   // ─── Drill-down: categories ───────────────────────────────────────────────
   if (type === 'drilldown_categories') {
-    const { data: orders } = await supabaseAdmin.from('sales_orders').select('id').eq('status', 'completed')
+    const { data: orders } = await supabaseAdmin.from('sales_orders').select('id').eq('tenant_id', tenantId).eq('status', 'completed')
     const orderIds = (orders ?? []).map(o => o.id)
     if (!orderIds.length) return NextResponse.json([])
 
@@ -95,7 +100,7 @@ export async function GET(req: NextRequest) {
   // ─── Drill-down: products in a category ──────────────────────────────────
   if (type === 'drilldown_products') {
     const categoryId = searchParams.get('category_id')
-    const { data: orders } = await supabaseAdmin.from('sales_orders').select('id').eq('status', 'completed')
+    const { data: orders } = await supabaseAdmin.from('sales_orders').select('id').eq('tenant_id', tenantId).eq('status', 'completed')
     const orderIds = (orders ?? []).map(o => o.id)
     if (!orderIds.length) return NextResponse.json([])
 
@@ -128,7 +133,7 @@ export async function GET(req: NextRequest) {
     if (!productId) return NextResponse.json([])
 
     const { data: orders } = await supabaseAdmin
-      .from('sales_orders').select('id, customer_id').eq('status', 'completed')
+      .from('sales_orders').select('id, customer_id').eq('tenant_id', tenantId).eq('status', 'completed')
     const orderIds = (orders ?? []).map(o => o.id)
     const orderCustMap = Object.fromEntries((orders ?? []).map(o => [o.id, o.customer_id]))
     if (!orderIds.length) return NextResponse.json([])
@@ -138,7 +143,7 @@ export async function GET(req: NextRequest) {
         .select('subtotal, order_id')
         .in('order_id', orderIds)
         .eq('product_id', productId),
-      supabaseAdmin.from('customers').select('id, name'),
+      supabaseAdmin.from('customers').select('id, name').eq('tenant_id', tenantId),
     ])
 
     const custMap = Object.fromEntries((customers ?? []).map(c => [c.id, c.name]))
@@ -164,6 +169,7 @@ export async function GET(req: NextRequest) {
     const { data } = await supabaseAdmin
       .from('inventory')
       .select('quantity, product:products ( id, name, sku, unit )')
+      .eq('tenant_id', tenantId)
       .gt('quantity', 0)
       .order('quantity', { ascending: false })
       .limit(50)

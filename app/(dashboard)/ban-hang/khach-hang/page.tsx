@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { useState, useEffect } from 'react'
 import { Plus, Search, Filter, Phone, Mail, MapPin, TrendingUp, ShoppingCart, X } from 'lucide-react'
 import PageHeader from '@/components/layout/PageHeader'
@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import { formatVND, formatDate } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
+import { useTenant } from '@/contexts/TenantContext'
 
 type Customer = {
   id: string; code: string; name: string; short_name: string; type: string
@@ -58,17 +59,17 @@ function CustomerFormModal({ onClose, onCreate }: {
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Tên khách hàng *</label>
             <input value={form.name} onChange={e => set('name', e.target.value)}
               placeholder="CÔNG TY TNHH ..."
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Tên viết tắt</label>
             <input value={form.short_name} onChange={e => set('short_name', e.target.value)}
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Loại khách hàng</label>
             <select value={form.type} onChange={e => set('type', e.target.value)}
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]">
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]">
               <option value="company">Doanh nghiệp</option>
               <option value="individual">Cá nhân</option>
             </select>
@@ -77,32 +78,32 @@ function CustomerFormModal({ onClose, onCreate }: {
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Số điện thoại *</label>
             <input value={form.phone} onChange={e => set('phone', e.target.value)}
               placeholder="0901 234 567"
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Email</label>
             <input type="email" value={form.email} onChange={e => set('email', e.target.value)}
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
           </div>
           <div className="col-span-2">
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Địa chỉ</label>
             <input value={form.address} onChange={e => set('address', e.target.value)}
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Hạn mức tín dụng (đ)</label>
             <input type="number" value={form.credit_limit} onChange={e => set('credit_limit', +e.target.value)}
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Thời hạn thanh toán (ngày)</label>
             <input type="number" value={form.payment_term} onChange={e => set('payment_term', +e.target.value)}
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Trạng thái</label>
             <select value={form.status} onChange={e => set('status', e.target.value)}
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]">
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]">
               <option value="active">Hoạt động</option>
               <option value="paused">Tạm dừng</option>
               <option value="inactive">Không HĐ</option>
@@ -113,7 +114,7 @@ function CustomerFormModal({ onClose, onCreate }: {
         <div className="flex gap-2 px-6 py-4 border-t border-[#e5e7eb]">
           <button onClick={onClose} className="flex-1 py-2 text-sm text-gray-600 border border-[#e5e7eb] rounded-lg hover:bg-gray-50 transition-colors">Hủy</button>
           <button onClick={handleSubmit} disabled={!form.name || !form.phone}
-            className="flex-1 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] disabled:opacity-40 transition-all hover:scale-[1.02] active:scale-95">
+            className="flex-1 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-40 transition-all hover:scale-[1.02] active:scale-95">
             Thêm khách hàng
           </button>
         </div>
@@ -124,11 +125,14 @@ function CustomerFormModal({ onClose, onCreate }: {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function CustomersPage() {
+  const { id: tenantId } = useTenant()
   const [customers, setCustomers] = useState<Customer[]>(INITIAL_CUSTOMERS)
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
+    if (!tenantId) return
     async function load() {
-      const { data } = await supabase.from('customers').select('*').order('created_at', { ascending: false })
+      const { data } = await supabase.from('customers').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false })
       if (!data) return
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       setCustomers(data.map((c: any) => ({
@@ -149,7 +153,7 @@ export default function CustomersPage() {
       })))
     }
     load()
-  }, [])
+  }, [tenantId])
 
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -218,7 +222,7 @@ export default function CustomersPage() {
               className="flex-1 text-sm outline-none bg-transparent text-gray-700 placeholder-gray-400" />
           </div>
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-            className="h-9 px-3 border border-[#e5e7eb] rounded-lg text-sm text-gray-700 bg-white outline-none cursor-pointer focus:ring-2 focus:ring-[#0ea5e9]">
+            className="h-9 px-3 border border-[#e5e7eb] rounded-lg text-sm text-gray-700 bg-white outline-none cursor-pointer focus:ring-2 focus:ring-[var(--mia-primary)]">
             <option value="all">Tất cả trạng thái</option>
             <option value="active">Hoạt động</option>
             <option value="paused">Tạm dừng</option>
@@ -230,7 +234,7 @@ export default function CustomersPage() {
         <div className="space-y-2">
           {paged.map(c => (
             <div key={c.id} onClick={() => setSelected(c.id === selected ? null : c.id)}
-              className={`bg-white rounded-xl border transition-all cursor-pointer hover:shadow-sm ${selected === c.id ? 'border-[#0ea5e9] shadow-sm' : 'border-[#e5e7eb]'}`}>
+              className={`bg-white rounded-xl border transition-all cursor-pointer hover:shadow-sm ${selected === c.id ? 'border-[var(--mia-primary)] shadow-sm' : 'border-[#e5e7eb]'}`}>
               <div className="flex items-center gap-4 p-4">
                 <div className="w-10 h-10 rounded-xl bg-[#1e2a3a] flex items-center justify-center shrink-0">
                   <span className="text-white font-bold text-sm">{c.name.charAt(0)}</span>
@@ -277,7 +281,7 @@ export default function CustomersPage() {
                 className="h-7 px-2 rounded-lg border border-[#e5e7eb] text-xs text-gray-500 hover:bg-gray-50 disabled:opacity-40 transition-colors">‹</button>
               {Array.from({ length: Math.ceil(filtered.length / PAGE_SIZE) }, (_, i) => i + 1).map(n => (
                 <button key={n} onClick={() => setPage(n)}
-                  className={`h-7 w-7 flex items-center justify-center rounded-lg text-xs transition-colors ${n === page ? 'bg-[#0ea5e9] text-white font-semibold' : 'border border-[#e5e7eb] text-gray-600 hover:bg-gray-50'}`}>
+                  className={`h-7 w-7 flex items-center justify-center rounded-lg text-xs transition-colors ${n === page ? 'bg-[var(--mia-primary)] text-white font-semibold' : 'border border-[#e5e7eb] text-gray-600 hover:bg-gray-50'}`}>
                   {n}
                 </button>
               ))}
@@ -318,11 +322,11 @@ export default function CustomersPage() {
               </div>
               <div className="bg-sky-50 rounded-lg p-3 text-center">
                 <p className="text-xs text-gray-400 mb-0.5 flex items-center justify-center gap-1"><TrendingUp size={10} />Doanh thu</p>
-                <p className="text-sm font-bold text-[#0ea5e9]">{formatVND(selectedCustomer.revenue)}</p>
+                <p className="text-sm font-bold text-[var(--mia-primary)]">{formatVND(selectedCustomer.revenue)}</p>
               </div>
               <div className="bg-sky-50 rounded-lg p-3 text-center">
                 <p className="text-xs text-gray-400 mb-0.5 flex items-center justify-center gap-1"><ShoppingCart size={10} />Đơn hàng</p>
-                <p className="text-sm font-bold text-[#0ea5e9]">{selectedCustomer.orders}</p>
+                <p className="text-sm font-bold text-[var(--mia-primary)]">{selectedCustomer.orders}</p>
               </div>
             </div>
             <p className="text-[10px] text-gray-400 mt-3">Ngày tham gia: {formatDate(selectedCustomer.created_at)}</p>
@@ -334,7 +338,7 @@ export default function CustomersPage() {
               {recentOrders.map(o => (
                 <div key={o.code} className="flex items-center justify-between py-2 border-b border-[#e5e7eb] last:border-0">
                   <div>
-                    <p className="text-xs font-medium text-[#0ea5e9]">{o.code}</p>
+                    <p className="text-xs font-medium text-[var(--mia-primary)]">{o.code}</p>
                     <p className="text-[10px] text-gray-400">{formatDate(o.date)}</p>
                   </div>
                   <div className="text-right">

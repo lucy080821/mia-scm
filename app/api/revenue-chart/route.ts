@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { getServerTenantId } from '@/lib/server-auth'
+
+export const dynamic = 'force-dynamic'
 
 type Period = 'day' | 'week' | 'month' | 'quarter' | 'year'
 
@@ -26,6 +29,9 @@ function startOf(period: Period): string {
 }
 
 export async function GET(req: NextRequest) {
+  const tenantId = await getServerTenantId()
+  if (!tenantId) return NextResponse.json({ data: [] })
+
   const period = (req.nextUrl.searchParams.get('period') ?? 'month') as Period
   const from = startOf(period)
   const now = new Date()
@@ -33,6 +39,7 @@ export async function GET(req: NextRequest) {
   const { data: orders } = await supabaseAdmin
     .from('sales_orders')
     .select('order_date, final_amount')
+    .eq('tenant_id', tenantId)
     .eq('status', 'completed')
     .gte('order_date', from)
     .order('order_date')

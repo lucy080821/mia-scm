@@ -19,7 +19,7 @@ function secsAgo(iso: string) {
   return s < 60 ? `${s}s trước` : `${Math.floor(s / 60)}ph trước`
 }
 
-export default function DriverTrackingMap({ height = '420px' }: { height?: string }) {
+export default function DriverTrackingMap({ height = '420px', tenantId }: { height?: string; tenantId: string }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef       = useRef<unknown>(null)
   const markersRef   = useRef<Map<string, unknown>>(new Map())
@@ -27,17 +27,24 @@ export default function DriverTrackingMap({ height = '420px' }: { height?: strin
 
   /* ── Load ban đầu + Supabase Realtime ──────────────────────────────────── */
   useEffect(() => {
+    if (!tenantId) return
     let cancelled = false
     const load = async () => {
-      const { data, error } = await supabase.from('driver_locations').select('*')
+      const { data, error } = await supabase
+        .from('driver_locations')
+        .select('*')
+        .eq('tenant_id', tenantId)
       if (cancelled || error) return
       if (data) setDrivers(data as DriverLocation[])
     }
     load()
 
     const channel = supabase
-      .channel('driver-tracking-map')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'driver_locations' }, (payload) => {
+      .channel(`driver-tracking-map-${tenantId}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'driver_locations',
+        filter: `tenant_id=eq.${tenantId}`,
+      }, (payload) => {
         if (payload.eventType === 'DELETE') {
           const old = payload.old as DriverLocation
           setDrivers(prev => prev.filter(d => d.driver_name !== old.driver_name))
@@ -56,7 +63,7 @@ export default function DriverTrackingMap({ height = '420px' }: { height?: strin
       cancelled = true
       supabase.removeChannel(channel)
     }
-  }, [])
+  }, [tenantId])
 
   /* ── Khởi tạo Leaflet map ───────────────────────────────────────────────── */
   useEffect(() => {

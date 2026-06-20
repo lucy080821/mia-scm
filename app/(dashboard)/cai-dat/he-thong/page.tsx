@@ -7,21 +7,26 @@ import {
   CheckCircle2, XCircle, Send, Zap, Webhook,
   Phone, KeyRound, UserCircle, Pencil, Ban,
   ToggleLeft, ToggleRight, AlertTriangle,
-  Building2, MapPin, Globe,
+  Building2, MapPin, Globe, Palette,
 } from 'lucide-react'
 import { DEFAULT_ROLE_PERMISSIONS, type Role, type Permission } from '@/lib/permissions'
 import { useTenant, useTenantUpdater } from '@/contexts/TenantContext'
-import { saveTenantToStorage, type TenantConfig } from '@/lib/tenant'
+import {
+  saveTenantToStorage, type TenantConfig,
+  DASHBOARD_WIDGET_DEFS, DEFAULT_DASHBOARD_WIDGETS,
+  type DashboardWidget, type ThemeConfig,
+} from '@/lib/tenant'
 import { useAuth } from '@/hooks/useAuth'
 
 // ── Tab definitions ────────────────────────────────────────────────────────
 const TABS = [
-  { id: 'company',   label: 'Thông tin công ty',       icon: Building2 },
-  { id: 'users',     label: 'Tài khoản & Người dùng', icon: Users },
-  { id: 'perms',     label: 'Phân quyền',              icon: Shield },
-  { id: 'notify',    label: 'Thông báo',               icon: Bell },
-  { id: 'integr',    label: 'Tích hợp',                icon: Link2 },
-  { id: 'email',     label: 'Email & Zalo',             icon: Mail },
+  { id: 'company',    label: 'Thông tin công ty',       icon: Building2 },
+  { id: 'appearance', label: 'Giao diện',               icon: Palette },
+  { id: 'users',      label: 'Tài khoản & Người dùng', icon: Users },
+  { id: 'perms',      label: 'Phân quyền',              icon: Shield },
+  { id: 'notify',     label: 'Thông báo',               icon: Bell },
+  { id: 'integr',     label: 'Tích hợp',                icon: Link2 },
+  { id: 'email',      label: 'Email & Zalo',             icon: Mail },
 ]
 // Tab chỉ hiện với platform owner
 const PLATFORM_TABS = [
@@ -50,7 +55,6 @@ function CompanyTab() {
     address:        tenant.address ?? '',
     phone:          tenant.phone ?? '',
     taxCode:        tenant.taxCode ?? '',
-    primaryColor:   tenant.primaryColor,
     enabledModules: [...tenant.enabledModules],
     logoUrl:        tenant.logoUrl ?? '',
   })
@@ -93,13 +97,12 @@ function CompanyTab() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          name:             form.name,
-          address:          form.address,
-          phone:            form.phone,
-          tax_code:         form.taxCode,
-          primary_color:    form.primaryColor,
-          logo_url:         form.logoUrl || null,
-          enabled_modules:  form.enabledModules,
+          name:            form.name,
+          address:         form.address,
+          phone:           form.phone,
+          tax_code:        form.taxCode,
+          logo_url:        form.logoUrl || null,
+          enabled_modules: form.enabledModules,
         }),
       })
     }
@@ -136,8 +139,7 @@ function CompanyTab() {
               }
             </div>
             <div className="space-y-1.5">
-              <label className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-[#0ea5e9] border border-[#0ea5e9] rounded-lg cursor-pointer hover:bg-sky-50 transition-colors w-fit"
-                style={{ borderColor: form.primaryColor, color: form.primaryColor }}>
+              <label className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-[var(--mia-primary)] border border-[var(--mia-primary)] rounded-lg cursor-pointer hover:bg-sky-50 transition-colors w-fit">
                 <Globe size={12} />
                 Tải lên ảnh logo
                 <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
@@ -156,44 +158,26 @@ function CompanyTab() {
         <div>
           <label className="block text-xs font-semibold text-gray-500 mb-1.5">Tên công ty <span className="text-red-400">*</span></label>
           <input value={form.name} onChange={e => set('name', e.target.value)}
-            className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+            className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Số điện thoại</label>
             <input value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="028 xxxx xxxx"
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Mã số thuế</label>
             <input value={form.taxCode} onChange={e => set('taxCode', e.target.value)} placeholder="0301234567"
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
           </div>
         </div>
 
         <div>
           <label className="block text-xs font-semibold text-gray-500 mb-1.5 flex items-center gap-1"><MapPin size={11} />Địa chỉ</label>
           <input value={form.address} onChange={e => set('address', e.target.value)} placeholder="123 Đường ABC, Quận 1, TP.HCM"
-            className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
-        </div>
-      </div>
-
-      {/* Giao diện */}
-      <div className="bg-white rounded-xl border border-[#e5e7eb] p-5 space-y-4">
-        <h3 className="text-sm font-bold text-[#1e2a3a]">Giao diện</h3>
-        <div>
-          <label className="block text-xs font-semibold text-gray-500 mb-2">Màu chủ đạo</label>
-          <div className="flex items-center gap-3">
-            <input type="color" value={form.primaryColor} onChange={e => set('primaryColor', e.target.value)}
-              className="w-10 h-10 rounded-lg border border-[#e5e7eb] cursor-pointer p-0.5" />
-            <input value={form.primaryColor} onChange={e => set('primaryColor', e.target.value)}
-              placeholder="#0ea5e9" className="w-32 h-9 px-3 text-sm font-mono border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
-            <div className="w-24 h-9 rounded-lg flex items-center justify-center text-white text-xs font-semibold"
-              style={{ backgroundColor: form.primaryColor }}>
-              Xem trước
-            </div>
-          </div>
+            className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
         </div>
       </div>
 
@@ -210,8 +194,8 @@ function CompanyTab() {
               return (
                 <button key={m.key} onClick={() => toggleModule(m.key)}
                   className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-sm font-medium transition-all hover:scale-[1.02]
-                    ${on ? 'border-[#0ea5e9] bg-sky-50 text-sky-700' : 'border-[#e5e7eb] bg-white text-gray-500 hover:border-gray-300'}`}
-                  style={on ? { borderColor: form.primaryColor, color: form.primaryColor, backgroundColor: form.primaryColor + '15' } : {}}>
+                    ${on ? 'border-[var(--mia-primary)] bg-sky-50 text-sky-700' : 'border-[#e5e7eb] bg-white text-gray-500 hover:border-gray-300'}`}
+                  style={on ? { borderColor: tenant.primaryColor, color: tenant.primaryColor, backgroundColor: tenant.primaryColor + '15' } : {}}>
                   <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors
                     ${on ? 'border-current bg-current' : 'border-gray-300'}`}>
                     {on && <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1.5 4l2 2 3-3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
@@ -227,9 +211,288 @@ function CompanyTab() {
       <div className="flex justify-end">
         <button onClick={handleSave}
           className={`flex items-center gap-1.5 px-5 py-2.5 text-sm font-semibold rounded-lg hover:scale-[1.02] active:scale-95 transition-all
-            ${saved ? 'bg-green-500 text-white' : 'text-white'}`}
-          style={!saved ? { backgroundColor: form.primaryColor } : {}}>
+            ${saved ? 'bg-green-500 text-white' : 'bg-[var(--mia-primary)] text-white hover:opacity-90'}`}>
           <Save size={14} />{saved ? 'Đã lưu!' : 'Lưu thay đổi'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── AppearanceTab ────────────────────────────────────────────────────────
+
+const SIDEBAR_PRESETS = [
+  { color: '#1e2a3a', label: 'Xanh đêm' },
+  { color: '#0f172a', label: 'Đen đêm' },
+  { color: '#1e1e2e', label: 'Tối sâu' },
+  { color: '#312e81', label: 'Tím đậm' },
+  { color: '#1e3a5f', label: 'Hải quân' },
+  { color: '#14532d', label: 'Xanh rừng' },
+  { color: '#7c2d12', label: 'Đỏ đất' },
+  { color: '#374151', label: 'Than chì' },
+]
+
+const FONT_PRESETS: { key: ThemeConfig['fontFamily'] & string; name: string; desc: string }[] = [
+  { key: 'inter',          name: 'Inter',          desc: 'Hiện đại · Sạch' },
+  { key: 'be-vietnam-pro', name: 'Be Vietnam Pro', desc: 'Việt Nam · Dễ đọc' },
+  { key: 'roboto',         name: 'Roboto',         desc: 'Phổ biến · Rõ ràng' },
+  { key: 'nunito',         name: 'Nunito',         desc: 'Thân thiện · Tròn' },
+]
+
+const GOOGLE_FONT_CSS: Record<string, string> = {
+  'inter':          '',
+  'be-vietnam-pro': 'https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap',
+  'roboto':         'https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap',
+  'nunito':         'https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap',
+}
+
+const FONT_SAMPLE_FAMILY: Record<string, string> = {
+  'inter':          "'Inter', sans-serif",
+  'be-vietnam-pro': "'Be Vietnam Pro', sans-serif",
+  'roboto':         "'Roboto', sans-serif",
+  'nunito':         "'Nunito', sans-serif",
+}
+
+function AppearanceTab() {
+  const tenant = useTenant()
+  const setTenantCtx = useTenantUpdater()
+
+  const [primaryColor, setPrimaryColor] = useState(tenant.primaryColor)
+  const [sidebarBg, setSidebarBg]       = useState(tenant.themeConfig?.sidebarBg   ?? '#1e2a3a')
+  const [sidebarText, setSidebarText]   = useState(tenant.themeConfig?.sidebarText ?? '#ffffff')
+  const [accentColor, setAccentColor]   = useState(tenant.themeConfig?.accentColor ?? tenant.primaryColor)
+  const [fontFamily, setFontFamily]     = useState<NonNullable<ThemeConfig['fontFamily']>>(tenant.themeConfig?.fontFamily ?? 'inter')
+  const [fontSize, setFontSize]         = useState<NonNullable<ThemeConfig['fontSize']>>(tenant.themeConfig?.fontSize ?? 'md')
+  const [widgets, setWidgets]           = useState<DashboardWidget[]>(
+    tenant.dashboardWidgets ?? DEFAULT_DASHBOARD_WIDGETS
+  )
+  const [saved, setSaved] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  const toggleWidget = (id: string) => {
+    setWidgets(prev => prev.map(w => w.id === id ? { ...w, enabled: !w.enabled } : w))
+    setSaved(false)
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    const themeConfig: ThemeConfig = { sidebarBg, sidebarText, accentColor, fontFamily, fontSize }
+    const updated: TenantConfig = { ...tenant, primaryColor, themeConfig, dashboardWidgets: widgets }
+
+    const { data: { session } } = await (await import('@/lib/supabase')).supabase.auth.getSession()
+    const token = session?.access_token
+
+    if (token && tenant.id !== 'default') {
+      await fetch(`/api/tenants/${tenant.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          primary_color:    primaryColor,
+          theme_config:     themeConfig,
+          dashboard_config: widgets,
+        }),
+      })
+    }
+
+    saveTenantToStorage(updated)
+    setTenantCtx(updated)
+    window.dispatchEvent(new Event('mia:tenant-updated'))
+    setSaving(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2500)
+  }
+
+  // Preload Google Font for preview
+  const loadPreviewFont = (key: string) => {
+    const url = GOOGLE_FONT_CSS[key]
+    if (!url || document.getElementById(`preview-font-${key}`)) return
+    const link = document.createElement('link')
+    link.id = `preview-font-${key}`
+    link.rel = 'stylesheet'
+    link.href = url
+    document.head.appendChild(link)
+  }
+
+  return (
+    <div className="space-y-5 max-w-2xl">
+
+      {/* ── MÀU SẮC ── */}
+      <div className="bg-white rounded-xl border border-[#e5e7eb] p-5 space-y-5">
+        <h3 className="text-sm font-bold text-[#1e2a3a]">Màu sắc thương hiệu</h3>
+
+        {/* Màu chủ đạo */}
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 mb-2">Màu chủ đạo (Primary)</label>
+          <div className="flex items-center gap-3">
+            <input type="color" value={primaryColor} onChange={e => { setPrimaryColor(e.target.value); setSaved(false) }}
+              className="w-10 h-10 rounded-lg border border-[#e5e7eb] cursor-pointer p-0.5 shrink-0" />
+            <input value={primaryColor} onChange={e => { setPrimaryColor(e.target.value); setSaved(false) }}
+              placeholder="#0ea5e9" maxLength={7}
+              className="w-28 h-9 px-3 text-sm font-mono border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
+            <div className="h-9 px-4 rounded-lg flex items-center text-white text-xs font-semibold"
+              style={{ backgroundColor: primaryColor }}>
+              Nút bấm · Link
+            </div>
+          </div>
+        </div>
+
+        {/* Màu sidebar */}
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 mb-2">Màu sidebar</label>
+          <div className="flex flex-wrap gap-2 mb-3">
+            {SIDEBAR_PRESETS.map(p => (
+              <button key={p.color} onClick={() => { setSidebarBg(p.color); setSaved(false) }}
+                title={p.label}
+                className={`w-9 h-9 rounded-lg border-2 transition-all hover:scale-110 ${sidebarBg === p.color ? 'border-[var(--mia-primary)] scale-110' : 'border-transparent'}`}
+                style={{ backgroundColor: p.color }} />
+            ))}
+            <div className="flex items-center gap-2 ml-1">
+              <input type="color" value={sidebarBg} onChange={e => { setSidebarBg(e.target.value); setSaved(false) }}
+                className="w-9 h-9 rounded-lg border border-[#e5e7eb] cursor-pointer p-0.5"
+                title="Màu tuỳ chỉnh" />
+              <span className="text-xs text-gray-400">Tuỳ chỉnh</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 p-3 rounded-lg" style={{ backgroundColor: sidebarBg }}>
+            <div className="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold"
+              style={{ backgroundColor: primaryColor, color: '#fff' }}>
+              {tenant.name.charAt(0)}
+            </div>
+            <span className="text-xs font-semibold" style={{ color: sidebarText }}>{tenant.name}</span>
+            <span className="text-xs ml-2" style={{ color: sidebarText + '80' }}>· Xem trước sidebar</span>
+          </div>
+        </div>
+
+        {/* Màu chữ sidebar */}
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 mb-2">Màu chữ sidebar</label>
+          <div className="flex flex-wrap gap-2 mb-3">
+            {[
+              { color: '#ffffff', label: 'Trắng' },
+              { color: '#e2e8f0', label: 'Xám nhạt' },
+              { color: '#94a3b8', label: 'Xám xanh' },
+              { color: '#fde68a', label: 'Vàng ấm' },
+              { color: '#bbf7d0', label: 'Xanh lá nhạt' },
+              { color: '#bfdbfe', label: 'Xanh nhạt' },
+            ].map(p => (
+              <button key={p.color} onClick={() => { setSidebarText(p.color); setSaved(false) }}
+                title={p.label}
+                className={`w-9 h-9 rounded-lg border-2 transition-all hover:scale-110 ${sidebarText === p.color ? 'border-[var(--mia-primary)] scale-110' : 'border-[#e5e7eb]'}`}
+                style={{ backgroundColor: p.color }} />
+            ))}
+            <div className="flex items-center gap-2 ml-1">
+              <input type="color" value={sidebarText} onChange={e => { setSidebarText(e.target.value); setSaved(false) }}
+                className="w-9 h-9 rounded-lg border border-[#e5e7eb] cursor-pointer p-0.5"
+                title="Màu tuỳ chỉnh" />
+              <span className="text-xs text-gray-400">Tuỳ chỉnh</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Màu accent */}
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 mb-2">Màu accent (nút bấm phụ)</label>
+          <div className="flex items-center gap-3">
+            <input type="color" value={accentColor} onChange={e => { setAccentColor(e.target.value); setSaved(false) }}
+              className="w-10 h-10 rounded-lg border border-[#e5e7eb] cursor-pointer p-0.5 shrink-0" />
+            <input value={accentColor} onChange={e => { setAccentColor(e.target.value); setSaved(false) }}
+              placeholder="#0ea5e9" maxLength={7}
+              className="w-28 h-9 px-3 text-sm font-mono border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
+            <button onClick={() => { setAccentColor(primaryColor); setSaved(false) }}
+              className="text-xs text-gray-400 hover:text-[var(--mia-primary)] transition-colors">
+              Đặt bằng màu chủ đạo
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── FONT CHỮ ── */}
+      <div className="bg-white rounded-xl border border-[#e5e7eb] p-5 space-y-4">
+        <h3 className="text-sm font-bold text-[#1e2a3a]">Font chữ</h3>
+        <div className="grid grid-cols-2 gap-3">
+          {FONT_PRESETS.map(f => {
+            const active = fontFamily === f.key
+            return (
+              <button key={f.key}
+                onClick={() => { setFontFamily(f.key); setSaved(false); loadPreviewFont(f.key) }}
+                className={`flex flex-col gap-1.5 p-4 rounded-xl border-2 text-left transition-all hover:scale-[1.02]
+                  ${active ? 'border-[var(--mia-primary)] bg-sky-50' : 'border-[#e5e7eb] hover:border-gray-300'}`}>
+                <span className="text-xl font-bold text-[#1e2a3a]"
+                  style={{ fontFamily: FONT_SAMPLE_FAMILY[f.key] }}>
+                  Aa Bb Hệ thống
+                </span>
+                <span className="text-sm font-semibold text-[#1e2a3a]"
+                  style={{ fontFamily: FONT_SAMPLE_FAMILY[f.key] }}>
+                  {f.name}
+                </span>
+                <span className="text-[10px] text-gray-400">{f.desc}</span>
+                {active && (
+                  <span className="text-[10px] text-[var(--mia-primary)] font-semibold mt-0.5">Đang dùng</span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 mb-2">Cỡ chữ</label>
+          <div className="flex gap-2">
+            {([['sm', 'Nhỏ (13px)'], ['md', 'Vừa (14px)'], ['lg', 'Lớn (16px)']] as const).map(([key, label]) => (
+              <button key={key} onClick={() => { setFontSize(key); setSaved(false) }}
+                className={`px-4 py-2 rounded-lg text-sm font-medium border-2 transition-all hover:scale-[1.02]
+                  ${fontSize === key ? 'border-[var(--mia-primary)] bg-sky-50 text-[var(--mia-primary)]' : 'border-[#e5e7eb] text-gray-600 hover:border-gray-300'}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── DASHBOARD WIDGETS ── */}
+      <div className="bg-white rounded-xl border border-[#e5e7eb] p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-[#1e2a3a]">Cấu hình Dashboard</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Chọn những gì hiển thị trên trang tổng quan</p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => { setWidgets(prev => prev.map(w => ({ ...w, enabled: true }))); setSaved(false) }}
+              className="text-xs text-[var(--mia-primary)] hover:underline">Bật tất cả</button>
+            <span className="text-gray-300">·</span>
+            <button onClick={() => { setWidgets(prev => prev.map(w => ({ ...w, enabled: false }))); setSaved(false) }}
+              className="text-xs text-gray-400 hover:text-red-400 hover:underline">Tắt tất cả</button>
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          {DASHBOARD_WIDGET_DEFS.map(def => {
+            const w = widgets.find(x => x.id === def.id) ?? { id: def.id, enabled: true }
+            return (
+              <div key={def.id}
+                className={`flex items-center justify-between px-4 py-3 rounded-xl border transition-all
+                  ${w.enabled ? 'border-[#e5e7eb] bg-white' : 'border-dashed border-gray-200 bg-gray-50'}`}>
+                <div>
+                  <p className={`text-sm font-medium ${w.enabled ? 'text-[#1e2a3a]' : 'text-gray-400'}`}>{def.label}</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">{def.desc}</p>
+                </div>
+                <button type="button" onClick={() => toggleWidget(def.id)}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 focus:outline-none shrink-0
+                    ${w.enabled ? 'bg-[var(--mia-primary)]' : 'bg-gray-200'}`}>
+                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform duration-200
+                    ${w.enabled ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="flex justify-end">
+        <button onClick={handleSave} disabled={saving}
+          className={`flex items-center gap-1.5 px-5 py-2.5 text-sm font-semibold rounded-lg hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-60
+            ${saved ? 'bg-green-500 text-white' : 'bg-[var(--mia-primary)] text-white hover:opacity-90'}`}>
+          <Save size={14} />
+          {saved ? 'Đã lưu!' : saving ? 'Đang lưu...' : 'Lưu giao diện'}
         </button>
       </div>
     </div>
@@ -289,7 +552,7 @@ function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (
   return (
     <button type="button" onClick={disabled ? undefined : onChange} disabled={disabled}
       className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 focus:outline-none
-        ${checked ? 'bg-[#0ea5e9]' : 'bg-gray-200'} ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:opacity-90'}`}>
+        ${checked ? 'bg-[var(--mia-primary)]' : 'bg-gray-200'} ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:opacity-90'}`}>
       <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform duration-200
         ${checked ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
     </button>
@@ -359,30 +622,30 @@ function UserFormModal({ user, onClose, onSave, loading }: {
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Mã nhân viên</label>
             <input value={form.employee_code} onChange={e => set('employee_code', e.target.value)} placeholder="NV001"
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Vai trò</label>
             <select value={form.role} onChange={e => set('role', e.target.value)}
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]">
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]">
               {Object.entries(ROLE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </div>
           <div className="col-span-2">
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Họ và tên <span className="text-red-400">*</span></label>
             <input value={form.full_name} onChange={e => set('full_name', e.target.value)} placeholder="Nguyễn Văn A"
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Email <span className="text-red-400">*</span></label>
             <input type="email" value={form.email} onChange={e => set('email', e.target.value)}
               disabled={isEdit} placeholder="ten@cty.vn"
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] disabled:bg-gray-50 disabled:text-gray-400" />
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] disabled:bg-gray-50 disabled:text-gray-400" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Số điện thoại</label>
             <input value={form.phone ?? ''} onChange={e => set('phone', e.target.value)} placeholder="0901234567"
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">
@@ -391,7 +654,7 @@ function UserFormModal({ user, onClose, onSave, loading }: {
             <div className="relative">
               <input type={showPass ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)}
                 placeholder={isEdit ? 'Để trống nếu không đổi' : 'Tối thiểu 6 ký tự'}
-                className="w-full h-9 px-3 pr-9 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                className="w-full h-9 px-3 pr-9 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
               <button type="button" onClick={() => setShowPass(s => !s)} className="absolute right-2.5 top-2 text-gray-400">
                 {showPass ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
@@ -400,7 +663,7 @@ function UserFormModal({ user, onClose, onSave, loading }: {
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Trạng thái</label>
             <select value={form.status} onChange={e => set('status', e.target.value)}
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]">
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]">
               <option value="active">Đang hoạt động</option>
               <option value="inactive">Tạm khóa</option>
             </select>
@@ -409,7 +672,7 @@ function UserFormModal({ user, onClose, onSave, loading }: {
         <div className="flex gap-2 px-6 py-4 border-t border-[#e5e7eb]">
           <button onClick={onClose} className="flex-1 py-2 text-sm text-gray-600 border border-[#e5e7eb] rounded-lg hover:bg-gray-50 transition-colors">Hủy</button>
           <button onClick={handleSave} disabled={!form.full_name || !form.email || loading}
-            className="flex-1 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] disabled:opacity-40 transition-all hover:scale-[1.02] active:scale-95">
+            className="flex-1 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-40 transition-all hover:scale-[1.02] active:scale-95">
             {loading ? 'Đang lưu...' : isEdit ? 'Cập nhật' : 'Tạo tài khoản'}
           </button>
         </div>
@@ -528,13 +791,13 @@ function UsersTab() {
           <div className="flex gap-1">
             {['all', ...Object.keys(ROLE_LABEL)].map(r => (
               <button key={r} onClick={() => setRoleFilter(r)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${roleFilter === r ? 'bg-[#0ea5e9] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${roleFilter === r ? 'bg-[var(--mia-primary)] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                 {r === 'all' ? 'Tất cả' : ROLE_LABEL[r]}
               </button>
             ))}
           </div>
           <button onClick={() => setModal('new')}
-            className="ml-auto flex items-center gap-1.5 px-3 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all">
+            className="ml-auto flex items-center gap-1.5 px-3 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all">
             <Plus size={14} /> Thêm người dùng
           </button>
         </div>
@@ -676,13 +939,13 @@ function NotifyTab() {
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1.5">Từ</label>
               <input type="time" value={quietFrom} onChange={e => setQuietFrom(e.target.value)}
-                className="h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                className="h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
             </div>
             <span className="text-gray-400 mt-5">→</span>
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1.5">Đến</label>
               <input type="time" value={quietTo} onChange={e => setQuietTo(e.target.value)}
-                className="h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                className="h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
             </div>
             <p className="text-xs text-gray-400 mt-5">Múi giờ: GMT+7 (Asia/Ho_Chi_Minh)</p>
           </div>
@@ -740,7 +1003,7 @@ function NotifyTab() {
       <div className="flex justify-end">
         <button onClick={() => { setSaved(true); setTimeout(() => setSaved(false), 2000) }}
           className={`flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg hover:scale-[1.02] active:scale-95 transition-all
-            ${saved ? 'bg-green-500 text-white' : 'bg-[#0ea5e9] text-white hover:bg-[#0284c7]'}`}>
+            ${saved ? 'bg-green-500 text-white' : 'bg-[var(--mia-primary)] text-white hover:opacity-90'}`}>
           <Save size={14} />{saved ? 'Đã lưu!' : 'Lưu cài đặt'}
         </button>
       </div>
@@ -810,7 +1073,7 @@ function IntegrationCard({ item, onSave }: { item: Integration; onSave: (i: Inte
             <div className="relative">
               <input type={showKey ? 'text' : 'password'} value={form.apiKey} onChange={e => setForm(f => ({ ...f, apiKey: e.target.value }))}
                 placeholder="Nhập API key..."
-                className="w-full h-8 px-3 pr-8 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                className="w-full h-8 px-3 pr-8 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
               <button type="button" onClick={() => setShowKey(s => !s)} className="absolute right-2 top-1.5 text-gray-400">
                 {showKey ? <EyeOff size={13} /> : <Eye size={13} />}
               </button>
@@ -821,7 +1084,7 @@ function IntegrationCard({ item, onSave }: { item: Integration; onSave: (i: Inte
               <label className="block text-xs font-semibold text-gray-500 mb-1">Endpoint URL</label>
               <input value={form.endpoint} onChange={e => setForm(f => ({ ...f, endpoint: e.target.value }))}
                 placeholder="https://..."
-                className="w-full h-8 px-3 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                className="w-full h-8 px-3 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
             </div>
           )}
           {item.extra !== undefined && (
@@ -829,7 +1092,7 @@ function IntegrationCard({ item, onSave }: { item: Integration; onSave: (i: Inte
               <label className="block text-xs font-semibold text-gray-500 mb-1">Thông tin thêm</label>
               <input value={form.extra} onChange={e => setForm(f => ({ ...f, extra: e.target.value }))}
                 placeholder="Partner code, merchant ID..."
-                className="w-full h-8 px-3 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                className="w-full h-8 px-3 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
             </div>
           )}
           <div className="flex items-center gap-2">
@@ -842,7 +1105,7 @@ function IntegrationCard({ item, onSave }: { item: Integration; onSave: (i: Inte
             {testResult === 'fail' && <span className="text-xs text-red-500 flex items-center gap-1"><XCircle size={11} />Kết nối thất bại</span>}
             <div className="ml-auto flex gap-2">
               <button onClick={() => setEditing(false)} className="px-3 py-1.5 text-xs text-gray-600 border border-[#e5e7eb] rounded-lg hover:bg-gray-50 transition-colors">Hủy</button>
-              <button onClick={handleSave} className="px-3 py-1.5 text-xs text-white bg-[#0ea5e9] rounded-lg hover:bg-[#0284c7] transition-all hover:scale-[1.02] active:scale-95">Lưu</button>
+              <button onClick={handleSave} className="px-3 py-1.5 text-xs text-white bg-[var(--mia-primary)] rounded-lg hover:opacity-90 transition-all hover:scale-[1.02] active:scale-95">Lưu</button>
             </div>
           </div>
         </div>
@@ -856,7 +1119,7 @@ function IntegrationCard({ item, onSave }: { item: Integration; onSave: (i: Inte
           {item.endpoint && <p className="text-xs text-gray-400 truncate">URL: {item.endpoint}</p>}
           {item.extra && <p className="text-xs text-gray-400">{item.extra}</p>}
           <button onClick={() => setEditing(true)}
-            className="mt-3 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-[#e5e7eb] rounded-lg hover:bg-gray-50 hover:border-[#0ea5e9] hover:text-[#0ea5e9] transition-colors">
+            className="mt-3 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-[#e5e7eb] rounded-lg hover:bg-gray-50 hover:border-[var(--mia-primary)] hover:text-[var(--mia-primary)] transition-colors">
             <Pencil size={11} />{item.status === 'disconnected' ? 'Kết nối ngay' : 'Chỉnh sửa'}
           </button>
         </div>
@@ -941,12 +1204,12 @@ function EmailZaloTab() {
               <div>
                 <label className="block text-xs font-semibold text-gray-500 mb-1.5">SMTP Host</label>
                 <input value={smtpHost} onChange={e => setSmtpHost(e.target.value)}
-                  className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                  className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 mb-1.5">Port</label>
                 <select value={smtpPort} onChange={e => setSmtpPort(e.target.value)}
-                  className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]">
+                  className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]">
                   <option value="587">587 (STARTTLS)</option>
                   <option value="465">465 (SSL)</option>
                   <option value="25">25 (Plain)</option>
@@ -956,13 +1219,13 @@ function EmailZaloTab() {
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1.5">Username / Email</label>
               <input value={smtpUser} onChange={e => setSmtpUser(e.target.value)}
-                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1.5">App Password</label>
               <div className="relative">
                 <input type={showPass ? 'text' : 'password'} value={smtpPass} onChange={e => setSmtpPass(e.target.value)}
-                  className="w-full h-9 px-3 pr-9 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                  className="w-full h-9 px-3 pr-9 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
                 <button type="button" onClick={() => setShowPass(s => !s)} className="absolute right-2.5 top-2 text-gray-400">
                   {showPass ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>
@@ -971,7 +1234,7 @@ function EmailZaloTab() {
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1.5">From (hiển thị người gửi)</label>
               <input value={smtpFrom} onChange={e => setSmtpFrom(e.target.value)}
-                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
             </div>
           </div>
 
@@ -980,7 +1243,7 @@ function EmailZaloTab() {
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Gửi email thử đến</label>
             <div className="flex gap-2">
               <input type="email" value={testEmail} onChange={e => setTestEmail(e.target.value)} placeholder="test@example.com"
-                className="flex-1 h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                className="flex-1 h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
               <button onClick={testSmtp} disabled={smtpTesting}
                 className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors">
                 <Send size={13} className={smtpTesting ? 'animate-pulse' : ''} />
@@ -994,7 +1257,7 @@ function EmailZaloTab() {
           <div className="flex justify-end mt-4">
             <button onClick={() => { setSmtpSaved(true); setTimeout(() => setSmtpSaved(false), 2000) }}
               className={`flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg hover:scale-[1.02] active:scale-95 transition-all
-                ${smtpSaved ? 'bg-green-500 text-white' : 'bg-[#0ea5e9] text-white hover:bg-[#0284c7]'}`}>
+                ${smtpSaved ? 'bg-green-500 text-white' : 'bg-[var(--mia-primary)] text-white hover:opacity-90'}`}>
               <Save size={13} />{smtpSaved ? 'Đã lưu!' : 'Lưu cài đặt'}
             </button>
           </div>
@@ -1018,18 +1281,18 @@ function EmailZaloTab() {
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1.5">OA ID</label>
               <input value={zaloOAId} onChange={e => setZaloOAId(e.target.value)} placeholder="OA ID từ Zalo Developer"
-                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1.5">Access Token</label>
               <input value={zaloToken} onChange={e => setZaloToken(e.target.value)} placeholder="zalo_oa_access_token_..."
-                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1.5">Secret Key</label>
               <div className="relative">
                 <input type={showZaloSecret ? 'text' : 'password'} value={zaloSecret} onChange={e => setZaloSecret(e.target.value)}
-                  className="w-full h-9 px-3 pr-9 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                  className="w-full h-9 px-3 pr-9 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
                 <button type="button" onClick={() => setShowZaloSecret(s => !s)} className="absolute right-2.5 top-2 text-gray-400">
                   {showZaloSecret ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>
@@ -1051,7 +1314,7 @@ function EmailZaloTab() {
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Gửi tin thử đến số điện thoại</label>
             <div className="flex gap-2">
               <input value={testZalo} onChange={e => setTestZalo(e.target.value)} placeholder="0901234567"
-                className="flex-1 h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                className="flex-1 h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
               <button onClick={testZaloConn} disabled={zaloTesting}
                 className="flex items-center gap-1.5 px-3 py-2 bg-blue-100 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-200 transition-colors">
                 <Send size={13} className={zaloTesting ? 'animate-pulse' : ''} />
@@ -1065,7 +1328,7 @@ function EmailZaloTab() {
           <div className="flex justify-end mt-4">
             <button onClick={() => { setZaloSaved(true); setTimeout(() => setZaloSaved(false), 2000) }}
               className={`flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg hover:scale-[1.02] active:scale-95 transition-all
-                ${zaloSaved ? 'bg-green-500 text-white' : 'bg-[#0ea5e9] text-white hover:bg-[#0284c7]'}`}>
+                ${zaloSaved ? 'bg-green-500 text-white' : 'bg-[var(--mia-primary)] text-white hover:opacity-90'}`}>
               <Save size={13} />{zaloSaved ? 'Đã lưu!' : 'Lưu cài đặt'}
             </button>
           </div>
@@ -1228,7 +1491,7 @@ function CompaniesTab() {
           <p className="text-xs text-gray-400 mt-0.5">{companies.filter(c => !c.is_platform).length} công ty đang sử dụng Mia SCM</p>
         </div>
         <button onClick={() => setShowModal('company')}
-          className="flex items-center gap-1.5 px-3 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all">
+          className="flex items-center gap-1.5 px-3 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all">
           <Plus size={14} /> Tạo công ty mới
         </button>
       </div>
@@ -1285,7 +1548,7 @@ function CompaniesTab() {
           <p className="text-xs text-gray-400 mt-0.5">Những người có quyền quản lý toàn bộ khách hàng</p>
         </div>
         <button onClick={() => setShowModal('owner')}
-          className="flex items-center gap-1.5 px-3 py-2 border border-[#0ea5e9] text-[#0ea5e9] text-sm font-semibold rounded-lg hover:bg-sky-50 hover:scale-[1.02] active:scale-95 transition-all">
+          className="flex items-center gap-1.5 px-3 py-2 border border-[var(--mia-primary)] text-[var(--mia-primary)] text-sm font-semibold rounded-lg hover:bg-sky-50 hover:scale-[1.02] active:scale-95 transition-all">
           <Plus size={14} /> Thêm owner
         </button>
       </div>
@@ -1340,27 +1603,27 @@ function CompaniesTab() {
                 <div className="col-span-2">
                   <label className="block text-xs font-semibold text-gray-500 mb-1.5">Tên công ty <span className="text-red-400">*</span></label>
                   <input value={form.name} onChange={e => handleNameChange(e.target.value)} placeholder="Công ty TNHH ABC"
-                    className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                    className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
                 </div>
                 <div className="col-span-2">
                   <label className="block text-xs font-semibold text-gray-500 mb-1.5">Slug (URL) <span className="text-red-400">*</span></label>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-gray-400 shrink-0">mia-scm.vn/</span>
                     <input value={form.slug} onChange={e => setF('slug', e.target.value)} placeholder="cong-ty-abc"
-                      className="flex-1 h-9 px-3 text-sm font-mono border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                      className="flex-1 h-9 px-3 text-sm font-mono border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
                   </div>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 mb-1.5">Email admin <span className="text-red-400">*</span></label>
                   <input type="email" value={form.adminEmail} onChange={e => setF('adminEmail', e.target.value)} placeholder="admin@cty-abc.vn"
-                    className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                    className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 mb-1.5">Mật khẩu admin <span className="text-red-400">*</span></label>
                   <div className="relative">
                     <input type={showPass ? 'text' : 'password'} value={form.adminPassword}
                       onChange={e => setF('adminPassword', e.target.value)} placeholder="Tối thiểu 6 ký tự"
-                      className="w-full h-9 px-3 pr-9 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                      className="w-full h-9 px-3 pr-9 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
                     <button type="button" onClick={() => setShowPass(s => !s)} className="absolute right-2.5 top-2 text-gray-400">
                       {showPass ? <EyeOff size={14} /> : <Eye size={14} />}
                     </button>
@@ -1369,12 +1632,12 @@ function CompaniesTab() {
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 mb-1.5">Số điện thoại</label>
                   <input value={form.phone} onChange={e => setF('phone', e.target.value)} placeholder="028 xxxx xxxx"
-                    className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                    className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 mb-1.5">Mã số thuế</label>
                   <input value={form.taxCode} onChange={e => setF('taxCode', e.target.value)} placeholder="0301234567"
-                    className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                    className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
                 </div>
                 <div className="col-span-2">
                   <label className="block text-xs font-semibold text-gray-500 mb-2">Module kích hoạt</label>
@@ -1384,7 +1647,7 @@ function CompaniesTab() {
                       return (
                         <button key={m.key} type="button" onClick={() => toggleModule(m.key)}
                           className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-all
-                            ${on ? 'border-[#0ea5e9] bg-sky-50 text-sky-700' : 'border-[#e5e7eb] text-gray-500 hover:border-gray-300'}`}>
+                            ${on ? 'border-[var(--mia-primary)] bg-sky-50 text-sky-700' : 'border-[#e5e7eb] text-gray-500 hover:border-gray-300'}`}>
                           <div className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center shrink-0
                             ${on ? 'border-sky-600 bg-sky-600' : 'border-gray-300'}`}>
                             {on && <svg width="7" height="7" viewBox="0 0 8 8" fill="none"><path d="M1.5 4l2 2 3-3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
@@ -1402,7 +1665,7 @@ function CompaniesTab() {
               <button onClick={() => setShowModal(null)} className="flex-1 py-2 text-sm text-gray-600 border border-[#e5e7eb] rounded-lg hover:bg-gray-50 transition-colors">Hủy</button>
               <button onClick={handleCreateCompany}
                 disabled={!form.name || !form.slug || !form.adminEmail || !form.adminPassword || saving}
-                className="flex-1 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] disabled:opacity-40 transition-all hover:scale-[1.02] active:scale-95">
+                className="flex-1 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-40 transition-all hover:scale-[1.02] active:scale-95">
                 {saving ? 'Đang tạo...' : 'Tạo công ty'}
               </button>
             </div>
@@ -1426,13 +1689,13 @@ function CompaniesTab() {
                 <label className="block text-xs font-semibold text-gray-500 mb-1.5">Họ và tên <span className="text-red-400">*</span></label>
                 <input value={ownerForm.full_name} onChange={e => setOwnerForm(f => ({ ...f, full_name: e.target.value }))}
                   placeholder="Nguyễn Văn A"
-                  className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                  className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 mb-1.5">Email <span className="text-red-400">*</span></label>
                 <input type="email" value={ownerForm.email} onChange={e => setOwnerForm(f => ({ ...f, email: e.target.value }))}
                   placeholder="owner@mia-scm.vn"
-                  className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                  className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 mb-1.5">Mật khẩu <span className="text-red-400">*</span></label>
@@ -1440,7 +1703,7 @@ function CompaniesTab() {
                   <input type={showOwnerPass ? 'text' : 'password'} value={ownerForm.password}
                     onChange={e => setOwnerForm(f => ({ ...f, password: e.target.value }))}
                     placeholder="Tối thiểu 6 ký tự"
-                    className="w-full h-9 px-3 pr-9 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                    className="w-full h-9 px-3 pr-9 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
                   <button type="button" onClick={() => setShowOwnerPass(s => !s)} className="absolute right-2.5 top-2 text-gray-400">
                     {showOwnerPass ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
@@ -1524,7 +1787,7 @@ export default function HeThongPage() {
             </button>
             <button onClick={() => { setSaved(true); setTimeout(() => setSaved(false), 2500) }}
               className={`flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg hover:scale-[1.02] active:scale-95 transition-all
-                ${saved ? 'bg-green-500 text-white' : 'bg-[#0ea5e9] text-white hover:bg-[#0284c7]'}`}>
+                ${saved ? 'bg-green-500 text-white' : 'bg-[var(--mia-primary)] text-white hover:opacity-90'}`}>
               <Save size={14} />{saved ? 'Đã lưu!' : 'Lưu thay đổi'}
             </button>
           </div>
@@ -1540,7 +1803,7 @@ export default function HeThongPage() {
             return (
               <button key={t.id} onClick={() => setTab(t.id)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all
-                  ${active ? 'bg-[#0ea5e9] text-white shadow-sm' : 'text-gray-500 hover:text-[#1e2a3a] hover:bg-gray-50'}`}>
+                  ${active ? 'bg-[var(--mia-primary)] text-white shadow-sm' : 'text-gray-500 hover:text-[#1e2a3a] hover:bg-gray-50'}`}>
                 <Icon size={15} />{t.label}
               </button>
             )
@@ -1548,13 +1811,14 @@ export default function HeThongPage() {
         </div>
 
         {tab === 'company' && <CompanyTab />}
+        {tab === 'appearance' && <AppearanceTab />}
         {tab === 'users' && <UsersTab />}
 
         {tab === 'perms' && (
           <div className="space-y-5">
             <div className="grid grid-cols-5 gap-3">
               {ROLES.map(r => (
-                <div key={r.id} className="bg-white border-2 border-[#0ea5e9] rounded-xl p-4 flex flex-col gap-3">
+                <div key={r.id} className="bg-white border-2 border-[var(--mia-primary)] rounded-xl p-4 flex flex-col gap-3">
                   <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center">{r.icon}</div>
                   <div>
                     <p className="text-sm font-semibold text-[#1e2a3a]">{r.label}</p>

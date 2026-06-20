@@ -27,7 +27,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = await req.json()
-  const { name, address, phone, tax_code, primary_color, logo_url, enabled_modules, plan } = body
+  const { name, address, phone, tax_code, primary_color, logo_url, enabled_modules, plan, theme_config, dashboard_config } = body
 
   const VALID_PLANS = ['starter', 'growth', 'enterprise']
   const updateData: Record<string, unknown> = {}
@@ -38,6 +38,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (primary_color !== undefined)    updateData.primary_color = primary_color
   if (logo_url !== undefined)         updateData.logo_url = logo_url
   if (enabled_modules !== undefined)  updateData.enabled_modules = enabled_modules
+  if (theme_config !== undefined)     updateData.theme_config = theme_config
+  if (dashboard_config !== undefined) updateData.dashboard_config = dashboard_config
   // Only owner can change plan
   if (plan !== undefined && isOwner) {
     if (!VALID_PLANS.includes(plan))

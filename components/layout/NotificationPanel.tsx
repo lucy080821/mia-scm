@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { useEffect, useRef, useState } from 'react'
 import {
   Bell, X, ShoppingCart, Package, Truck, ClipboardList,
@@ -151,7 +151,7 @@ export default function NotificationPanel({ onClose }: Props) {
         <div className="flex items-center gap-2">
           <span className="text-sm font-bold text-[#1e2a3a]">Thông báo</span>
           {unreadCount > 0 && (
-            <span className="text-[10px] font-semibold bg-[#0ea5e9] text-white px-1.5 py-0.5 rounded-full">
+            <span className="text-[10px] font-semibold bg-[var(--mia-primary)] text-white px-1.5 py-0.5 rounded-full">
               {unreadCount}
             </span>
           )}
@@ -160,7 +160,7 @@ export default function NotificationPanel({ onClose }: Props) {
           {unreadCount > 0 && (
             <button
               onClick={markAllRead}
-              className="text-[11px] text-[#0ea5e9] hover:text-[#0284c7] font-medium transition-colors"
+              className="text-[11px] text-[var(--mia-primary)] hover:text-[#0284c7] font-medium transition-colors"
             >
               Đọc tất cả
             </button>
@@ -175,7 +175,7 @@ export default function NotificationPanel({ onClose }: Props) {
             key={f}
             onClick={() => setFilter(f)}
             className={`flex-1 py-2 text-xs font-medium transition-colors border-b-2 -mb-px
-              ${filter === f ? 'border-[#0ea5e9] text-[#0ea5e9]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+              ${filter === f ? 'border-[var(--mia-primary)] text-[var(--mia-primary)]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
           >
             {f === 'all' ? 'Tất cả' : `Chưa đọc${unreadCount > 0 ? ` (${unreadCount})` : ''}`}
           </button>
@@ -201,7 +201,7 @@ export default function NotificationPanel({ onClose }: Props) {
               >
                 {/* Unread dot */}
                 {!notif.read && (
-                  <span className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[#0ea5e9]" />
+                  <span className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[var(--mia-primary)]" />
                 )}
 
                 {/* Icon */}
@@ -248,7 +248,7 @@ export default function NotificationPanel({ onClose }: Props) {
           <Link
             href="/ban-hang/don-hang-ban"
             onClick={onClose}
-            className="flex items-center justify-center gap-1 py-3 text-xs text-[#0ea5e9] hover:text-[#0284c7] font-medium transition-colors"
+            className="flex items-center justify-center gap-1 py-3 text-xs text-[var(--mia-primary)] hover:text-[#0284c7] font-medium transition-colors"
           >
             Xem tất cả hoạt động
             <ChevronRight size={13} />

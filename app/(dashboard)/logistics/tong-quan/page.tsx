@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { useEffect, useState } from 'react'
 import { Truck, UserCheck, Car, CheckCircle, AlertTriangle, Clock, TrendingUp, MapPin } from 'lucide-react'
 import PageHeader from '@/components/layout/PageHeader'
@@ -9,6 +9,7 @@ import DeliveryMap from '@/components/maps/DeliveryMap'
 import DriverTrackingMap from '@/components/maps/DriverTrackingMap'
 import { formatVND, formatDate } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
+import { useTenant } from '@/contexts/TenantContext'
 
 interface RecentDelivery {
   code: string; customer: string; driver: string; vehicle: string
@@ -25,6 +26,7 @@ interface MapStop {
 }
 
 export default function LogisticsOverviewPage() {
+  const { id: tenantId } = useTenant()
   const [kpi, setKpi] = useState({ total: 0, delivering: 0, completed: 0, delayed: 0, vehicles: 0, vehiclesActive: 0, freightCost: 0 })
   const [recentDeliveries, setRecentDeliveries] = useState<RecentDelivery[]>([])
   const [deliveryPlan, setDeliveryPlan] = useState<PlanRow[]>([])
@@ -33,7 +35,9 @@ export default function LogisticsOverviewPage() {
   const [mapStops, setMapStops] = useState<MapStop[]>([])
   const [loading, setLoading] = useState(true)
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
+    if (!tenantId) return
     const load = async () => {
       const now = new Date()
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
@@ -50,11 +54,12 @@ export default function LogisticsOverviewPage() {
             sales_order:sales_orders(id, customer:customers(name, address)),
             vehicle:vehicles(plate, type),
             driver:drivers(name, total_trips, rating)`)
+          .eq('tenant_id', tenantId)
           .gte('created_at', monthStart)
           .order('created_at', { ascending: false })
           .limit(100),
-        supabase.from('vehicles').select('status').neq('status', 'inactive'),
-        supabase.from('drivers').select('name, total_trips, rating').neq('status', 'inactive').order('total_trips', { ascending: false }).limit(5),
+        supabase.from('vehicles').select('status').eq('tenant_id', tenantId).neq('status', 'inactive'),
+        supabase.from('drivers').select('name, total_trips, rating').eq('tenant_id', tenantId).neq('status', 'inactive').order('total_trips', { ascending: false }).limit(5),
       ])
 
       const deliveries = allDeliveries ?? []
@@ -118,7 +123,7 @@ export default function LogisticsOverviewPage() {
       setLoading(false)
     }
     load()
-  }, [])
+  }, [tenantId])
 
   return (
     <div>
@@ -145,7 +150,7 @@ export default function LogisticsOverviewPage() {
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> Live
           </span>
         </div>
-        <DriverTrackingMap height="320px" />
+        <DriverTrackingMap height="320px" tenantId={tenantId} />
       </div>
 
       {/* AI suggestion */}
@@ -167,7 +172,7 @@ export default function LogisticsOverviewPage() {
           <div className="bg-white rounded-xl border border-[#e5e7eb]">
             <div className="flex items-center justify-between px-4 py-3 border-b border-[#e5e7eb]">
               <h2 className="text-sm font-semibold text-[#1e2a3a]">Đơn vận chuyển mới nhất</h2>
-              <a href="/logistics/don-van-chuyen" className="text-xs text-[#0ea5e9] hover:underline">Xem tất cả →</a>
+              <a href="/logistics/don-van-chuyen" className="text-xs text-[var(--mia-primary)] hover:underline">Xem tất cả →</a>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -185,7 +190,7 @@ export default function LogisticsOverviewPage() {
                     <tr><td colSpan={7} className="px-4 py-8 text-center text-xs text-gray-400">Chưa có đơn vận chuyển nào</td></tr>
                   ) : recentDeliveries.map(d => (
                     <tr key={d.code} className="border-b border-[#e5e7eb] last:border-0 hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3 text-xs font-medium text-[#0ea5e9]">{d.code}</td>
+                      <td className="px-4 py-3 text-xs font-medium text-[var(--mia-primary)]">{d.code}</td>
                       <td className="px-4 py-3 text-xs text-gray-700 max-w-[120px] truncate">{d.customer}</td>
                       <td className="px-4 py-3 text-xs text-gray-700">{d.driver}</td>
                       <td className="px-4 py-3 text-xs text-gray-500 max-w-[120px] truncate">{d.route}</td>
@@ -203,7 +208,7 @@ export default function LogisticsOverviewPage() {
           <div className="bg-white rounded-xl border border-[#e5e7eb]">
             <div className="flex items-center justify-between px-4 py-3 border-b border-[#e5e7eb]">
               <h2 className="text-sm font-semibold text-[#1e2a3a]">Kế hoạch giao hàng ngày mai</h2>
-              <a href="/logistics/ke-hoach-giao-hang" className="text-xs text-[#0ea5e9] hover:underline">Chi tiết →</a>
+              <a href="/logistics/ke-hoach-giao-hang" className="text-xs text-[var(--mia-primary)] hover:underline">Chi tiết →</a>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -223,7 +228,7 @@ export default function LogisticsOverviewPage() {
                     <tr key={i} className="border-b border-[#e5e7eb] last:border-0 hover:bg-gray-50">
                       <td className="px-4 py-3 text-xs font-medium text-[#1e2a3a]">{p.driver}</td>
                       <td className="px-4 py-3 text-xs text-gray-500 font-mono">{p.vehicle}</td>
-                      <td className="px-4 py-3 text-xs font-bold text-[#0ea5e9]">{p.orders}</td>
+                      <td className="px-4 py-3 text-xs font-bold text-[var(--mia-primary)]">{p.orders}</td>
                       <td className="px-4 py-3 text-xs text-gray-500 max-w-[140px] truncate">{p.routes}</td>
                       <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">{p.date ? formatDate(p.date) : '—'}</td>
                       <td className="px-4 py-3"><Badge status={p.status} /></td>
@@ -272,7 +277,7 @@ export default function LogisticsOverviewPage() {
           <div className="bg-white rounded-xl border border-[#e5e7eb] p-4">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-semibold text-[#1e2a3a]">Top tài xế</h2>
-              <a href="/logistics/tai-xe" className="text-xs text-[#0ea5e9] hover:underline">Xem tất cả →</a>
+              <a href="/logistics/tai-xe" className="text-xs text-[var(--mia-primary)] hover:underline">Xem tất cả →</a>
             </div>
             {loading ? (
               <p className="text-xs text-gray-400 text-center py-3">Đang tải...</p>
@@ -304,7 +309,7 @@ export default function LogisticsOverviewPage() {
           {/* Live map */}
           <div className="bg-white rounded-xl border border-[#e5e7eb] p-4">
             <div className="flex items-center gap-2 mb-3">
-              <MapPin size={14} className="text-[#0ea5e9]" />
+              <MapPin size={14} className="text-[var(--mia-primary)]" />
               <h2 className="text-sm font-semibold text-[#1e2a3a]">Bản đồ vận chuyển</h2>
               <span className="ml-auto flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
                 <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" /> Live
@@ -319,7 +324,7 @@ export default function LogisticsOverviewPage() {
             <div className="mt-3 flex items-center gap-4 text-xs text-gray-500">
               {[
                 { color: 'bg-green-500', label: 'Đã giao' },
-                { color: 'bg-[#0ea5e9]', label: 'Đang giao' },
+                { color: 'bg-[var(--mia-primary)]', label: 'Đang giao' },
                 { color: 'bg-yellow-500', label: 'Chờ giao' },
               ].map(l => (
                 <span key={l.label} className="flex items-center gap-1.5">

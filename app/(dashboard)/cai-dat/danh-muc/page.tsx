@@ -1,8 +1,9 @@
-'use client'
+﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { Plus, Edit2, Trash2, Package, Users, Tag, X, Loader2 } from 'lucide-react'
 import PageHeader from '@/components/layout/PageHeader'
 import { supabase } from '@/lib/supabase'
+import { useTenant } from '@/contexts/TenantContext'
 
 const TABS = [
   { id: 'category', label: 'Danh mục sản phẩm', icon: Package },
@@ -46,6 +47,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 // ─── Categories tab ───────────────────────────────────────────────────────────
 
 function CategoriesTab() {
+  const { id: tenantId } = useTenant()
   const [items, setItems]       = useState<Category[]>([])
   const [loading, setLoading]   = useState(true)
   const [showAdd, setShowAdd]   = useState(false)
@@ -56,10 +58,11 @@ function CategoriesTab() {
   const [errorMsg, setErrorMsg] = useState('')
 
   const load = useCallback(async () => {
+    if (!tenantId) return
     setLoading(true)
     const [{ data: cats }, { data: prods }] = await Promise.all([
-      supabase.from('categories').select('id, name, parent_id').order('name'),
-      supabase.from('products').select('category_id').eq('status', 'active'),
+      supabase.from('categories').select('id, name, parent_id').eq('tenant_id', tenantId).order('name'),
+      supabase.from('products').select('category_id').eq('tenant_id', tenantId).eq('status', 'active'),
     ])
     const countMap: Record<string, number> = {}
     for (const p of prods ?? []) {
@@ -73,7 +76,7 @@ function CategoriesTab() {
       product_count: countMap[c.id] ?? 0,
     })))
     setLoading(false)
-  }, [])
+  }, [tenantId])
 
   useEffect(() => { load() }, [load])
 
@@ -121,7 +124,7 @@ function CategoriesTab() {
           </h3>
           <button
             onClick={() => setShowAdd(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#0ea5e9] text-white text-xs font-semibold rounded-lg hover:bg-[#0284c7] transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--mia-primary)] text-white text-xs font-semibold rounded-lg hover:opacity-90 transition-colors"
           >
             <Plus size={13} /> Thêm danh mục
           </button>
@@ -176,7 +179,7 @@ function CategoriesTab() {
                 value={addName}
                 onChange={e => setAddName(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleAdd()}
-                className="w-full border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0ea5e9]"
+                className="w-full border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--mia-primary)]"
                 placeholder="VD: Thực phẩm & Đồ uống"
               />
             </div>
@@ -185,7 +188,7 @@ function CategoriesTab() {
               <select
                 value={addParent}
                 onChange={e => setAddParent(e.target.value)}
-                className="w-full border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0ea5e9]"
+                className="w-full border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--mia-primary)]"
               >
                 <option value="">— Cấp gốc —</option>
                 {items.filter(i => !i.parent_id).map(i => (
@@ -197,7 +200,7 @@ function CategoriesTab() {
               <button
                 onClick={handleAdd}
                 disabled={saving || !addName.trim()}
-                className="flex-1 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] disabled:opacity-50 transition-colors"
+                className="flex-1 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 transition-colors"
               >
                 {saving ? <Loader2 size={14} className="animate-spin mx-auto" /> : 'Thêm'}
               </button>
@@ -222,7 +225,7 @@ function CategoriesTab() {
       {errorMsg && (
         <Modal title="Không thể xoá" onClose={() => setErrorMsg('')}>
           <p className="text-sm text-gray-600 mb-4">{errorMsg}</p>
-          <button onClick={() => setErrorMsg('')} className="w-full py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] transition-colors">Đóng</button>
+          <button onClick={() => setErrorMsg('')} className="w-full py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 transition-colors">Đóng</button>
         </Modal>
       )}
     </>
@@ -232,6 +235,7 @@ function CategoriesTab() {
 // ─── Customer groups tab ──────────────────────────────────────────────────────
 
 function GroupsTab() {
+  const { id: tenantId } = useTenant()
   const [items, setItems]       = useState<CustomerGroup[]>([])
   const [loading, setLoading]   = useState(true)
   const [showAdd, setShowAdd]   = useState(false)
@@ -242,10 +246,11 @@ function GroupsTab() {
   const [errorMsg, setErrorMsg] = useState('')
 
   const load = useCallback(async () => {
+    if (!tenantId) return
     setLoading(true)
     const [{ data: groups }, { data: customers }] = await Promise.all([
-      supabase.from('customer_groups').select('id, name, discount_pct').order('name'),
-      supabase.from('customers').select('group_id'),
+      supabase.from('customer_groups').select('id, name, discount_pct').eq('tenant_id', tenantId).order('name'),
+      supabase.from('customers').select('group_id').eq('tenant_id', tenantId),
     ])
     const countMap: Record<string, number> = {}
     for (const c of customers ?? []) {
@@ -257,7 +262,7 @@ function GroupsTab() {
       customer_count: countMap[g.id] ?? 0,
     })))
     setLoading(false)
-  }, [])
+  }, [tenantId])
 
   useEffect(() => { load() }, [load])
 
@@ -305,7 +310,7 @@ function GroupsTab() {
           </h3>
           <button
             onClick={() => setShowAdd(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#0ea5e9] text-white text-xs font-semibold rounded-lg hover:bg-[#0284c7] transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--mia-primary)] text-white text-xs font-semibold rounded-lg hover:opacity-90 transition-colors"
           >
             <Plus size={13} /> Thêm nhóm
           </button>
@@ -360,7 +365,7 @@ function GroupsTab() {
                 value={addName}
                 onChange={e => setAddName(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleAdd()}
-                className="w-full border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0ea5e9]"
+                className="w-full border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--mia-primary)]"
                 placeholder="VD: Đại lý cấp 1"
               />
             </div>
@@ -371,14 +376,14 @@ function GroupsTab() {
                 min="0" max="100" step="0.5"
                 value={addDiscount}
                 onChange={e => setAddDiscount(e.target.value)}
-                className="w-full border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0ea5e9]"
+                className="w-full border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--mia-primary)]"
               />
             </div>
             <div className="flex gap-2 pt-1">
               <button
                 onClick={handleAdd}
                 disabled={saving || !addName.trim()}
-                className="flex-1 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] disabled:opacity-50 transition-colors"
+                className="flex-1 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 transition-colors"
               >
                 {saving ? <Loader2 size={14} className="animate-spin mx-auto" /> : 'Thêm'}
               </button>
@@ -403,7 +408,7 @@ function GroupsTab() {
       {errorMsg && (
         <Modal title="Không thể xoá" onClose={() => setErrorMsg('')}>
           <p className="text-sm text-gray-600 mb-4">{errorMsg}</p>
-          <button onClick={() => setErrorMsg('')} className="w-full py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] transition-colors">Đóng</button>
+          <button onClick={() => setErrorMsg('')} className="w-full py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 transition-colors">Đóng</button>
         </Modal>
       )}
     </>
@@ -413,16 +418,19 @@ function GroupsTab() {
 // ─── Units tab ────────────────────────────────────────────────────────────────
 
 function UnitsTab() {
+  const { id: tenantId } = useTenant()
   const [units, setUnits]     = useState<string[]>([])
   const [loading, setLoading] = useState(true)
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    supabase.from('products').select('unit').then(({ data }) => {
+    if (!tenantId) return
+    supabase.from('products').select('unit').eq('tenant_id', tenantId).then(({ data }) => {
       const distinct = [...new Set((data ?? []).map(p => p.unit).filter(Boolean))].sort()
       setUnits(distinct)
       setLoading(false)
     })
-  }, [])
+  }, [tenantId])
 
   return (
     <div className="bg-white rounded-xl border border-[#e5e7eb] p-5">
@@ -469,7 +477,7 @@ export default function DanhMucPage() {
               key={t.id}
               onClick={() => setTab(t.id)}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all
-                ${active ? 'bg-[#0ea5e9] text-white shadow-sm' : 'text-gray-500 hover:text-[#1e2a3a] hover:bg-gray-50'}`}
+                ${active ? 'bg-[var(--mia-primary)] text-white shadow-sm' : 'text-gray-500 hover:text-[#1e2a3a] hover:bg-gray-50'}`}
             >
               <Icon size={15} />
               {t.label}

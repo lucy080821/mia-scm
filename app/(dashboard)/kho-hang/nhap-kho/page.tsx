@@ -1,10 +1,11 @@
-'use client'
+﻿'use client'
 import { useState, useEffect } from 'react'
 import { Plus, Search, ArrowDownToLine, CheckCircle, Clock, X, AlertTriangle, Package, Trash2 } from 'lucide-react'
 import PageHeader from '@/components/layout/PageHeader'
 import ExportButton from '@/components/ui/ExportButton'
 import { formatVND, formatDate } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
+import { useTenant } from '@/contexts/TenantContext'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ReceiptItem {
@@ -80,6 +81,7 @@ function CreateReceiptModal({ onClose, onCreate }: {
   onClose: () => void
   onCreate: (receipt: StockReceipt) => void
 }) {
+  const { id: tenantId } = useTenant()
   const today = new Date().toISOString().slice(0, 10)
   const [supplierId,  setSupplierId]  = useState('')
   const [warehouseId, setWarehouseId] = useState('')
@@ -95,18 +97,20 @@ function CreateReceiptModal({ onClose, onCreate }: {
   const [products,    setProducts]    = useState<ProductOption[]>([])
   const [loadingOpts, setLoadingOpts] = useState(true)
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
+    if (!tenantId) return
     Promise.all([
-      supabase.from('suppliers').select('id, name').eq('status', 'active').order('name').limit(200),
-      supabase.from('warehouses').select('id, name').eq('status', 'active').order('name').limit(50),
-      supabase.from('products').select('id, sku, name, unit, purchase_price').eq('status', 'active').order('name').limit(300),
+      supabase.from('suppliers').select('id, name').eq('tenant_id', tenantId).eq('status', 'active').order('name').limit(200),
+      supabase.from('warehouses').select('id, name').eq('tenant_id', tenantId).eq('status', 'active').order('name').limit(50),
+      supabase.from('products').select('id, sku, name, unit, purchase_price').eq('tenant_id', tenantId).eq('status', 'active').order('name').limit(300),
     ]).then(([s, w, p]) => {
       setSuppliers((s.data ?? []) as DropdownItem[])
       setWarehouses((w.data ?? []) as DropdownItem[])
       setProducts((p.data ?? []) as ProductOption[])
       setLoadingOpts(false)
     })
-  }, [])
+  }, [tenantId])
 
   const setItemField = (i: number, field: keyof DraftItem, val: string | number) => {
     setItems(prev => { const next = [...prev]; next[i] = { ...next[i], [field]: val }; return next })
@@ -210,7 +214,7 @@ function CreateReceiptModal({ onClose, onCreate }: {
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 mb-1">Nhà cung cấp <span className="text-red-400">*</span></label>
                   <select value={supplierId} onChange={e => setSupplierId(e.target.value)}
-                    className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] bg-white">
+                    className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] bg-white">
                     <option value="">-- Chọn NCC --</option>
                     {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
@@ -219,12 +223,12 @@ function CreateReceiptModal({ onClose, onCreate }: {
                   <label className="block text-xs font-semibold text-gray-500 mb-1">Đơn mua hàng liên kết (PO)</label>
                   <input value={poRef} onChange={e => setPoRef(e.target.value)}
                     placeholder="VD: PO-260614-001"
-                    className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                    className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 mb-1">Kho nhập <span className="text-red-400">*</span></label>
                   <select value={warehouseId} onChange={e => setWarehouseId(e.target.value)}
-                    className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] bg-white">
+                    className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] bg-white">
                     <option value="">-- Chọn kho --</option>
                     {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                   </select>
@@ -232,7 +236,7 @@ function CreateReceiptModal({ onClose, onCreate }: {
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 mb-1">Ngày nhập <span className="text-red-400">*</span></label>
                   <input type="date" value={date} onChange={e => setDate(e.target.value)}
-                    className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                    className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
                 </div>
               </div>
 
@@ -240,7 +244,7 @@ function CreateReceiptModal({ onClose, onCreate }: {
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Danh sách hàng nhận</h3>
                   <button onClick={addRow}
-                    className="flex items-center gap-1 px-2.5 py-1 bg-[#0ea5e9]/10 text-[#0ea5e9] rounded-lg text-xs font-semibold hover:bg-[#0ea5e9]/20 transition-colors">
+                    className="flex items-center gap-1 px-2.5 py-1 bg-[var(--mia-primary)]/10 text-[var(--mia-primary)] rounded-lg text-xs font-semibold hover:bg-[var(--mia-primary)]/20 transition-colors">
                     <Plus size={12} /> Thêm dòng
                   </button>
                 </div>
@@ -258,7 +262,7 @@ function CreateReceiptModal({ onClose, onCreate }: {
                         <tr key={i} className="border-b border-[#f0f2f5] last:border-0">
                           <td className="px-3 py-2 min-w-[180px]">
                             <select value={it.product_id} onChange={e => selectProduct(i, e.target.value)}
-                              className="w-full h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] bg-white">
+                              className="w-full h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] bg-white">
                               <option value="">-- Chọn SP --</option>
                               {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                             </select>
@@ -266,14 +270,14 @@ function CreateReceiptModal({ onClose, onCreate }: {
                           <td className="px-3 py-2 w-20">
                             <div className="flex items-center gap-1">
                               <input type="number" min={1} value={it.ordered_qty || ''} onChange={e => setItemField(i, 'ordered_qty', +e.target.value)}
-                                className="w-16 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] text-center" />
+                                className="w-16 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] text-center" />
                               <span className="text-[10px] text-gray-400 whitespace-nowrap">{it.unit}</span>
                             </div>
                           </td>
                           <td className="px-3 py-2 w-28">
                             <input type="number" min={0} value={it.unit_price || ''} onChange={e => setItemField(i, 'unit_price', +e.target.value)}
                               placeholder="0"
-                              className="w-full h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                              className="w-full h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
                           </td>
                           <td className="px-3 py-2 text-xs font-semibold text-[#1e2a3a] whitespace-nowrap">
                             {it.unit_price && it.ordered_qty ? formatVND(it.ordered_qty * it.unit_price) : '—'}
@@ -281,11 +285,11 @@ function CreateReceiptModal({ onClose, onCreate }: {
                           <td className="px-3 py-2 w-28">
                             <input type="text" value={it.lot_number} onChange={e => setItemField(i, 'lot_number', e.target.value)}
                               placeholder="L240610"
-                              className="w-full h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                              className="w-full h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
                           </td>
                           <td className="px-3 py-2 w-32">
                             <input type="date" value={it.expiry_date} onChange={e => setItemField(i, 'expiry_date', e.target.value)}
-                              className="w-full h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                              className="w-full h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
                           </td>
                           <td className="px-3 py-2">
                             {items.length > 1 && (
@@ -305,7 +309,7 @@ function CreateReceiptModal({ onClose, onCreate }: {
                 <label className="block text-xs font-semibold text-gray-500 mb-1">Ghi chú</label>
                 <textarea value={note} onChange={e => setNote(e.target.value)} rows={2}
                   placeholder="Ghi chú thêm về chuyến hàng..."
-                  className="w-full px-3 py-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] resize-none" />
+                  className="w-full px-3 py-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] resize-none" />
               </div>
             </>
           )}
@@ -331,7 +335,7 @@ function CreateReceiptModal({ onClose, onCreate }: {
               Hủy
             </button>
             <button onClick={handleSubmit} disabled={saving || loadingOpts}
-              className="px-5 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50">
+              className="px-5 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50">
               {saving ? 'Đang lưu...' : <><ArrowDownToLine size={14} className="inline mr-1.5" />Tạo phiếu nhập</>}
             </button>
           </div>
@@ -397,26 +401,26 @@ function QCModal({ receipt, onClose, onComplete }: {
                   <label className="block text-[10px] font-semibold text-gray-500 mb-1">Số lượng nhận thực tế ({it.unit})</label>
                   <input type="number" min={0} value={it.received_qty || ''} onChange={e => updateItem(i, 'received_qty', +e.target.value)}
                     disabled={isReadOnly}
-                    className="w-full h-8 px-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] disabled:bg-gray-50" />
+                    className="w-full h-8 px-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] disabled:bg-gray-50" />
                   <p className="text-[10px] text-gray-400 mt-0.5">Đặt hàng: {it.ordered_qty} {it.unit}</p>
                 </div>
                 <div>
                   <label className="block text-[10px] font-semibold text-gray-500 mb-1">Số lô sản xuất</label>
                   <input type="text" value={it.lot_number} onChange={e => updateItem(i, 'lot_number', e.target.value)}
                     disabled={isReadOnly} placeholder="VD: L240610"
-                    className="w-full h-8 px-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] disabled:bg-gray-50" />
+                    className="w-full h-8 px-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] disabled:bg-gray-50" />
                 </div>
                 <div>
                   <label className="block text-[10px] font-semibold text-gray-500 mb-1">Hạn sử dụng</label>
                   <input type="date" value={it.expiry_date} onChange={e => updateItem(i, 'expiry_date', e.target.value)}
                     disabled={isReadOnly}
-                    className="w-full h-8 px-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] disabled:bg-gray-50" />
+                    className="w-full h-8 px-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] disabled:bg-gray-50" />
                 </div>
                 <div>
                   <label className="block text-[10px] font-semibold text-gray-500 mb-1">Ghi chú</label>
                   <input type="text" value={it.note} onChange={e => updateItem(i, 'note', e.target.value)}
                     disabled={isReadOnly} placeholder="Lỗi bao bì..."
-                    className="w-full h-8 px-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] disabled:bg-gray-50" />
+                    className="w-full h-8 px-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] disabled:bg-gray-50" />
                 </div>
               </div>
               {!isReadOnly && (
@@ -451,7 +455,7 @@ function QCModal({ receipt, onClose, onComplete }: {
             <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border border-[#e5e7eb] rounded-lg hover:bg-gray-50 transition-colors">Đóng</button>
             {!isReadOnly && (
               <button onClick={handleSubmit} disabled={!allQCDone || saving}
-                className="px-4 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] disabled:opacity-40 transition-all hover:scale-[1.02] active:scale-95">
+                className="px-4 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-40 transition-all hover:scale-[1.02] active:scale-95">
                 {saving ? 'Đang lưu...' : anyFail ? 'Lưu & Báo cáo NCC' : 'Xác nhận nhập kho'}
               </button>
             )}
@@ -466,6 +470,7 @@ function QCModal({ receipt, onClose, onComplete }: {
 const PAGE_SIZE = 20
 
 export default function NhapKhoPage() {
+  const { id: tenantId } = useTenant()
   const [receipts, setReceipts]         = useState<StockReceipt[]>([])
   const [loading, setLoading]           = useState(true)
   const [search, setSearch]             = useState('')
@@ -484,7 +489,8 @@ export default function NhapKhoPage() {
     setLoading(false)
   }
 
-  useEffect(() => { loadReceipts() }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!tenantId) return; loadReceipts() }, [tenantId])
 
   const filtered = receipts.filter(r => {
     const matchSearch = r.code.includes(search) || r.supplier.toLowerCase().includes(search.toLowerCase()) || r.po_ref.includes(search)
@@ -517,7 +523,7 @@ export default function NhapKhoPage() {
     <div>
       <PageHeader title="Nhập kho" subtitle="Nhận hàng từ nhà cung cấp, kiểm tra QC và cập nhật tồn kho">
         <ExportButton module="kho-hang" />
-        <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all">
+        <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all">
           <Plus size={15} /> Tạo phiếu nhập
         </button>
       </PageHeader>
@@ -551,7 +557,7 @@ export default function NhapKhoPage() {
               const LABELS: Record<string, string> = { all: 'Tất cả', pending: 'Chờ nhận', qc_check: 'Kiểm QC', approved: 'QC đạt', completed: 'Hoàn tất' }
               return (
                 <button key={s} onClick={() => setStatusFilter(s)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-[#0ea5e9] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-[var(--mia-primary)] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                   {LABELS[s]}
                 </button>
               )
@@ -577,7 +583,7 @@ export default function NhapKhoPage() {
               const qcDone = r.items.filter(it => it.qc_passed !== null).length
               return (
                 <tr key={r.id} className="border-b border-[#f0f2f5] hover:bg-gray-50/60 transition-colors">
-                  <td className="px-4 py-3 text-sm font-medium text-[#0ea5e9]">{r.code}</td>
+                  <td className="px-4 py-3 text-sm font-medium text-[var(--mia-primary)]">{r.code}</td>
                   <td className="px-4 py-3 text-xs text-gray-400">{r.po_ref}</td>
                   <td className="px-4 py-3 text-xs font-medium text-[#1e2a3a] max-w-[160px] truncate">{r.supplier}</td>
                   <td className="px-4 py-3 text-xs text-gray-500">{r.warehouse}</td>
@@ -592,7 +598,7 @@ export default function NhapKhoPage() {
                   <td className="px-4 py-3">
                     {r.status === 'pending' && (
                       <button onClick={() => handleStartQC(r.id)}
-                        className="px-3 py-1.5 bg-[#0ea5e9] text-white text-xs font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all whitespace-nowrap">
+                        className="px-3 py-1.5 bg-[var(--mia-primary)] text-white text-xs font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all whitespace-nowrap">
                         Nhận & Kiểm hàng
                       </button>
                     )}
@@ -622,7 +628,7 @@ export default function NhapKhoPage() {
                 className="h-7 px-2 rounded-lg border border-[#e5e7eb] text-xs text-gray-500 hover:bg-gray-50 disabled:opacity-40 transition-colors">‹</button>
               {Array.from({ length: Math.ceil(filtered.length / PAGE_SIZE) }, (_, i) => i + 1).map(n => (
                 <button key={n} onClick={() => setPage(n)}
-                  className={`h-7 w-7 flex items-center justify-center rounded-lg text-xs transition-colors ${n === page ? 'bg-[#0ea5e9] text-white font-semibold' : 'border border-[#e5e7eb] text-gray-600 hover:bg-gray-50'}`}>
+                  className={`h-7 w-7 flex items-center justify-center rounded-lg text-xs transition-colors ${n === page ? 'bg-[var(--mia-primary)] text-white font-semibold' : 'border border-[#e5e7eb] text-gray-600 hover:bg-gray-50'}`}>
                   {n}
                 </button>
               ))}

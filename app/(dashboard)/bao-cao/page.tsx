@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { useState, useEffect } from 'react'
 import {
   Download, ArrowUpRight, ArrowDownRight, ChevronRight,
@@ -114,7 +114,7 @@ function DeltaRow({ label, cur, prev, format }: { label: string; cur: number; pr
   return (
     <tr className="border-b border-[#e5e7eb] last:border-0 hover:bg-gray-50">
       <td className="px-4 py-3 text-sm text-[#1e2a3a] font-medium">{label}</td>
-      <td className="px-4 py-3 text-sm text-right font-semibold text-[#0ea5e9]">{format(cur)}</td>
+      <td className="px-4 py-3 text-sm text-right font-semibold text-[var(--mia-primary)]">{format(cur)}</td>
       <td className="px-4 py-3 text-sm text-right text-gray-500">{format(prev)}</td>
       <td className="px-4 py-3 text-right">
         <span className={`inline-flex items-center gap-0.5 text-xs font-semibold px-2 py-0.5 rounded-full ${up ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
@@ -165,7 +165,7 @@ function TabTongQuanBasic({ monthly }: { monthly: MonthRow[] }) {
     <div className="space-y-4">
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         {[
-          { label: `Doanh thu ${cur.month}`, value: fmtShort(cur.revenue),   hasDelta: !!prev, cur: cur.revenue,   prev: prev?.revenue ?? 0,    color: 'text-[#0ea5e9]' },
+          { label: `Doanh thu ${cur.month}`, value: fmtShort(cur.revenue),   hasDelta: !!prev, cur: cur.revenue,   prev: prev?.revenue ?? 0,    color: 'text-[var(--mia-primary)]' },
           { label: `LN gộp ${cur.month}`,    value: fmtShort(gross(cur)),    hasDelta: !!prev, cur: gross(cur),   prev: prev ? gross(prev) : 0, color: 'text-green-600' },
           { label: 'SKU còn hàng',            value: inventory.length + ' SKU', hasDelta: false, cur: 0, prev: 0,  color: 'text-amber-600' },
           { label: 'Biên LN gộp',             value: cur.revenue > 0 ? Math.round(gross(cur)/cur.revenue*100) + '%' : '—', hasDelta: false, cur: 0, prev: 0, color: 'text-purple-600' },
@@ -197,7 +197,7 @@ function TabTongQuanBasic({ monthly }: { monthly: MonthRow[] }) {
                 return (
                   <tr key={m.key} className="border-t border-[#e5e7eb] hover:bg-gray-50">
                     <td className="px-3 py-2.5 text-xs font-medium">{m.month}</td>
-                    <td className="px-3 py-2.5 text-xs font-semibold text-[#0ea5e9]">{fmtShort(m.revenue)}</td>
+                    <td className="px-3 py-2.5 text-xs font-semibold text-[var(--mia-primary)]">{fmtShort(m.revenue)}</td>
                     <td className="px-3 py-2.5 text-xs text-green-600">{fmtShort(gp)}</td>
                     <td className="px-3 py-2.5 text-xs">
                       <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${margin >= 25 ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{margin}%</span>
@@ -230,7 +230,7 @@ function TabTongQuanBasic({ monthly }: { monthly: MonthRow[] }) {
                       <span className="w-5 h-5 inline-flex items-center justify-center rounded bg-[#1e2a3a] text-white text-[10px] font-bold">{i + 1}</span>
                     </td>
                     <td className="px-3 py-2.5 text-xs font-medium text-[#1e2a3a]">{p.name}</td>
-                    <td className="px-3 py-2.5 text-xs font-semibold text-[#0ea5e9] text-right">{fmtShort(p.revenue)}</td>
+                    <td className="px-3 py-2.5 text-xs font-semibold text-[var(--mia-primary)] text-right">{fmtShort(p.revenue)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -258,7 +258,7 @@ function TabTongQuanBasic({ monthly }: { monthly: MonthRow[] }) {
                   <tr key={item.sku + item.name} className="border-t border-[#e5e7eb] hover:bg-gray-50">
                     <td className="px-4 py-2.5 text-xs font-mono text-gray-400">{item.sku}</td>
                     <td className="px-4 py-2.5 text-xs font-medium text-[#1e2a3a]">{item.name}</td>
-                    <td className="px-4 py-2.5 text-xs font-bold text-[#0ea5e9]">{item.qty.toLocaleString('vi-VN')}</td>
+                    <td className="px-4 py-2.5 text-xs font-bold text-[var(--mia-primary)]">{item.qty.toLocaleString('vi-VN')}</td>
                     <td className="px-4 py-2.5 text-xs text-gray-500">{item.unit || '—'}</td>
                   </tr>
                 ))}
@@ -295,7 +295,7 @@ function TabTongQuan({ monthly }: { monthly: MonthRow[] }) {
     <div className="space-y-4">
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         {[
-          { label: `Doanh thu ${cur.month}`, cur: cur.revenue,    prev: prev?.revenue ?? 0,    color: 'text-[#0ea5e9]' },
+          { label: `Doanh thu ${cur.month}`, cur: cur.revenue,    prev: prev?.revenue ?? 0,    color: 'text-[var(--mia-primary)]' },
           { label: `LN gộp ${cur.month}`,    cur: gross(cur),     prev: prev ? gross(prev) : 0, color: 'text-green-600' },
           { label: `LN ròng ${cur.month}`,   cur: net(cur),       prev: prev ? net(prev) : 0,   color: 'text-purple-600' },
           { label: 'Biên LN gộp',            cur: cur.revenue > 0 ? Math.round(gross(cur)/cur.revenue*100) : 0,
@@ -350,7 +350,7 @@ function TabTongQuan({ monthly }: { monthly: MonthRow[] }) {
                     </div>
                   </div>
                   <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-[#0ea5e9] rounded-full" style={{ width: `${(p.revenue / topProducts[0].revenue) * 100}%` }} />
+                    <div className="h-full bg-[var(--mia-primary)] rounded-full" style={{ width: `${(p.revenue / topProducts[0].revenue) * 100}%` }} />
                   </div>
                   <p className="text-[10px] text-gray-400 mt-0.5 text-right">{fmtShort(p.revenue)}</p>
                 </div>
@@ -380,7 +380,7 @@ function TabTongQuan({ monthly }: { monthly: MonthRow[] }) {
               return (
                 <tr key={m.key} className="border-t border-[#e5e7eb] hover:bg-gray-50">
                   <td className="px-3 py-2.5 text-xs font-medium">{m.month}</td>
-                  <td className="px-3 py-2.5 text-xs font-semibold text-[#0ea5e9]">{fmtShort(m.revenue)}</td>
+                  <td className="px-3 py-2.5 text-xs font-semibold text-[var(--mia-primary)]">{fmtShort(m.revenue)}</td>
                   <td className="px-3 py-2.5 text-xs text-orange-600">{fmtShort(m.cogs)}</td>
                   <td className="px-3 py-2.5 text-xs text-green-600">{fmtShort(gp)}</td>
                   <td className="px-3 py-2.5 text-xs text-gray-500">{fmtShort(opex(m))}</td>
@@ -449,7 +449,7 @@ function TabSoSanh({ monthly }: { monthly: MonthRow[] }) {
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-500">Kỳ này</span>
             <select value={periodA} onChange={e => setPeriodA(e.target.value)}
-              className="border border-[#e5e7eb] rounded-lg px-3 py-1.5 text-sm text-[#1e2a3a] outline-none focus:border-[#0ea5e9] bg-white">
+              className="border border-[#e5e7eb] rounded-lg px-3 py-1.5 text-sm text-[#1e2a3a] outline-none focus:border-[var(--mia-primary)] bg-white">
               {monthly.filter(m => m.key !== periodB).map(m => <option key={m.key} value={m.key}>{m.month}</option>)}
             </select>
           </div>
@@ -457,7 +457,7 @@ function TabSoSanh({ monthly }: { monthly: MonthRow[] }) {
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-500">Kỳ trước</span>
             <select value={periodB} onChange={e => setPeriodB(e.target.value)}
-              className="border border-[#e5e7eb] rounded-lg px-3 py-1.5 text-sm text-[#1e2a3a] outline-none focus:border-[#0ea5e9] bg-white">
+              className="border border-[#e5e7eb] rounded-lg px-3 py-1.5 text-sm text-[#1e2a3a] outline-none focus:border-[var(--mia-primary)] bg-white">
               {monthly.filter(m => m.key !== periodA).map(m => <option key={m.key} value={m.key}>{m.month}</option>)}
             </select>
           </div>
@@ -470,7 +470,7 @@ function TabSoSanh({ monthly }: { monthly: MonthRow[] }) {
             <thead>
               <tr className="bg-gray-50 border-b border-[#e5e7eb]">
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Chỉ tiêu</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-[#0ea5e9] uppercase">{a.month}</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-[var(--mia-primary)] uppercase">{a.month}</th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase">{b.month}</th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Thay đổi</th>
               </tr>
@@ -544,19 +544,19 @@ function TabDrillDown() {
     <div className="space-y-4">
       <div className="bg-white rounded-xl border border-[#e5e7eb] px-4 py-3 flex items-center gap-2 text-sm">
         <button onClick={() => { setSelCategory(null); setSelProduct(null) }}
-          className={`font-medium transition-colors ${level === 0 ? 'text-[#0ea5e9]' : 'text-gray-500 hover:text-[#0ea5e9]'}`}>
+          className={`font-medium transition-colors ${level === 0 ? 'text-[var(--mia-primary)]' : 'text-gray-500 hover:text-[var(--mia-primary)]'}`}>
           Tổng doanh thu
         </button>
         {selCategory && (<>
           <ChevronRight size={14} className="text-gray-300" />
           <button onClick={() => { setSelProduct(null) }}
-            className={`font-medium transition-colors ${level === 1 ? 'text-[#0ea5e9]' : 'text-gray-500 hover:text-[#0ea5e9]'}`}>
+            className={`font-medium transition-colors ${level === 1 ? 'text-[var(--mia-primary)]' : 'text-gray-500 hover:text-[var(--mia-primary)]'}`}>
             {selCategory.name}
           </button>
         </>)}
         {selProduct && (<>
           <ChevronRight size={14} className="text-gray-300" />
-          <span className="font-medium text-[#0ea5e9]">{selProduct.name}</span>
+          <span className="font-medium text-[var(--mia-primary)]">{selProduct.name}</span>
         </>)}
         <span className="ml-auto text-xs text-gray-400">Click vào dòng để xem chi tiết →</span>
       </div>
@@ -584,7 +584,7 @@ function TabDrillDown() {
                           <span className="text-sm font-medium text-[#1e2a3a]">{c.name}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-sm font-semibold text-[#0ea5e9]">{fmtShort(c.revenue)}</td>
+                      <td className="px-4 py-3 text-sm font-semibold text-[var(--mia-primary)]">{fmtShort(c.revenue)}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden w-16">
@@ -593,7 +593,7 @@ function TabDrillDown() {
                           <span className="text-xs text-gray-500 w-8">{c.pct}%</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-xs text-gray-300 group-hover:text-[#0ea5e9]">→</td>
+                      <td className="px-4 py-3 text-xs text-gray-300 group-hover:text-[var(--mia-primary)]">→</td>
                     </tr>
                   ))}
                 </tbody>
@@ -635,9 +635,9 @@ function TabDrillDown() {
                     <tr key={p.id} onClick={() => selectProduct(p)}
                       className="border-b border-[#e5e7eb] last:border-0 hover:bg-blue-50 cursor-pointer group">
                       <td className="px-4 py-3 text-sm font-medium text-[#1e2a3a]">{p.name}</td>
-                      <td className="px-4 py-3 text-sm font-semibold text-[#0ea5e9]">{fmtShort(p.revenue)}</td>
+                      <td className="px-4 py-3 text-sm font-semibold text-[var(--mia-primary)]">{fmtShort(p.revenue)}</td>
                       <td className="px-4 py-3 text-xs text-gray-500">{p.qty.toLocaleString('vi-VN')}</td>
-                      <td className="px-4 py-3 text-xs text-gray-300 group-hover:text-[#0ea5e9]">→</td>
+                      <td className="px-4 py-3 text-xs text-gray-300 group-hover:text-[var(--mia-primary)]">→</td>
                     </tr>
                   ))}
                 </tbody>
@@ -678,7 +678,7 @@ function TabDrillDown() {
                   {customers.map((c, i) => (
                     <tr key={i} className="border-b border-[#e5e7eb] last:border-0 hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm font-medium text-[#1e2a3a]">{c.name}</td>
-                      <td className="px-4 py-3 text-sm font-semibold text-[#0ea5e9]">{c.revenue > 0 ? fmtShort(c.revenue) : '—'}</td>
+                      <td className="px-4 py-3 text-sm font-semibold text-[var(--mia-primary)]">{c.revenue > 0 ? fmtShort(c.revenue) : '—'}</td>
                       <td className="px-4 py-3 text-xs text-gray-600">{c.orders > 0 ? c.orders + ' đơn' : '—'}</td>
                     </tr>
                   ))}
@@ -736,7 +736,7 @@ function TabKpiNhanVien() {
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-white rounded-xl border border-[#e5e7eb] px-4 py-3">
           <p className="text-xs text-gray-500 mb-1">Tổng doanh thu team</p>
-          <p className="text-lg font-bold text-[#0ea5e9]">{fmtShort(teamTotal)}</p>
+          <p className="text-lg font-bold text-[var(--mia-primary)]">{fmtShort(teamTotal)}</p>
           <p className="text-xs text-gray-400 mt-0.5">{kpiData.length} nhân viên</p>
         </div>
         <div className="bg-white rounded-xl border border-[#e5e7eb] px-4 py-3">
@@ -757,7 +757,7 @@ function TabKpiNhanVien() {
             <div className="flex items-center gap-1.5 text-xs">
               {(['revenue', 'orders'] as const).map(k => (
                 <button key={k} onClick={() => setSortBy(k)}
-                  className={`px-2 py-1 rounded-lg transition-colors ${sortBy === k ? 'bg-[#0ea5e9] text-white' : 'text-gray-500 hover:bg-gray-100'}`}>
+                  className={`px-2 py-1 rounded-lg transition-colors ${sortBy === k ? 'bg-[var(--mia-primary)] text-white' : 'text-gray-500 hover:bg-gray-100'}`}>
                   {k === 'revenue' ? 'Doanh thu' : 'Đơn hàng'}
                 </button>
               ))}
@@ -785,12 +785,12 @@ function TabKpiNhanVien() {
                       </div>
                     </td>
                     <td className="px-3 py-3 text-xs text-gray-400 font-mono">{p.code || '—'}</td>
-                    <td className="px-3 py-3 text-xs font-bold text-[#0ea5e9]">{fmtShort(p.revenue)}</td>
+                    <td className="px-3 py-3 text-xs font-bold text-[var(--mia-primary)]">{fmtShort(p.revenue)}</td>
                     <td className="px-3 py-3 text-xs text-gray-700">{p.orders} đơn</td>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-2">
                         <div className="w-14 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-full rounded-full bg-[#0ea5e9]" style={{ width: `${revPct}%` }} />
+                          <div className="h-full rounded-full bg-[var(--mia-primary)]" style={{ width: `${revPct}%` }} />
                         </div>
                         <span className="text-xs text-gray-500">{revPct}%</span>
                       </div>
@@ -853,7 +853,7 @@ function TabDuBao({ monthly }: { monthly: MonthRow[] }) {
         {revForecast.map((rv, i) => (
           <div key={i} className="bg-white rounded-xl border border-amber-100 px-4 py-3 bg-amber-50/30">
             <p className="text-xs text-gray-500 mb-1">Dự báo {nextMonthStr(lastMonth, i + 1)}</p>
-            <p className="text-lg font-bold text-[#0ea5e9]">~ {fmtShort(rv)}</p>
+            <p className="text-lg font-bold text-[var(--mia-primary)]">~ {fmtShort(rv)}</p>
             <p className="text-[10px] text-gray-400 mt-0.5">LN gộp dự kiến: ~ {fmtShort(gpForecast[i])}</p>
           </div>
         ))}
@@ -899,7 +899,7 @@ function TabDuBao({ monthly }: { monthly: MonthRow[] }) {
               <tr key={m.key} className="border-t border-[#e5e7eb] hover:bg-gray-50">
                 <td className="px-4 py-2.5 text-xs font-medium">{m.month}</td>
                 <td className="px-4 py-2.5"><span className="text-[10px] px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-semibold">Thực tế</span></td>
-                <td className="px-4 py-2.5 text-xs font-semibold text-[#0ea5e9]">{fmtShort(m.revenue)}</td>
+                <td className="px-4 py-2.5 text-xs font-semibold text-[var(--mia-primary)]">{fmtShort(m.revenue)}</td>
                 <td className="px-4 py-2.5 text-xs text-green-600">{fmtShort(gross(m))}</td>
                 <td className="px-4 py-2.5 text-xs text-purple-600">{fmtShort(net(m))}</td>
               </tr>
@@ -908,7 +908,7 @@ function TabDuBao({ monthly }: { monthly: MonthRow[] }) {
               <tr key={`f-${i}`} className="border-t border-[#e5e7eb] bg-amber-50/40 hover:bg-amber-50">
                 <td className="px-4 py-2.5 text-xs font-medium">{nextMonthStr(lastMonth, i + 1)}</td>
                 <td className="px-4 py-2.5"><span className="text-[10px] px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-semibold">Dự báo</span></td>
-                <td className="px-4 py-2.5 text-xs font-semibold text-[#0ea5e9]">~ {fmtShort(rv)}</td>
+                <td className="px-4 py-2.5 text-xs font-semibold text-[var(--mia-primary)]">~ {fmtShort(rv)}</td>
                 <td className="px-4 py-2.5 text-xs text-green-600">~ {fmtShort(gpForecast[i])}</td>
                 <td className="px-4 py-2.5 text-xs text-gray-400">—</td>
               </tr>
@@ -1112,12 +1112,12 @@ export default function BaoCaoPage() {
         <div className="flex items-center gap-2">
           {plan !== 'starter' && (
             <button onClick={() => window.print()}
-              className="flex items-center gap-2 px-4 py-2 border border-[#e5e7eb] bg-white rounded-xl text-sm text-gray-600 hover:bg-gray-50 hover:border-[#0ea5e9] hover:text-[#0ea5e9] transition-all">
+              className="flex items-center gap-2 px-4 py-2 border border-[#e5e7eb] bg-white rounded-xl text-sm text-gray-600 hover:bg-gray-50 hover:border-[var(--mia-primary)] hover:text-[var(--mia-primary)] transition-all">
               <Printer size={14} /> In / PDF
             </button>
           )}
           <button onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2 border border-[#e5e7eb] bg-white rounded-xl text-sm text-gray-600 hover:bg-gray-50 hover:border-[#0ea5e9] hover:text-[#0ea5e9] transition-all">
+            className="flex items-center gap-2 px-4 py-2 border border-[#e5e7eb] bg-white rounded-xl text-sm text-gray-600 hover:bg-gray-50 hover:border-[var(--mia-primary)] hover:text-[var(--mia-primary)] transition-all">
             <Download size={14} /> Xuất Excel
           </button>
         </div>
@@ -1130,7 +1130,7 @@ export default function BaoCaoPage() {
           return (
             <button key={key} onClick={() => setTab(key)}
               className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
-                active  ? 'bg-[#0ea5e9] text-white shadow-sm' :
+                active  ? 'bg-[var(--mia-primary)] text-white shadow-sm' :
                 locked  ? 'text-gray-300 hover:bg-gray-50' :
                           'text-gray-600 hover:text-[#1e2a3a] hover:bg-gray-50'
               }`}>

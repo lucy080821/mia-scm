@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { useState, useRef, useCallback } from 'react'
 import {
   Download, CheckCircle2, XCircle, AlertTriangle,
@@ -243,7 +243,7 @@ function Steps({ step }: { step: number }) {
         return (
           <div key={s} className="flex items-center">
             <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors
-              ${active ? 'bg-[#0ea5e9] text-white' : done ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
+              ${active ? 'bg-[var(--mia-primary)] text-white' : done ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
               {done ? <CheckCircle2 size={13} /> : <span className="w-4 h-4 rounded-full flex items-center justify-center border-2 border-current text-[10px]">{num}</span>}
               {s}
             </div>
@@ -358,17 +358,17 @@ function ImportPanel({ config }: { config: ImportConfig }) {
       <Steps step={step} />
 
       {/* Step 1 */}
-      <div className={`bg-white rounded-xl border-2 p-5 transition-colors ${step >= 1 ? 'border-[#0ea5e9]' : 'border-[#e5e7eb]'}`}>
+      <div className={`bg-white rounded-xl border-2 p-5 transition-colors ${step >= 1 ? 'border-[var(--mia-primary)]' : 'border-[#e5e7eb]'}`}>
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="w-5 h-5 rounded-full bg-[#0ea5e9] text-white text-xs flex items-center justify-center font-bold">1</span>
+              <span className="w-5 h-5 rounded-full bg-[var(--mia-primary)] text-white text-xs flex items-center justify-center font-bold">1</span>
               <h3 className="text-sm font-bold text-[#1e2a3a]">Tải file template</h3>
             </div>
             <p className="text-xs text-gray-500 ml-7">File CSV mẫu đã có header và dữ liệu ví dụ. Mở bằng Excel, điền dữ liệu thực, lưu lại.</p>
           </div>
           <button onClick={handleDownload}
-            className="flex items-center gap-2 px-4 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all shrink-0">
+            className="flex items-center gap-2 px-4 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all shrink-0">
             <Download size={14} /> Tải template .csv
           </button>
         </div>
@@ -386,7 +386,7 @@ function ImportPanel({ config }: { config: ImportConfig }) {
             <tbody>
               {config.fields.map(f => (
                 <tr key={f.key} className="border-b border-[#f0f2f5]">
-                  <td className="py-1.5 pr-4 font-mono text-[#0ea5e9]">{f.key}</td>
+                  <td className="py-1.5 pr-4 font-mono text-[var(--mia-primary)]">{f.key}</td>
                   <td className="py-1.5 pr-4 font-medium text-[#1e2a3a]">{f.label}</td>
                   <td className="py-1.5 pr-4">
                     {f.required ? <span className="text-red-500 font-semibold">Có</span> : <span className="text-gray-300">Không</span>}
@@ -400,9 +400,9 @@ function ImportPanel({ config }: { config: ImportConfig }) {
       </div>
 
       {/* Step 2 */}
-      <div className={`bg-white rounded-xl border-2 p-5 transition-colors ${step >= 2 ? 'border-[#0ea5e9]' : 'border-dashed border-[#e5e7eb]'}`}>
+      <div className={`bg-white rounded-xl border-2 p-5 transition-colors ${step >= 2 ? 'border-[var(--mia-primary)]' : 'border-dashed border-[#e5e7eb]'}`}>
         <div className="flex items-center gap-2 mb-3">
-          <span className={`w-5 h-5 rounded-full text-white text-xs flex items-center justify-center font-bold ${step >= 2 ? 'bg-[#0ea5e9]' : 'bg-gray-300'}`}>2</span>
+          <span className={`w-5 h-5 rounded-full text-white text-xs flex items-center justify-center font-bold ${step >= 2 ? 'bg-[var(--mia-primary)]' : 'bg-gray-300'}`}>2</span>
           <h3 className="text-sm font-bold text-[#1e2a3a]">Upload file đã điền</h3>
         </div>
 
@@ -412,8 +412,8 @@ function ImportPanel({ config }: { config: ImportConfig }) {
           onDragLeave={() => setIsDragging(false)}
           onClick={() => fileRef.current?.click()}
           className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center gap-3 cursor-pointer transition-colors
-            ${isDragging ? 'border-[#0ea5e9] bg-sky-50' : 'border-[#e5e7eb] hover:border-[#0ea5e9] hover:bg-gray-50'}`}>
-          <FileSpreadsheet size={32} className={isDragging ? 'text-[#0ea5e9]' : 'text-gray-300'} />
+            ${isDragging ? 'border-[var(--mia-primary)] bg-sky-50' : 'border-[#e5e7eb] hover:border-[var(--mia-primary)] hover:bg-gray-50'}`}>
+          <FileSpreadsheet size={32} className={isDragging ? 'text-[var(--mia-primary)]' : 'text-gray-300'} />
           <div className="text-center">
             <p className="text-sm font-medium text-[#1e2a3a]">Kéo thả file vào đây</p>
             <p className="text-xs text-gray-400 mt-1">hoặc click để chọn · Hỗ trợ .csv và .xlsx</p>
@@ -430,10 +430,10 @@ function ImportPanel({ config }: { config: ImportConfig }) {
 
       {/* Step 3 */}
       {step >= 3 && rows.length > 0 && (
-        <div className="bg-white rounded-xl border-2 border-[#0ea5e9] p-5">
+        <div className="bg-white rounded-xl border-2 border-[var(--mia-primary)] p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <span className="w-5 h-5 rounded-full bg-[#0ea5e9] text-white text-xs flex items-center justify-center font-bold">3</span>
+              <span className="w-5 h-5 rounded-full bg-[var(--mia-primary)] text-white text-xs flex items-center justify-center font-bold">3</span>
               <h3 className="text-sm font-bold text-[#1e2a3a]">Kiểm tra & xác nhận</h3>
             </div>
             <div className="flex items-center gap-3">
@@ -508,7 +508,7 @@ function ImportPanel({ config }: { config: ImportConfig }) {
             <button
               onClick={handleConfirm}
               disabled={okRows.length === 0 || importing}
-              className="flex items-center gap-2 px-5 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] disabled:opacity-40 hover:scale-[1.02] active:scale-95 transition-all">
+              className="flex items-center gap-2 px-5 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-40 hover:scale-[1.02] active:scale-95 transition-all">
               {importing
                 ? <><Loader2 size={14} className="animate-spin" /> Đang import...</>
                 : <>Xác nhận import {okRows.length} bản ghi <ArrowRight size={14} /></>}
@@ -573,14 +573,14 @@ export default function NhapLieuPage() {
         {CONFIGS.map((c, i) => (
           <button key={c.id} onClick={() => setActiveTab(c.id)}
             className={`p-4 rounded-xl border-2 flex items-center gap-3 text-left transition-all hover:scale-[1.01] active:scale-[0.99]
-              ${activeTab === c.id ? 'border-[#0ea5e9] bg-sky-50' : 'border-[#e5e7eb] bg-white hover:border-[#0ea5e9]/40'}`}>
+              ${activeTab === c.id ? 'border-[var(--mia-primary)] bg-sky-50' : 'border-[#e5e7eb] bg-white hover:border-[var(--mia-primary)]/40'}`}>
             <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0
-              ${activeTab === c.id ? 'bg-[#0ea5e9] text-white' : 'bg-gray-100 text-gray-500'}`}>
+              ${activeTab === c.id ? 'bg-[var(--mia-primary)] text-white' : 'bg-gray-100 text-gray-500'}`}>
               {c.icon}
             </div>
             <div>
               <p className="text-xs text-gray-400 font-semibold uppercase">Bước {i + 1}</p>
-              <p className={`text-sm font-bold ${activeTab === c.id ? 'text-[#0ea5e9]' : 'text-[#1e2a3a]'}`}>{c.label}</p>
+              <p className={`text-sm font-bold ${activeTab === c.id ? 'text-[var(--mia-primary)]' : 'text-[#1e2a3a]'}`}>{c.label}</p>
             </div>
           </button>
         ))}

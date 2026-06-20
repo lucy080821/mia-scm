@@ -1,10 +1,11 @@
-'use client'
+﻿'use client'
 import { useState, useEffect } from 'react'
 import { CalendarDays, Truck, MapPin, Package, Plus, Zap, ChevronDown, ChevronUp, X, CheckCircle2, Navigation, NavigationOff, Loader2 } from 'lucide-react'
 import PageHeader from '@/components/layout/PageHeader'
 import { formatVND } from '@/lib/utils'
 import { useDriverTracking } from '@/hooks/useDriverTracking'
 import { supabase } from '@/lib/supabase'
+import { useTenant } from '@/contexts/TenantContext'
 import { useOrdersRealtime } from '@/hooks/useOrdersRealtime'
 import { useAutoRefresh } from '@/hooks/useAutoRefresh'
 
@@ -39,6 +40,7 @@ function CreateRouteModal({
   onSave: (route: RouteGroup) => void
   onClose: () => void
 }) {
+  const { id: tenantId } = useTenant()
   const today = new Date().toISOString().slice(0, 10)
   const [form, setForm] = useState({
     route_name: '',
@@ -49,9 +51,12 @@ function CreateRouteModal({
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [vehicles, setVehicles] = useState<{ plate: string; type: string; driver: string; phone: string }[]>([])
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
+    if (!tenantId) return
     supabase.from('vehicles')
       .select('plate, type, drivers(name, phone)')
+      .eq('tenant_id', tenantId)
       .in('status', ['available', 'on_trip'])
       .order('plate')
       .limit(50)
@@ -61,7 +66,7 @@ function CreateRouteModal({
           return { plate: v.plate, type: v.type ?? '—', driver: d?.name ?? '—', phone: d?.phone ?? '' }
         }))
       })
-  }, [])
+  }, [tenantId])
 
   const selectedVehicle = vehicles.find(v => v.plate === form.vehicle_plate)
 
@@ -114,7 +119,7 @@ function CreateRouteModal({
             <label className="block text-xs font-semibold text-gray-600 mb-1">Tên tuyến đường <span className="text-red-500">*</span></label>
             <input value={form.route_name} onChange={e => set('route_name', e.target.value)}
               placeholder="VD: HN → Bắc Ninh → Bắc Giang"
-              className={`w-full h-9 px-3 text-sm rounded-lg border outline-none transition-colors focus:border-[#0ea5e9] focus:ring-1 focus:ring-[#0ea5e9] ${errors.route_name ? 'border-red-400' : 'border-[#e5e7eb]'}`} />
+              className={`w-full h-9 px-3 text-sm rounded-lg border outline-none transition-colors focus:border-[var(--mia-primary)] focus:ring-1 focus:ring-[var(--mia-primary)] ${errors.route_name ? 'border-red-400' : 'border-[#e5e7eb]'}`} />
             {errors.route_name && <p className="text-[10px] text-red-500 mt-0.5">{errors.route_name}</p>}
           </div>
 
@@ -122,7 +127,7 @@ function CreateRouteModal({
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1">Ngày giao <span className="text-red-500">*</span></label>
             <input type="date" value={form.date} onChange={e => set('date', e.target.value)}
-              className={`w-full h-9 px-3 text-sm rounded-lg border outline-none transition-colors focus:border-[#0ea5e9] focus:ring-1 focus:ring-[#0ea5e9] ${errors.date ? 'border-red-400' : 'border-[#e5e7eb]'}`} />
+              className={`w-full h-9 px-3 text-sm rounded-lg border outline-none transition-colors focus:border-[var(--mia-primary)] focus:ring-1 focus:ring-[var(--mia-primary)] ${errors.date ? 'border-red-400' : 'border-[#e5e7eb]'}`} />
             {errors.date && <p className="text-[10px] text-red-500 mt-0.5">{errors.date}</p>}
           </div>
 
@@ -130,7 +135,7 @@ function CreateRouteModal({
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1">Xe & Tài xế <span className="text-red-500">*</span></label>
             <select value={form.vehicle_plate} onChange={e => set('vehicle_plate', e.target.value)}
-              className={`w-full h-9 px-3 text-sm rounded-lg border outline-none transition-colors focus:border-[#0ea5e9] focus:ring-1 focus:ring-[#0ea5e9] bg-white ${errors.vehicle_plate ? 'border-red-400' : 'border-[#e5e7eb]'}`}>
+              className={`w-full h-9 px-3 text-sm rounded-lg border outline-none transition-colors focus:border-[var(--mia-primary)] focus:ring-1 focus:ring-[var(--mia-primary)] bg-white ${errors.vehicle_plate ? 'border-red-400' : 'border-[#e5e7eb]'}`}>
               <option value="">-- Chọn xe --</option>
               {vehicles.map(v => (
                 <option key={v.plate} value={v.plate}>{v.plate} · {v.type} · {v.driver}</option>
@@ -147,7 +152,7 @@ function CreateRouteModal({
             <label className="block text-xs font-semibold text-gray-600 mb-1">Quãng đường ước tính (km)</label>
             <input type="number" min="0" value={form.total_km} onChange={e => set('total_km', e.target.value)}
               placeholder="VD: 150"
-              className="w-full h-9 px-3 text-sm rounded-lg border border-[#e5e7eb] outline-none transition-colors focus:border-[#0ea5e9] focus:ring-1 focus:ring-[#0ea5e9]" />
+              className="w-full h-9 px-3 text-sm rounded-lg border border-[#e5e7eb] outline-none transition-colors focus:border-[var(--mia-primary)] focus:ring-1 focus:ring-[var(--mia-primary)]" />
           </div>
 
           <p className="text-[10px] text-gray-400">Sau khi tạo, bạn có thể thêm điểm giao từ mục "Chưa phân tuyến" bên phải.</p>
@@ -159,7 +164,7 @@ function CreateRouteModal({
             Hủy
           </button>
           <button onClick={handleSave}
-            className="flex-1 h-10 rounded-xl bg-[#0ea5e9] text-white text-sm font-semibold hover:bg-[#0284c7] hover:scale-[1.01] active:scale-95 transition-all">
+            className="flex-1 h-10 rounded-xl bg-[var(--mia-primary)] text-white text-sm font-semibold hover:opacity-90 hover:scale-[1.01] active:scale-95 transition-all">
             Tạo kế hoạch
           </button>
         </div>
@@ -219,12 +224,12 @@ function AddToRouteModal({
                 <button key={r.id} onClick={() => setSelected(r.id)}
                   className={`w-full text-left px-4 py-3 rounded-xl border transition-all ${
                     selected === r.id
-                      ? 'border-[#0ea5e9] bg-sky-50'
+                      ? 'border-[var(--mia-primary)] bg-sky-50'
                       : 'border-[#e5e7eb] hover:border-gray-300 hover:bg-gray-50'
                   }`}>
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-bold text-[#1e2a3a]">{r.route_name}</p>
-                    <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${selected === r.id ? 'border-[#0ea5e9] bg-[#0ea5e9]' : 'border-gray-300'}`}>
+                    <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${selected === r.id ? 'border-[var(--mia-primary)] bg-[var(--mia-primary)]' : 'border-gray-300'}`}>
                       {selected === r.id && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
                     </span>
                   </div>
@@ -235,7 +240,7 @@ function AddToRouteModal({
             </div>
             <div className="px-4 pb-4">
               <button onClick={handleConfirm} disabled={!selected}
-                className="w-full py-2.5 bg-[#0ea5e9] text-white text-sm font-semibold rounded-xl hover:bg-[#0284c7] hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:scale-100">
+                className="w-full py-2.5 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-xl hover:opacity-90 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:scale-100">
                 Xác nhận thêm
               </button>
             </div>
@@ -248,11 +253,13 @@ function AddToRouteModal({
 
 // ─── Driver Tracking Button ───────────────────────────────────────────────────
 function DriverTrackingButton({ route }: { route: RouteGroup }) {
+  const { id: tenantId } = useTenant()
   const { active, lat, lng, speedKmh, accuracy, error, start, stop } = useDriverTracking(
     route.driver_name,
     route.vehicle_plate,
     route.id,
     route.route_name,
+    tenantId,
   )
   const [starting, setStarting] = useState(false)
 
@@ -351,13 +358,13 @@ function RouteCard({ route, onDispatch }: { route: RouteGroup; onDispatch: (id: 
 
         {/* Stops preview / expand */}
         <div className="flex items-center justify-between mt-3">
-          <button onClick={() => setExpanded(v => !v)} className="flex items-center gap-1 text-xs text-[#0ea5e9] font-medium hover:text-[#0284c7] transition-colors">
+          <button onClick={() => setExpanded(v => !v)} className="flex items-center gap-1 text-xs text-[var(--mia-primary)] font-medium hover:text-[#0284c7] transition-colors">
             {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
             {expanded ? 'Thu gọn' : `Xem ${route.stops.length} điểm giao`}
           </button>
           {route.status === 'planned' && (
             <button onClick={() => onDispatch(route.id)}
-              className="px-3 py-1.5 bg-[#0ea5e9] text-white text-xs font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all">
+              className="px-3 py-1.5 bg-[var(--mia-primary)] text-white text-xs font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all">
               Điều xe xuất phát
             </button>
           )}
@@ -379,7 +386,7 @@ function RouteCard({ route, onDispatch }: { route: RouteGroup; onDispatch: (id: 
           {route.stops.map((stop, i) => (
             <div key={stop.order_id} className="flex items-start gap-3 px-4 py-3 border-b border-[#f0f2f5] last:border-0">
               <div className="flex flex-col items-center shrink-0 mt-1">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${stop.priority === 'high' ? 'bg-red-500' : 'bg-[#0ea5e9]'}`}>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${stop.priority === 'high' ? 'bg-red-500' : 'bg-[var(--mia-primary)]'}`}>
                   {i + 1}
                 </div>
                 {i < route.stops.length - 1 && <div className="w-px h-4 bg-gray-300 mt-1" />}
@@ -408,6 +415,7 @@ function RouteCard({ route, onDispatch }: { route: RouteGroup; onDispatch: (id: 
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function KeHoachGiaoHangPage() {
+  const { id: tenantId } = useTenant()
   const today = new Date().toISOString().slice(0, 10)
   const [routes, setRoutes]         = useState<RouteGroup[]>([])
   const [unassigned, setUnassigned] = useState<UnassignedOrder[]>([])
@@ -421,6 +429,7 @@ export default function KeHoachGiaoHangPage() {
   const [aiLoading, setAiLoading]   = useState(false)
 
   const loadAll = async () => {
+    if (!tenantId) return
     const [{ data: deliveries }, { data: pickedOrders }, { data: vehiclesData }] = await Promise.all([
       supabase
         .from('deliveries')
@@ -428,15 +437,18 @@ export default function KeHoachGiaoHangPage() {
           sales_order:sales_orders(id, code, final_amount, customer:customers(name, address)),
           vehicle:vehicles(plate, type),
           driver:drivers(name, phone)`)
+        .eq('tenant_id', tenantId)
         .order('planned_date'),
       supabase
         .from('sales_orders')
         .select(`id, code, final_amount, delivery_date, customer:customers(name, address)`)
+        .eq('tenant_id', tenantId)
         .eq('status', 'picked')
         .order('delivery_date'),
       supabase
         .from('vehicles')
         .select(`plate, type, status, drivers(name)`)
+        .eq('tenant_id', tenantId)
         .neq('status', 'inactive')
         .order('plate'),
     ])
@@ -482,7 +494,8 @@ export default function KeHoachGiaoHangPage() {
     setLoading(false)
   }
 
-  useEffect(() => { loadAll() }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!tenantId) return; loadAll() }, [tenantId])
   useEffect(() => {
     if (!loading && unassigned.length > 0) fetchAiRoute(unassigned)
   }, [loading])
@@ -584,7 +597,7 @@ export default function KeHoachGiaoHangPage() {
     <div>
       <PageHeader title="Kế hoạch giao hàng" subtitle="Lập tuyến, tối ưu lộ trình và điều phối xe">
         <button onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all">
+          className="flex items-center gap-2 px-4 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all">
           <Plus size={15} /> Tạo kế hoạch
         </button>
       </PageHeader>
@@ -667,12 +680,12 @@ export default function KeHoachGiaoHangPage() {
           {/* Date tabs */}
           <div className="flex gap-2">
             <button onClick={() => setDateFilter('')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${!dateFilter ? 'bg-[#0ea5e9] text-white' : 'bg-white border border-[#e5e7eb] text-gray-600 hover:bg-gray-50'}`}>
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${!dateFilter ? 'bg-[var(--mia-primary)] text-white' : 'bg-white border border-[#e5e7eb] text-gray-600 hover:bg-gray-50'}`}>
               Tất cả
             </button>
             {dates.map(d => (
               <button key={d} onClick={() => setDateFilter(d)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${dateFilter === d ? 'bg-[#0ea5e9] text-white' : 'bg-white border border-[#e5e7eb] text-gray-600 hover:bg-gray-50'}`}>
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${dateFilter === d ? 'bg-[var(--mia-primary)] text-white' : 'bg-white border border-[#e5e7eb] text-gray-600 hover:bg-gray-50'}`}>
                 {new Date(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
               </button>
             ))}
@@ -720,7 +733,7 @@ export default function KeHoachGiaoHangPage() {
                       <p>Giao trước: {new Date(o.date_needed).toLocaleDateString('vi-VN')}</p>
                     </div>
                     <button onClick={() => setAddModal(o)}
-                      className="px-2.5 py-1 bg-[#0ea5e9] text-white text-[10px] font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all">
+                      className="px-2.5 py-1 bg-[var(--mia-primary)] text-white text-[10px] font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all">
                       Thêm vào tuyến
                     </button>
                   </div>

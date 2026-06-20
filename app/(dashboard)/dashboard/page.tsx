@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import React, { useState, useEffect } from 'react'
 import { ShoppingCart, Package, Truck, AlertTriangle, DollarSign, Users,
   BarChart2, FileText, CheckCircle2, Clock, XCircle, MapPin,
@@ -10,6 +10,7 @@ import DonutChart from '@/components/charts/DonutChart'
 import SimpleBarChart from '@/components/charts/BarChart'
 import { formatVND, formatDate } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
+import { useTenant } from '@/contexts/TenantContext'
 import { supabase } from '@/lib/supabase'
 
 type DashboardData = {
@@ -66,7 +67,7 @@ function SectionCard({ title, link, linkHref, children, className = '' }: { titl
     <div className={`bg-white rounded-xl border border-[#e5e7eb] ${className}`}>
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#e5e7eb]">
         <h2 className="text-sm font-semibold text-[#1e2a3a]">{title}</h2>
-        {link && linkHref && <a href={linkHref} className="text-xs text-[#0ea5e9] hover:underline">{link} →</a>}
+        {link && linkHref && <a href={linkHref} className="text-xs text-[var(--mia-primary)] hover:underline">{link} →</a>}
       </div>
       {children}
     </div>
@@ -209,7 +210,7 @@ function AdminKpiSection() {
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#e5e7eb]">
         <div className="flex items-center gap-2">
-          <Banknote size={16} className="text-[#0ea5e9]" />
+          <Banknote size={16} className="text-[var(--mia-primary)]" />
           <h2 className="text-sm font-semibold text-[#1e2a3a]">Quản lý KPI & Lương nhân viên — Tháng 5/2024</h2>
         </div>
         <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
@@ -286,7 +287,7 @@ function AdminKpiSection() {
                 {/* Salary */}
                 <div className="text-right shrink-0">
                   <p className="text-sm font-bold text-[#1e2a3a]">{formatVND(emp.total)}</p>
-                  <p className="text-[10px] text-[#0ea5e9]">Thưởng KPI: +{formatVND(emp.kpiBonus)}</p>
+                  <p className="text-[10px] text-[var(--mia-primary)]">Thưởng KPI: +{formatVND(emp.kpiBonus)}</p>
                 </div>
                 <span className={`text-gray-400 text-xs transition-transform ${expanded === emp.id ? 'rotate-90' : ''}`}>›</span>
               </div>
@@ -309,7 +310,7 @@ function AdminKpiSection() {
                         </div>
                         <div className="flex justify-between px-4 py-2.5 text-xs">
                           <span className="text-gray-500">Thưởng KPI</span>
-                          <span className="font-semibold text-[#0ea5e9]">+{formatVND(emp.kpiBonus)}</span>
+                          <span className="font-semibold text-[var(--mia-primary)]">+{formatVND(emp.kpiBonus)}</span>
                         </div>
                         <div className="flex justify-between px-4 py-2.5 text-sm bg-[#1e2a3a] rounded-b-xl">
                           <span className="text-white font-semibold">Tổng dự kiến</span>
@@ -337,7 +338,7 @@ function AdminKpiSection() {
                               </div>
                               <div className="flex justify-between text-[10px] text-gray-400">
                                 <span>MT: {k.target.toLocaleString('vi-VN')} · TH: {k.actual.toLocaleString('vi-VN')}</span>
-                                <span className="text-[#0ea5e9] font-semibold">+{formatVND(bonus)}</span>
+                                <span className="text-[var(--mia-primary)] font-semibold">+{formatVND(bonus)}</span>
                               </div>
                             </div>
                           )
@@ -357,7 +358,7 @@ function AdminKpiSection() {
             <p className="text-xs text-gray-500">Cấu hình áp dụng cho toàn bộ nhân viên sales. Thay đổi tính lại lương ngay.</p>
             <button
               onClick={openAdd}
-              className="flex items-center gap-1.5 text-xs bg-[#0ea5e9] text-white px-3 py-1.5 rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all font-medium"
+              className="flex items-center gap-1.5 text-xs bg-[var(--mia-primary)] text-white px-3 py-1.5 rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all font-medium"
             >
               + Thêm KPI
             </button>
@@ -377,7 +378,7 @@ function AdminKpiSection() {
                     placeholder="VD: Doanh số tháng (đ)"
                     value={form.name}
                     onChange={e => setForm(f => f && ({ ...f, name: e.target.value }))}
-                    className="w-full text-xs border border-[#e5e7eb] bg-white rounded-lg px-3 py-2 outline-none focus:border-[#0ea5e9]"
+                    className="w-full text-xs border border-[#e5e7eb] bg-white rounded-lg px-3 py-2 outline-none focus:border-[var(--mia-primary)]"
                     autoFocus
                   />
                 </div>
@@ -389,7 +390,7 @@ function AdminKpiSection() {
                     step="100000"
                     value={form.baseBonus}
                     onChange={e => setForm(f => f && ({ ...f, baseBonus: Number(e.target.value) }))}
-                    className="w-full text-xs border border-[#e5e7eb] bg-white rounded-lg px-3 py-2 outline-none focus:border-[#0ea5e9] text-right"
+                    className="w-full text-xs border border-[#e5e7eb] bg-white rounded-lg px-3 py-2 outline-none focus:border-[var(--mia-primary)] text-right"
                   />
                 </div>
                 <div>
@@ -400,20 +401,20 @@ function AdminKpiSection() {
                     step="0.1"
                     value={form.coefficient}
                     onChange={e => setForm(f => f && ({ ...f, coefficient: Number(e.target.value) }))}
-                    className="w-full text-xs border border-[#e5e7eb] bg-white rounded-lg px-3 py-2 outline-none focus:border-[#0ea5e9] text-center"
+                    className="w-full text-xs border border-[#e5e7eb] bg-white rounded-lg px-3 py-2 outline-none focus:border-[var(--mia-primary)] text-center"
                   />
                 </div>
               </div>
               {form.name && (
                 <p className="text-[10px] text-gray-500 mb-3">
-                  Thưởng tối đa (100%): <strong className="text-[#0ea5e9]">{formatVND(Math.round(form.baseBonus * form.coefficient))}</strong>
+                  Thưởng tối đa (100%): <strong className="text-[var(--mia-primary)]">{formatVND(Math.round(form.baseBonus * form.coefficient))}</strong>
                 </p>
               )}
               <div className="flex items-center gap-2">
                 <button
                   onClick={saveForm}
                   disabled={!form.name.trim()}
-                  className="text-xs bg-[#1e2a3a] text-white px-4 py-1.5 rounded-lg hover:bg-[#0ea5e9] hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed font-medium"
+                  className="text-xs bg-[#1e2a3a] text-white px-4 py-1.5 rounded-lg hover:bg-[var(--mia-primary)] hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed font-medium"
                 >
                   {form.id === 0 ? 'Thêm' : 'Lưu thay đổi'}
                 </button>
@@ -443,7 +444,7 @@ function AdminKpiSection() {
                     <td className="px-4 py-3">
                       <span className="text-xs font-bold text-[#1e2a3a] bg-gray-100 px-2 py-0.5 rounded-full">×{cfg.coefficient}</span>
                     </td>
-                    <td className="px-4 py-3 text-xs font-semibold text-[#0ea5e9]">
+                    <td className="px-4 py-3 text-xs font-semibold text-[var(--mia-primary)]">
                       {formatVND(Math.round(cfg.baseBonus * cfg.coefficient))}
                     </td>
                     <td className="px-4 py-3">
@@ -457,7 +458,7 @@ function AdminKpiSection() {
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => openEdit(cfg)}
-                            className="text-xs text-[#0ea5e9] hover:text-[#0284c7] font-medium transition-colors px-2 py-0.5 rounded hover:bg-blue-50"
+                            className="text-xs text-[var(--mia-primary)] hover:text-[#0284c7] font-medium transition-colors px-2 py-0.5 rounded hover:bg-blue-50"
                           >
                             Sửa
                           </button>
@@ -514,11 +515,16 @@ function useRevenueChart(period: RevPeriod) {
   const [chartData, setChartData] = useState<{ month: string; revenue: number }[]>([])
   const [chartLoading, setChartLoading] = useState(true)
   useEffect(() => {
-    setChartLoading(true)
-    fetch(`/api/revenue-chart?period=${period}`)
-      .then(r => r.json())
-      .then(d => { setChartData((d.data ?? []).map((p: { label: string; revenue: number }) => ({ month: p.label, revenue: p.revenue }))); setChartLoading(false) })
-      .catch(() => setChartLoading(false))
+    const fetchChart = () => {
+      setChartLoading(true)
+      fetch(`/api/revenue-chart?period=${period}`)
+        .then(r => r.json())
+        .then(d => { setChartData((d.data ?? []).map((p: { label: string; revenue: number }) => ({ month: p.label, revenue: p.revenue }))); setChartLoading(false) })
+        .catch(() => setChartLoading(false))
+    }
+    fetchChart()
+    const timer = setInterval(fetchChart, 30_000)
+    return () => clearInterval(timer)
   }, [period])
   return { chartData, chartLoading }
 }
@@ -528,119 +534,145 @@ function AdminDashboard({ name }: { name: string }) {
   const { kpis, recentOrders, recentDeliveries, topCustomers, lowStockItems, pendingReceipts, pendingIssues, inventoryStatus, topProducts } = data
   const [revPeriod, setRevPeriod] = useState<RevPeriod>('month')
   const { chartData, chartLoading } = useRevenueChart(revPeriod)
+  const tenant = useTenant()
+
+  const isEnabled = (id: string) => {
+    const ws = tenant.dashboardWidgets
+    if (!ws || ws.length === 0) return true
+    return ws.find(w => w.id === id)?.enabled ?? true
+  }
 
   return (
     <div>
       <PageTitle name={name} subtitle="Tổng quan toàn bộ hoạt động kinh doanh" />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-3 mb-5">
-        <KpiCard icon={<DollarSign size={20} className="text-green-600" />}  label="Doanh thu tháng"  value={loading ? '—' : formatVND(kpis.revenue)}      sub="Tháng này"       iconBg="bg-green-100"  className="xl:col-span-2" />
-        <KpiCard icon={<ShoppingCart size={20} className="text-blue-600" />} label="Đơn hàng mới"    value={loading ? '—' : kpis.newOrders}                sub="Tháng này"       iconBg="bg-blue-100" />
-        <KpiCard icon={<Truck size={20} className="text-orange-600" />}      label="Đang giao hàng"  value={loading ? '—' : kpis.delivering}               sub="Hiện tại"        iconBg="bg-orange-100" />
-        <KpiCard icon={<Users size={20} className="text-purple-600" />}      label="Khách hàng"      value={loading ? '—' : kpis.customers}                sub="Đang hoạt động"  iconBg="bg-purple-100" />
-        <KpiCard icon={<AlertTriangle size={20} className="text-red-500" />} label="Hàng sắp hết"   value={loading ? '—' : kpis.lowStock}                 sub="Cần xử lý"       iconBg="bg-red-100" />
-        <KpiCard icon={<BarChart2 size={20} className="text-teal-600" />}    label="Doanh thu năm"   value={loading ? '—' : formatVND(kpis.yearRevenue)}   sub="Năm này"         iconBg="bg-teal-100"  className="col-span-2 xl:col-span-2" />
+        {isEnabled('kpi-revenue')    && <KpiCard icon={<DollarSign size={20} className="text-green-600" />}  label="Doanh thu tháng"  value={loading ? '—' : formatVND(kpis.revenue)}      sub="Tháng này"       iconBg="bg-green-100"  className="xl:col-span-2" />}
+        {isEnabled('kpi-orders')     && <KpiCard icon={<ShoppingCart size={20} className="text-blue-600" />} label="Đơn hàng mới"    value={loading ? '—' : kpis.newOrders}                sub="Tháng này"       iconBg="bg-blue-100" />}
+        {isEnabled('kpi-delivering') && <KpiCard icon={<Truck size={20} className="text-orange-600" />}      label="Đang giao hàng"  value={loading ? '—' : kpis.delivering}               sub="Hiện tại"        iconBg="bg-orange-100" />}
+        {isEnabled('kpi-customers')  && <KpiCard icon={<Users size={20} className="text-purple-600" />}      label="Khách hàng"      value={loading ? '—' : kpis.customers}                sub="Đang hoạt động"  iconBg="bg-purple-100" />}
+        {isEnabled('kpi-low-stock')  && <KpiCard icon={<AlertTriangle size={20} className="text-red-500" />} label="Hàng sắp hết"   value={loading ? '—' : kpis.lowStock}                 sub="Cần xử lý"       iconBg="bg-red-100" />}
+        {isEnabled('kpi-year-revenue') && <KpiCard icon={<BarChart2 size={20} className="text-teal-600" />}  label="Doanh thu năm"  value={loading ? '—' : formatVND(kpis.yearRevenue)}   sub="Năm này"         iconBg="bg-teal-100"  className="col-span-2 xl:col-span-2" />}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-        <div className="lg:col-span-2 bg-white rounded-xl border border-[#e5e7eb] p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-[#1e2a3a]">Doanh thu theo thời gian</h2>
-            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
-              {REV_PERIODS.map(p => (
-                <button key={p.key} onClick={() => setRevPeriod(p.key)}
-                  className={`text-xs px-2.5 py-1 rounded-md transition-all ${revPeriod === p.key ? 'bg-white text-[#1e2a3a] font-semibold shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-                  {p.label}
-                </button>
-              ))}
+      {(isEnabled('chart-revenue') || isEnabled('chart-inventory')) && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+          {isEnabled('chart-revenue') && (
+            <div className="lg:col-span-2 bg-white rounded-xl border border-[#e5e7eb] p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-[#1e2a3a]">Doanh thu theo thời gian</h2>
+                <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
+                  {REV_PERIODS.map(p => (
+                    <button key={p.key} onClick={() => setRevPeriod(p.key)}
+                      className={`text-xs px-2.5 py-1 rounded-md transition-all ${revPeriod === p.key ? 'bg-white text-[#1e2a3a] font-semibold shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {chartLoading
+                ? <div className="h-[200px] flex items-center justify-center text-sm text-gray-400">Đang tải...</div>
+                : <RevenueChart data={chartData} />
+              }
             </div>
-          </div>
-          {chartLoading
-            ? <div className="h-[200px] flex items-center justify-center text-sm text-gray-400">Đang tải...</div>
-            : <RevenueChart data={chartData} />
-          }
+          )}
+          {isEnabled('chart-inventory') && (
+            <div className="bg-white rounded-xl border border-[#e5e7eb] p-4">
+              <h2 className="text-sm font-semibold text-[#1e2a3a] mb-4">Tồn kho theo trạng thái</h2>
+              {inventoryStatus.length > 0
+                ? <DonutChart data={inventoryStatus} />
+                : <div className="flex items-center justify-center h-44 text-sm text-gray-400">Chưa có dữ liệu tồn kho</div>
+              }
+            </div>
+          )}
         </div>
-        <div className="bg-white rounded-xl border border-[#e5e7eb] p-4">
-          <h2 className="text-sm font-semibold text-[#1e2a3a] mb-4">Tồn kho theo trạng thái</h2>
-          {inventoryStatus.length > 0
-            ? <DonutChart data={inventoryStatus} />
-            : <div className="flex items-center justify-center h-44 text-sm text-gray-400">Chưa có dữ liệu tồn kho</div>
-          }
-        </div>
-      </div>
+      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-        <SectionCard title="Đơn hàng mới nhất" link="Xem tất cả" linkHref="/ban-hang/don-hang-ban" className="lg:col-span-2">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead><tr className="border-b border-[#e5e7eb] bg-gray-50">
-                {['Mã đơn','Khách hàng','Tổng tiền','Trạng thái','Ngày'].map(h => (
-                  <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">{h}</th>
-                ))}
-              </tr></thead>
-              <tbody>
-                {recentOrders.map(o => (
-                  <tr key={o.code} className="border-b border-[#e5e7eb] last:border-0 hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 text-[#0ea5e9] font-medium text-xs">{o.code}</td>
-                    <td className="px-4 py-3 text-xs text-gray-700 max-w-[140px] truncate">{o.customer}</td>
-                    <td className="px-4 py-3 text-xs font-medium text-[#1e2a3a] whitespace-nowrap">{formatVND(o.total)}</td>
-                    <td className="px-4 py-3"><Badge status={o.status} /></td>
-                    <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">{formatDate(o.date)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </SectionCard>
-
-        <div className="bg-white rounded-xl border border-[#e5e7eb] p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-[#1e2a3a]">Khách hàng Top 5</h2>
-            <a href="/ban-hang/khach-hang" className="text-xs text-[#0ea5e9] hover:underline">Xem thêm →</a>
-          </div>
-          <div className="space-y-3">
-            {topCustomers.map((c, i) => (
-              <div key={i}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs text-gray-700 truncate flex-1 mr-2">{c.name}</span>
-                  <span className="text-xs font-medium text-[#1e2a3a]">{c.pct}%</span>
-                </div>
-                <div className="w-full bg-gray-100 rounded-full h-1.5">
-                  <div className="bg-[#0ea5e9] h-1.5 rounded-full" style={{ width: `${c.pct * 4}%` }} />
-                </div>
-                <p className="text-[10px] text-gray-400 mt-0.5">{formatVND(c.amount)}</p>
+      {(isEnabled('section-orders') || isEnabled('section-customers')) && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+          {isEnabled('section-orders') && (
+            <SectionCard title="Đơn hàng mới nhất" link="Xem tất cả" linkHref="/ban-hang/don-hang-ban" className="lg:col-span-2">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead><tr className="border-b border-[#e5e7eb] bg-gray-50">
+                    {['Mã đơn','Khách hàng','Tổng tiền','Trạng thái','Ngày'].map(h => (
+                      <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr></thead>
+                  <tbody>
+                    {recentOrders.map(o => (
+                      <tr key={o.code} className="border-b border-[#e5e7eb] last:border-0 hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-3 text-[var(--mia-primary)] font-medium text-xs">{o.code}</td>
+                        <td className="px-4 py-3 text-xs text-gray-700 max-w-[140px] truncate">{o.customer}</td>
+                        <td className="px-4 py-3 text-xs font-medium text-[#1e2a3a] whitespace-nowrap">{formatVND(o.total)}</td>
+                        <td className="px-4 py-3"><Badge status={o.status} /></td>
+                        <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">{formatDate(o.date)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-4">
-        <SectionCard title="Lịch giao hàng hôm nay" link="Xem tất cả" linkHref="/logistics/don-van-chuyen">
-          <div className="divide-y divide-[#e5e7eb]">
-            {recentDeliveries.map(d => (
-              <div key={d.code} className="px-4 py-3 hover:bg-gray-50">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-[#0ea5e9]">{d.code}</span>
-                  <Badge status={d.status} />
-                </div>
-                <p className="text-xs text-gray-700 mt-0.5">{d.driver}</p>
-                <p className="text-xs text-gray-400">{d.route} · ETA {d.eta && d.eta !== '—' ? formatDate(d.eta) : d.eta}</p>
+            </SectionCard>
+          )}
+          {isEnabled('section-customers') && (
+            <div className="bg-white rounded-xl border border-[#e5e7eb] p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-[#1e2a3a]">Khách hàng Top 5</h2>
+                <a href="/ban-hang/khach-hang" className="text-xs text-[var(--mia-primary)] hover:underline">Xem thêm →</a>
               </div>
-            ))}
-          </div>
-        </SectionCard>
-        <div className="lg:col-span-2 bg-white rounded-xl border border-[#e5e7eb] p-4">
-          <h2 className="text-sm font-semibold text-[#1e2a3a] mb-4">Doanh thu theo sản phẩm</h2>
-          {topProducts.length > 0
-            ? <SimpleBarChart data={topProducts} height={240} formatter={v => v >= 1_000_000 ? (v/1_000_000).toFixed(1)+'tr' : Math.round(v/1_000)+'K'} />
-            : <div className="flex items-center justify-center h-52 text-sm text-gray-400">Chưa có dữ liệu bán hàng</div>
-          }
+              <div className="space-y-3">
+                {topCustomers.map((c, i) => (
+                  <div key={i}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs text-gray-700 truncate flex-1 mr-2">{c.name}</span>
+                      <span className="text-xs font-medium text-[#1e2a3a]">{c.pct}%</span>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-1.5">
+                      <div className="bg-[var(--mia-primary)] h-1.5 rounded-full" style={{ width: `${c.pct * 4}%` }} />
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-0.5">{formatVND(c.amount)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-        <SectionCard title="Thông báo hệ thống">
-          <NotifList data={data} />
-        </SectionCard>
-      </div>
+      )}
+
+      {(isEnabled('section-deliveries') || isEnabled('chart-products') || isEnabled('section-notifs')) && (
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-4">
+          {isEnabled('section-deliveries') && (
+            <SectionCard title="Lịch giao hàng hôm nay" link="Xem tất cả" linkHref="/logistics/don-van-chuyen">
+              <div className="divide-y divide-[#e5e7eb]">
+                {recentDeliveries.map(d => (
+                  <div key={d.code} className="px-4 py-3 hover:bg-gray-50">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-[var(--mia-primary)]">{d.code}</span>
+                      <Badge status={d.status} />
+                    </div>
+                    <p className="text-xs text-gray-700 mt-0.5">{d.driver}</p>
+                    <p className="text-xs text-gray-400">{d.route} · ETA {d.eta && d.eta !== '—' ? formatDate(d.eta) : d.eta}</p>
+                  </div>
+                ))}
+              </div>
+            </SectionCard>
+          )}
+          {isEnabled('chart-products') && (
+            <div className="lg:col-span-2 bg-white rounded-xl border border-[#e5e7eb] p-4">
+              <h2 className="text-sm font-semibold text-[#1e2a3a] mb-4">Doanh thu theo sản phẩm</h2>
+              {topProducts.length > 0
+                ? <SimpleBarChart data={topProducts} height={240} formatter={v => v >= 1_000_000 ? (v/1_000_000).toFixed(1)+'tr' : Math.round(v/1_000)+'K'} />
+                : <div className="flex items-center justify-center h-52 text-sm text-gray-400">Chưa có dữ liệu bán hàng</div>
+              }
+            </div>
+          )}
+          {isEnabled('section-notifs') && (
+            <SectionCard title="Thông báo hệ thống">
+              <NotifList data={data} />
+            </SectionCard>
+          )}
+        </div>
+      )}
 
       <AdminKpiSection />
     </div>
@@ -736,7 +768,7 @@ function SalarySection() {
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#e5e7eb]">
         <div className="flex items-center gap-2">
-          <Banknote size={16} className="text-[#0ea5e9]" />
+          <Banknote size={16} className="text-[var(--mia-primary)]" />
           <h2 className="text-sm font-semibold text-[#1e2a3a]">Hiệu suất & Thu nhập — Tháng 5/2024</h2>
         </div>
         <div className="flex items-center gap-2">
@@ -757,7 +789,7 @@ function SalarySection() {
               {editing === -1 ? (
                 <input
                   type="number"
-                  className="text-xs font-semibold text-[#1e2a3a] text-right w-32 border border-[#0ea5e9] rounded px-1 outline-none"
+                  className="text-xs font-semibold text-[#1e2a3a] text-right w-32 border border-[var(--mia-primary)] rounded px-1 outline-none"
                   value={baseSalary}
                   onChange={e => setBaseSalary(Number(e.target.value))}
                   onBlur={() => setEditing(null)}
@@ -765,7 +797,7 @@ function SalarySection() {
                 />
               ) : (
                 <span
-                  className="text-xs font-semibold text-[#1e2a3a] hover:text-[#0ea5e9] cursor-pointer"
+                  className="text-xs font-semibold text-[#1e2a3a] hover:text-[var(--mia-primary)] cursor-pointer"
                   onClick={() => setEditing(-1)}
                   title="Click để sửa"
                 >
@@ -798,7 +830,7 @@ function SalarySection() {
               {kpiRows.map(k => (
                 <div key={k.id} className="flex items-center justify-between py-1.5 px-3 bg-blue-50 rounded-lg">
                   <span className="text-xs text-gray-600 truncate flex-1 mr-2">{k.name}</span>
-                  <span className="text-xs font-medium text-[#0ea5e9] shrink-0">+{formatVND(k.bonus)}</span>
+                  <span className="text-xs font-medium text-[var(--mia-primary)] shrink-0">+{formatVND(k.bonus)}</span>
                 </div>
               ))}
               <div className="flex justify-end pt-1">
@@ -814,7 +846,7 @@ function SalarySection() {
                 <p className="text-white/50 text-[10px] uppercase tracking-wider">Tổng thu nhập dự kiến</p>
                 <p className="text-xl font-bold text-white mt-0.5">{formatVND(grandTotal)}</p>
               </div>
-              <TrendingUp size={28} className="text-[#0ea5e9]" />
+              <TrendingUp size={28} className="text-[var(--mia-primary)]" />
             </div>
           </div>
         </div>
@@ -825,7 +857,7 @@ function SalarySection() {
             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Chi tiết KPI</p>
             <button
               onClick={() => setShowAddKpi(v => !v)}
-              className="text-xs text-[#0ea5e9] hover:text-[#0284c7] font-medium transition-colors flex items-center gap-1"
+              className="text-xs text-[var(--mia-primary)] hover:text-[#0284c7] font-medium transition-colors flex items-center gap-1"
             >
               + Thêm KPI
             </button>
@@ -839,17 +871,17 @@ function SalarySection() {
                 value={newKpiName}
                 onChange={e => setNewKpiName(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && addKpi()}
-                className="flex-1 text-xs border border-[#e5e7eb] rounded-lg px-3 py-1.5 outline-none focus:border-[#0ea5e9]"
+                className="flex-1 text-xs border border-[#e5e7eb] rounded-lg px-3 py-1.5 outline-none focus:border-[var(--mia-primary)]"
                 autoFocus
               />
-              <button onClick={addKpi} className="text-xs bg-[#0ea5e9] text-white px-3 py-1.5 rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all">Thêm</button>
+              <button onClick={addKpi} className="text-xs bg-[var(--mia-primary)] text-white px-3 py-1.5 rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all">Thêm</button>
               <button onClick={() => setShowAddKpi(false)} className="text-xs text-gray-400 hover:text-gray-600 px-2 transition-colors">Hủy</button>
             </div>
           )}
 
           <div className="space-y-4">
             {kpiRows.map(k => (
-              <div key={k.id} className="border border-[#e5e7eb] rounded-xl p-4 hover:border-[#0ea5e9]/40 transition-colors group">
+              <div key={k.id} className="border border-[#e5e7eb] rounded-xl p-4 hover:border-[var(--mia-primary)]/40 transition-colors group">
                 <div className="flex items-start justify-between mb-3">
                   <p className="text-xs font-semibold text-[#1e2a3a]">{k.name}</p>
                   <button
@@ -874,7 +906,7 @@ function SalarySection() {
                     <p className="text-[10px] text-gray-400 mb-0.5">Mục tiêu</p>
                     <input
                       type="number"
-                      className="w-full text-xs font-semibold text-[#1e2a3a] text-center bg-gray-50 border border-transparent hover:border-[#e5e7eb] focus:border-[#0ea5e9] rounded px-1 py-0.5 outline-none transition-colors"
+                      className="w-full text-xs font-semibold text-[#1e2a3a] text-center bg-gray-50 border border-transparent hover:border-[#e5e7eb] focus:border-[var(--mia-primary)] rounded px-1 py-0.5 outline-none transition-colors"
                       value={k.target}
                       onChange={e => updateKpi(k.id, 'target', Number(e.target.value))}
                     />
@@ -883,7 +915,7 @@ function SalarySection() {
                     <p className="text-[10px] text-gray-400 mb-0.5">Thực hiện</p>
                     <input
                       type="number"
-                      className="w-full text-xs font-semibold text-[#1e2a3a] text-center bg-gray-50 border border-transparent hover:border-[#e5e7eb] focus:border-[#0ea5e9] rounded px-1 py-0.5 outline-none transition-colors"
+                      className="w-full text-xs font-semibold text-[#1e2a3a] text-center bg-gray-50 border border-transparent hover:border-[#e5e7eb] focus:border-[var(--mia-primary)] rounded px-1 py-0.5 outline-none transition-colors"
                       value={k.actual}
                       onChange={e => updateKpi(k.id, 'actual', Number(e.target.value))}
                     />
@@ -893,7 +925,7 @@ function SalarySection() {
                     <input
                       type="number"
                       step="0.1"
-                      className="w-full text-xs font-semibold text-[#1e2a3a] text-center bg-gray-50 border border-transparent hover:border-[#e5e7eb] focus:border-[#0ea5e9] rounded px-1 py-0.5 outline-none transition-colors"
+                      className="w-full text-xs font-semibold text-[#1e2a3a] text-center bg-gray-50 border border-transparent hover:border-[#e5e7eb] focus:border-[var(--mia-primary)] rounded px-1 py-0.5 outline-none transition-colors"
                       value={k.coefficient}
                       onChange={e => updateKpi(k.id, 'coefficient', Number(e.target.value))}
                     />
@@ -910,13 +942,13 @@ function SalarySection() {
                     <span>Thưởng gốc:</span>
                     <input
                       type="number"
-                      className="w-24 text-center bg-gray-50 border border-transparent hover:border-[#e5e7eb] focus:border-[#0ea5e9] rounded px-1 py-0.5 outline-none transition-colors text-gray-600"
+                      className="w-24 text-center bg-gray-50 border border-transparent hover:border-[#e5e7eb] focus:border-[var(--mia-primary)] rounded px-1 py-0.5 outline-none transition-colors text-gray-600"
                       value={k.baseBonus}
                       onChange={e => updateKpi(k.id, 'baseBonus', Number(e.target.value))}
                     />
                     <span className="text-[10px] text-gray-400">đ × {k.coefficient} × {Math.round(k.pct * 100)}%</span>
                   </div>
-                  <span className="text-sm font-bold text-[#0ea5e9]">= {formatVND(k.bonus)}</span>
+                  <span className="text-sm font-bold text-[var(--mia-primary)]">= {formatVND(k.bonus)}</span>
                 </div>
               </div>
             ))}
@@ -961,10 +993,10 @@ function SalesDashboard({ name }: { name: string }) {
           <span className="text-xs text-gray-400">Mục tiêu: —</span>
         </div>
         <div className="w-full bg-gray-100 rounded-full h-3 mb-2">
-          <div className="bg-[#0ea5e9] h-3 rounded-full transition-all" style={{ width: '0%' }} />
+          <div className="bg-[var(--mia-primary)] h-3 rounded-full transition-all" style={{ width: '0%' }} />
         </div>
         <div className="flex justify-between text-xs">
-          <span className="text-[#0ea5e9] font-semibold">— đạt được (—%)</span>
+          <span className="text-[var(--mia-primary)] font-semibold">— đạt được (—%)</span>
           <span className="text-gray-400">Chưa có dữ liệu</span>
         </div>
       </div>
@@ -975,7 +1007,7 @@ function SalesDashboard({ name }: { name: string }) {
             {myOrders.map(o => (
               <div key={o.code} className="px-4 py-3 hover:bg-gray-50 flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-medium text-[#0ea5e9]">{o.code}</p>
+                  <p className="text-xs font-medium text-[var(--mia-primary)]">{o.code}</p>
                   <p className="text-xs text-gray-600 mt-0.5">{o.customer}</p>
                   <p className="text-[10px] text-gray-400">{formatVND(o.total)}</p>
                 </div>
@@ -990,7 +1022,7 @@ function SalesDashboard({ name }: { name: string }) {
             {quotes.map(q => (
               <div key={q.id} className="px-4 py-3 hover:bg-gray-50">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-medium text-[#0ea5e9]">{q.id}</span>
+                  <span className="text-xs font-medium text-[var(--mia-primary)]">{q.id}</span>
                   <Badge status={q.status} />
                 </div>
                 <p className="text-xs text-gray-600">{q.customer}</p>
@@ -1112,7 +1144,7 @@ function WarehouseDashboard({ name }: { name: string }) {
             <tbody>
               {pendingReceipts.map(r => (
                 <tr key={r.code} className="border-b border-[#f0f2f5] hover:bg-gray-50">
-                  <td className="px-4 py-3 text-xs font-medium text-[#0ea5e9]">{r.code}</td>
+                  <td className="px-4 py-3 text-xs font-medium text-[var(--mia-primary)]">{r.code}</td>
                   <td className="px-4 py-3 text-xs text-gray-700">{r.supplier}</td>
                   <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{formatDate(r.expected)}</td>
                   <td className="px-4 py-3"><Badge status={r.status} /></td>
@@ -1132,7 +1164,7 @@ function WarehouseDashboard({ name }: { name: string }) {
             <tbody>
               {pendingIssues.map(r => (
                 <tr key={r.code} className="border-b border-[#f0f2f5] hover:bg-gray-50">
-                  <td className="px-4 py-3 text-xs font-medium text-[#0ea5e9]">{r.code}</td>
+                  <td className="px-4 py-3 text-xs font-medium text-[var(--mia-primary)]">{r.code}</td>
                   <td className="px-4 py-3 text-xs text-gray-700">{r.order}</td>
                   <td className="px-4 py-3 text-xs text-gray-500">{r.warehouse}</td>
                   <td className="px-4 py-3"><Badge status={r.status} /></td>
@@ -1174,7 +1206,7 @@ function LogisticsDashboard({ name }: { name: string }) {
             {recentDeliveries.map(d => (
               <div key={d.code} className="px-4 py-3 hover:bg-gray-50">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-semibold text-[#0ea5e9]">{d.code}</span>
+                  <span className="text-xs font-semibold text-[var(--mia-primary)]">{d.code}</span>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] text-gray-400">ETA {d.eta && d.eta !== '—' ? formatDate(d.eta) : d.eta}</span>
                     <Badge status={d.status} />
@@ -1274,7 +1306,7 @@ function DriverDashboard({ name }: { name: string }) {
                     <Phone size={11} /> Gọi KH
                   </a>
                   {d.status === 'pending' && (
-                    <button className="flex items-center gap-1.5 px-3 py-1.5 bg-[#0ea5e9] text-white text-xs font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all">
+                    <button className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--mia-primary)] text-white text-xs font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all">
                       <Navigation size={11} /> Bắt đầu
                     </button>
                   )}
@@ -1298,7 +1330,7 @@ function DriverDashboard({ name }: { name: string }) {
       <div className="bg-[#1e2a3a] rounded-xl p-5 text-white">
         <h3 className="text-sm font-bold mb-3">Tóm tắt ngày làm việc</h3>
         <div className="grid grid-cols-3 gap-4 text-center">
-          <div><p className="text-2xl font-bold text-[#0ea5e9]">{myDeliveries.length}</p><p className="text-xs text-white/50 mt-0.5">Tổng chuyến</p></div>
+          <div><p className="text-2xl font-bold text-[var(--mia-primary)]">{myDeliveries.length}</p><p className="text-xs text-white/50 mt-0.5">Tổng chuyến</p></div>
           <div><p className="text-2xl font-bold text-green-400">{delivered}</p><p className="text-xs text-white/50 mt-0.5">Giao thành công</p></div>
           <div><p className="text-2xl font-bold text-yellow-400">{remaining}</p><p className="text-xs text-white/50 mt-0.5">Còn lại</p></div>
         </div>
@@ -1313,7 +1345,15 @@ function DriverDashboard({ name }: { name: string }) {
 
 export default function DashboardPage() {
   const { user } = useAuth()
-  const name = user?.name ?? 'bạn'
+  const tenant = useTenant()
+
+  // Dùng full_name nếu hợp lệ (không phải tên công ty); fallback về email username
+  const rawName = user?.name ?? ''
+  const tenantName = tenant.name ?? ''
+  const name = rawName && rawName.toLowerCase() !== tenantName.toLowerCase()
+    ? rawName
+    : (user?.email?.split('@')[0] ?? 'bạn')
+
   const role = user?.role ?? 'admin'
 
   if (role === 'sales')     return <SalesDashboard name={name} />

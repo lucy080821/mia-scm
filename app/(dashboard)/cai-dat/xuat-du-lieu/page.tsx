@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { useState } from 'react'
 import {
   Download, ShoppingCart, Warehouse, Truck, ClipboardList, DollarSign,
@@ -119,17 +119,17 @@ export default function XuatDuLieuPage() {
       {/* ── Hero ── */}
       <div className="relative bg-gradient-to-br from-[#1e2a3a] to-[#1a3a5c] rounded-2xl p-6 overflow-hidden">
         {/* Decorative circles */}
-        <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-[#0ea5e9]/10 pointer-events-none" />
+        <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-[var(--mia-primary)]/10 pointer-events-none" />
         <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-white/5 pointer-events-none" />
 
         <div className="relative flex items-start justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-12 h-12 rounded-xl bg-[#0ea5e9]/20 border border-[#0ea5e9]/30 flex items-center justify-center">
-              <FileSpreadsheet size={22} className="text-[#0ea5e9]" />
+            <div className="w-12 h-12 rounded-xl bg-[var(--mia-primary)]/20 border border-[var(--mia-primary)]/30 flex items-center justify-center">
+              <FileSpreadsheet size={22} className="text-[var(--mia-primary)]" />
             </div>
             <div>
               <h1 className="text-xl font-bold text-white">Xuất dữ liệu</h1>
-              <p className="text-xs text-[#0ea5e9] font-medium mt-0.5">Báo cáo & Phân tích</p>
+              <p className="text-xs text-[var(--mia-primary)] font-medium mt-0.5">Báo cáo & Phân tích</p>
             </div>
           </div>
         </div>
@@ -137,7 +137,7 @@ export default function XuatDuLieuPage() {
         {/* Stats */}
         <div className="relative grid grid-cols-3 sm:grid-cols-4 gap-3">
           {[
-            { label: 'Module',        val: String(MODULES.length),     icon: BarChart3,      color: 'text-[#0ea5e9]' },
+            { label: 'Module',        val: String(MODULES.length),     icon: BarChart3,      color: 'text-[var(--mia-primary)]' },
             { label: 'Sheet dữ liệu', val: String(TOTAL_SHEETS),       icon: FileSpreadsheet, color: 'text-emerald-400' },
             { label: 'Định dạng',     val: '.xlsx',                    icon: Download,       color: 'text-amber-400' },
             { label: 'Đang chọn',     val: `${selectedSheets} sheet`,  icon: Sparkles,       color: 'text-violet-400' },
@@ -154,20 +154,20 @@ export default function XuatDuLieuPage() {
       {/* ── Date picker ── */}
       <div className="bg-white rounded-xl border border-[#e5e7eb] p-5">
         <div className="flex items-center gap-2 mb-4">
-          <Calendar size={15} className="text-[#0ea5e9]" />
+          <Calendar size={15} className="text-[var(--mia-primary)]" />
           <h2 className="text-sm font-semibold text-[#1e2a3a]">Khoảng thời gian dữ liệu</h2>
         </div>
         <div className="flex flex-wrap items-end gap-3">
           <div>
             <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Từ ngày</label>
             <input type="date" value={from} max={to} onChange={e => setFrom(e.target.value)}
-              className="border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm text-[#1e2a3a] outline-none focus:border-[#0ea5e9] focus:ring-2 focus:ring-[#0ea5e9]/10 transition" />
+              className="border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm text-[#1e2a3a] outline-none focus:border-[var(--mia-primary)] focus:ring-2 focus:ring-[var(--mia-primary)]/10 transition" />
           </div>
           <div className="text-gray-300 pb-2">→</div>
           <div>
             <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Đến ngày</label>
             <input type="date" value={to} min={from} max={new Date().toISOString().slice(0, 10)} onChange={e => setTo(e.target.value)}
-              className="border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm text-[#1e2a3a] outline-none focus:border-[#0ea5e9] focus:ring-2 focus:ring-[#0ea5e9]/10 transition" />
+              className="border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm text-[#1e2a3a] outline-none focus:border-[var(--mia-primary)] focus:ring-2 focus:ring-[var(--mia-primary)]/10 transition" />
           </div>
           <div className="flex gap-1.5 flex-wrap pb-0.5">
             {[
@@ -175,7 +175,7 @@ export default function XuatDuLieuPage() {
               { label: '6 tháng', m: 6 }, { label: 'Năm nay', m: 0 },
             ].map(q => (
               <button key={q.label} onClick={() => quickDate(q.m)}
-                className="text-xs px-3 py-2 bg-gray-50 border border-[#e5e7eb] rounded-lg text-gray-600 hover:bg-[#0ea5e9]/5 hover:border-[#0ea5e9] hover:text-[#0ea5e9] transition-all font-medium">
+                className="text-xs px-3 py-2 bg-gray-50 border border-[#e5e7eb] rounded-lg text-gray-600 hover:bg-[var(--mia-primary)]/5 hover:border-[var(--mia-primary)] hover:text-[var(--mia-primary)] transition-all font-medium">
                 {q.label}
               </button>
             ))}
@@ -202,7 +202,7 @@ export default function XuatDuLieuPage() {
               <p className="text-xs text-gray-400 mt-0.5">Click vào card để chọn / bỏ chọn</p>
             </div>
             <button onClick={() => setSelected(allChecked ? new Set() : new Set(MODULES.map(m => m.key)))}
-              className="text-xs text-[#0ea5e9] hover:underline font-medium flex items-center gap-1">
+              className="text-xs text-[var(--mia-primary)] hover:underline font-medium flex items-center gap-1">
               {allChecked ? <CheckCircle2 size={13} /> : <Circle size={13} />}
               {allChecked ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
             </button>
@@ -221,7 +221,7 @@ export default function XuatDuLieuPage() {
                 className={`relative bg-white rounded-xl border-2 transition-all duration-200 overflow-hidden
                   ${isAdmin ? 'cursor-pointer' : ''}
                   ${checked && isAdmin
-                    ? 'border-[#0ea5e9] shadow-md shadow-[#0ea5e9]/10'
+                    ? 'border-[var(--mia-primary)] shadow-md shadow-[#0ea5e9]/10'
                     : 'border-[#e5e7eb] hover:border-gray-300 hover:shadow-sm'
                   }`}
               >
@@ -244,7 +244,7 @@ export default function XuatDuLieuPage() {
                     </div>
                     {isAdmin && (
                       <div className={`w-5 h-5 rounded-full flex items-center justify-center border-2 transition-all
-                        ${checked ? 'bg-[#0ea5e9] border-[#0ea5e9]' : 'border-gray-300'}`}>
+                        ${checked ? 'bg-[var(--mia-primary)] border-[var(--mia-primary)]' : 'border-gray-300'}`}>
                         {checked && <span className="text-white text-[10px] font-bold">✓</span>}
                       </div>
                     )}
@@ -285,11 +285,11 @@ export default function XuatDuLieuPage() {
       {/* ── Admin bulk export ── */}
       {isAdmin && (
         <div className="relative bg-gradient-to-r from-[#1e2a3a] to-[#1a3a5c] rounded-2xl p-6 overflow-hidden">
-          <div className="absolute -top-6 -right-6 w-32 h-32 rounded-full bg-[#0ea5e9]/10 pointer-events-none" />
+          <div className="absolute -top-6 -right-6 w-32 h-32 rounded-full bg-[var(--mia-primary)]/10 pointer-events-none" />
           <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-[#0ea5e9]/20 border border-[#0ea5e9]/30 flex items-center justify-center shrink-0">
-                <Download size={20} className="text-[#0ea5e9]" />
+              <div className="w-12 h-12 rounded-xl bg-[var(--mia-primary)]/20 border border-[var(--mia-primary)]/30 flex items-center justify-center shrink-0">
+                <Download size={20} className="text-[var(--mia-primary)]" />
               </div>
               <div>
                 <p className="text-base font-bold text-white">Xuất toàn bộ hệ thống</p>
@@ -310,7 +310,7 @@ export default function XuatDuLieuPage() {
               </div>
             </div>
             <button onClick={() => doExport('all')} disabled={!!loading}
-              className="relative shrink-0 flex items-center gap-2 px-6 py-3 bg-[#0ea5e9] hover:bg-[#0284c7] text-white text-sm font-bold rounded-xl transition-all hover:shadow-lg hover:shadow-[#0ea5e9]/30 disabled:opacity-60 active:scale-95">
+              className="relative shrink-0 flex items-center gap-2 px-6 py-3 bg-[var(--mia-primary)] hover:opacity-90 text-white text-sm font-bold rounded-xl transition-all hover:shadow-lg hover:shadow-[#0ea5e9]/30 disabled:opacity-60 active:scale-95">
               {loading === 'all'
                 ? <><Loader2 size={16} className="animate-spin" /> Đang xuất...</>
                 : <><Download size={16} /> Xuất toàn bộ</>}

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { useState, useEffect } from 'react'
 import * as XLSX from 'xlsx'
 import { Plus, Search, Package, X, Clock, AlertTriangle, TrendingDown } from 'lucide-react'
@@ -11,6 +11,7 @@ import { formatVND } from '@/lib/utils'
 import { calcDaysOfStock, calcDateElapsedPct, getAlertLevel } from '@/lib/stock-alerts'
 import { calcSafetyStock, calcROP, calcEOQ, classifyABC, AbcClass } from '@/lib/inventory-formulas'
 import { supabase } from '@/lib/supabase'
+import { useTenant } from '@/contexts/TenantContext'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -140,72 +141,72 @@ function ProductFormModal({ product, onClose, onSave }: {
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">SKU <span className="text-red-400">*</span></label>
             <input value={form.sku} onChange={e => set('sku', e.target.value)} placeholder="SN150-5L"
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Đơn vị tính <span className="text-red-400">*</span></label>
             <select value={form.unit} onChange={e => set('unit', e.target.value)}
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]">
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]">
               {['L', 'kg', 'thùng', 'cái', 'gói', 'hộp'].map(u => <option key={u}>{u}</option>)}
             </select>
           </div>
           <div className="col-span-2">
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Tên sản phẩm <span className="text-red-400">*</span></label>
             <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="Tên đầy đủ của sản phẩm"
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Danh mục</label>
             <input value={form.category} onChange={e => set('category', e.target.value)} placeholder="Nhớt động cơ"
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Nhà cung cấp</label>
             <input value={form.supplier} onChange={e => set('supplier', e.target.value)} placeholder="Castrol VN"
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Giá nhập (đ)</label>
             <input type="number" min={0} value={form.purchase_price} onChange={e => set('purchase_price', Number(e.target.value))}
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Giá bán (đ)</label>
             <input type="number" min={0} value={form.sale_price} onChange={e => set('sale_price', Number(e.target.value))}
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Tồn tối thiểu</label>
             <input type="number" min={0} value={form.min_stock} onChange={e => set('min_stock', Number(e.target.value))}
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Hạn sử dụng (ngày)</label>
             <input type="number" min={0} value={form.expiry_days ?? ''} onChange={e => set('expiry_days', e.target.value ? Number(e.target.value) : null)}
               placeholder="Để trống nếu không hết hạn"
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">TB xuất / ngày</label>
             <input type="number" min={0} value={form.avg_daily_sales} onChange={e => set('avg_daily_sales', Number(e.target.value))}
               placeholder="Tự động tính từ lịch sử bán"
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Lead time NCC (ngày)</label>
             <input type="number" min={1} value={form.lead_time_days} onChange={e => set('lead_time_days', Number(e.target.value) || 7)}
               placeholder="7"
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Ngày sản xuất (lô hiện tại)</label>
             <input type="date" value={form.manufacture_date ?? ''} onChange={e => set('manufacture_date', e.target.value || null)}
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Trạng thái</label>
             <select value={form.status} onChange={e => set('status', e.target.value)}
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]">
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]">
               <option value="active">Đang bán</option>
               <option value="inactive">Ngừng bán</option>
               <option value="pending">Chờ duyệt</option>
@@ -231,7 +232,7 @@ function ProductFormModal({ product, onClose, onSave }: {
         <div className="flex gap-2 px-6 py-4 border-t border-[#e5e7eb]">
           <button onClick={onClose} className="flex-1 py-2 text-sm text-gray-600 border border-[#e5e7eb] rounded-lg hover:bg-gray-50 transition-colors">Hủy</button>
           <button onClick={handleSave} disabled={!form.sku || !form.name}
-            className="flex-1 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] disabled:opacity-40 transition-all hover:scale-[1.02] active:scale-95">
+            className="flex-1 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-40 transition-all hover:scale-[1.02] active:scale-95">
             {product ? 'Cập nhật' : 'Thêm sản phẩm'}
           </button>
         </div>
@@ -243,15 +244,19 @@ function ProductFormModal({ product, onClose, onSave }: {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function ProductsPage() {
+  const { id: tenantId } = useTenant()
   const [products, setProducts] = useState<Product[]>([])
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
+    if (!tenantId) return
     async function load() {
       const [{ data: prods }, { data: inv }] = await Promise.all([
         supabase.from('products')
           .select('*, category:categories(name), supplier:suppliers(name, delivery_days)')
+          .eq('tenant_id', tenantId)
           .order('created_at', { ascending: false }),
-        supabase.from('inventory').select('product_id, quantity'),
+        supabase.from('inventory').select('product_id, quantity').eq('tenant_id', tenantId),
       ])
       if (!prods) return
 
@@ -265,6 +270,7 @@ export default function ProductsPage() {
       const { data: recentOrders } = await supabase
         .from('sales_orders')
         .select('id')
+        .eq('tenant_id', tenantId)
         .gte('order_date', ninetyDaysAgo)
         .in('status', ['completed', 'delivering', 'confirmed'])
 
@@ -273,6 +279,7 @@ export default function ProductsPage() {
         ? await supabase
             .from('sales_order_items')
             .select('product_id, quantity, subtotal')
+            .eq('tenant_id', tenantId)
             .in('order_id', orderIds)
         : { data: [] as { product_id: string; quantity: number; subtotal: number }[] }
 
@@ -320,7 +327,7 @@ export default function ProductsPage() {
       }))
     }
     load()
-  }, [])
+  }, [tenantId])
 
   const [search, setSearch]       = useState('')
   const [category, setCategory]   = useState('all')
@@ -435,7 +442,7 @@ export default function ProductsPage() {
     { key: 'sku', header: 'SKU / ABC', render: r => (
       <div className="flex items-center gap-1.5">
         <AbcBadge cls={r.abc_class} />
-        <span className="text-xs font-mono text-[#0ea5e9]">{r.sku}</span>
+        <span className="text-xs font-mono text-[var(--mia-primary)]">{r.sku}</span>
       </div>
     )},
     { key: 'name', header: 'Tên sản phẩm', render: r => <span className="text-sm font-medium text-[#1e2a3a]">{r.name}</span> },
@@ -471,7 +478,7 @@ export default function ProductsPage() {
     { key: 'status', header: 'Trạng thái', render: r => <Badge status={r.status} /> },
     { key: 'id', header: '', render: r => (
       <button onClick={() => setModal(r)}
-        className="px-2.5 py-1 text-xs text-gray-500 border border-[#e5e7eb] rounded-lg hover:border-[#0ea5e9] hover:text-[#0ea5e9] transition-colors">
+        className="px-2.5 py-1 text-xs text-gray-500 border border-[#e5e7eb] rounded-lg hover:border-[var(--mia-primary)] hover:text-[var(--mia-primary)] transition-colors">
         Sửa
       </button>
     )},
@@ -482,7 +489,7 @@ export default function ProductsPage() {
       <PageHeader title="Sản phẩm" subtitle={`${products.length} sản phẩm trong danh mục`}>
         <ExportButton module="kho-hang" />
         <button onClick={() => setModal('new')}
-          className="flex items-center gap-2 px-4 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all">
+          className="flex items-center gap-2 px-4 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all">
           <Plus size={14} /> Thêm sản phẩm
         </button>
       </PageHeader>
@@ -506,7 +513,7 @@ export default function ProductsPage() {
               className="flex-1 text-sm outline-none bg-transparent text-gray-700 placeholder-gray-400" />
           </div>
           <select value={category} onChange={e => { setCategory(e.target.value); setPage(1) }}
-            className="h-8 px-3 border border-[#e5e7eb] rounded-lg text-xs text-gray-700 bg-white outline-none focus:ring-2 focus:ring-[#0ea5e9]">
+            className="h-8 px-3 border border-[#e5e7eb] rounded-lg text-xs text-gray-700 bg-white outline-none focus:ring-2 focus:ring-[var(--mia-primary)]">
             {categories.map(c => <option key={c} value={c}>{c === 'all' ? 'Tất cả danh mục' : c}</option>)}
           </select>
 
@@ -519,7 +526,7 @@ export default function ProductsPage() {
                     ? cls === 'A' ? 'bg-green-100 text-green-700 border border-green-300'
                       : cls === 'B' ? 'bg-yellow-100 text-yellow-700 border border-yellow-300'
                       : cls === 'C' ? 'bg-gray-100 text-gray-600 border border-gray-300'
-                      : 'bg-[#0ea5e9] text-white border border-[#0ea5e9]'
+                      : 'bg-[var(--mia-primary)] text-white border border-[var(--mia-primary)]'
                     : 'border border-[#e5e7eb] text-gray-500 hover:bg-gray-50'
                 }`}>
                 {cls === 'all' ? 'Tất cả' : `Nhóm ${cls}`}

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { useState, useEffect, useRef, type JSX } from 'react'
 import { Plus, Search, Download, ShoppingCart, Clock, CheckCircle, XCircle, Truck, X, Trash2, ChevronRight, Sparkles, AlertCircle, Pencil, AlertTriangle, Package, Warehouse, MapPin, UserCheck } from 'lucide-react'
 import PageHeader from '@/components/layout/PageHeader'
@@ -11,6 +11,7 @@ import { formatVND, formatDate } from '@/lib/utils'
 import { STATUS_LABELS, STATUS_BADGE, type OrderStatus, type UserRole } from '@/lib/workflow/orderStateMachine'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
+import { useTenant } from '@/contexts/TenantContext'
 import { useOrdersRealtime } from '@/hooks/useOrdersRealtime'
 import { useAutoRefresh } from '@/hooks/useAutoRefresh'
 
@@ -70,7 +71,7 @@ function SearchableCombobox<T extends { id: string; name: string }>({
     <div ref={ref} className="relative">
       <div
         onClick={() => { setOpen(true); setQuery(''); setTimeout(() => inputRef.current?.focus(), 0) }}
-        className={`w-full h-9 px-2.5 text-sm border rounded-lg bg-white flex items-center gap-1.5 transition-colors ${open ? 'border-[#0ea5e9]' : 'border-[#e5e7eb]'}`}
+        className={`w-full h-9 px-2.5 text-sm border rounded-lg bg-white flex items-center gap-1.5 transition-colors ${open ? 'border-[var(--mia-primary)]' : 'border-[#e5e7eb]'}`}
       >
         <Search size={12} className="text-gray-400 shrink-0" />
         <input
@@ -138,6 +139,7 @@ function CreateOrderModal({ onClose, onCreate, prefill }: {
   onCreate: (o: CreateOrderPayload) => void
   prefill?: CreateOrderPrefill
 }) {
+  const { id: tenantId } = useTenant()
   const [customerId, setCustomerId] = useState('')
   const defaultISO = prefill?.deliveryDate ?? new Date(Date.now() + 86400000).toISOString().slice(0, 10)
   const [deliveryDate, setDeliveryDate] = useState(defaultISO)
@@ -159,14 +161,16 @@ function CreateOrderModal({ onClose, onCreate, prefill }: {
   const [loadingC, setLoadingC]   = useState(false)
   const [loadingP, setLoadingP]   = useState(false)
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
+    if (!tenantId) return
     setLoadingC(true)
-    supabase.from('customers').select('id, code, name, address, phone, credit_limit').eq('status', 'active').order('name').limit(300)
+    supabase.from('customers').select('id, code, name, address, phone, credit_limit').eq('tenant_id', tenantId).eq('status', 'active').order('name').limit(300)
       .then(({ data }) => { setCustomers((data ?? []).map(c => ({ ...c, current_debt: 0 }))); setLoadingC(false) })
     setLoadingP(true)
-    supabase.from('products').select('id, sku, name, unit, sale_price').eq('status', 'active').order('name').limit(300)
+    supabase.from('products').select('id, sku, name, unit, sale_price').eq('tenant_id', tenantId).eq('status', 'active').order('name').limit(300)
       .then(({ data }) => { setProducts(data ?? []); setLoadingP(false) })
-  }, [])
+  }, [tenantId])
 
   const addItem    = () => setItems(prev => [...prev, { product_id: '', quantity: 1, unit_price: 0, quy_cach: '' }])
   const removeItem = (i: number) => setItems(prev => prev.filter((_, idx) => idx !== i))
@@ -254,7 +258,7 @@ function CreateOrderModal({ onClose, onCreate, prefill }: {
                 placeholder="dd/mm/yyyy"
                 value={deliveryDisplay}
                 onChange={e => handleDeliveryChange(e.target.value)}
-                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg bg-white text-gray-700 outline-none focus:border-[#0ea5e9]"
+                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg bg-white text-gray-700 outline-none focus:border-[var(--mia-primary)]"
               />
             </div>
           </div>
@@ -283,7 +287,7 @@ function CreateOrderModal({ onClose, onCreate, prefill }: {
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-semibold text-gray-500">Sản phẩm *</label>
-              <button onClick={addItem} className="flex items-center gap-1 text-xs text-[#0ea5e9] hover:text-[#0284c7] font-medium transition-colors">
+              <button onClick={addItem} className="flex items-center gap-1 text-xs text-[var(--mia-primary)] hover:text-[#0284c7] font-medium transition-colors">
                 <Plus size={12} /> Thêm dòng
               </button>
             </div>
@@ -328,10 +332,10 @@ function CreateOrderModal({ onClose, onCreate, prefill }: {
                     {/* Hàng 2: SL + quy cách + giá + thành tiền + xóa */}
                     <div className="grid grid-cols-12 gap-3 items-center">
                       <input type="number" min={1} value={it.quantity} onChange={e => updateItem(i, 'quantity', +e.target.value)}
-                        className="col-span-1 h-7 px-1 text-xs border border-[#e5e7eb] rounded-lg bg-white text-center outline-none focus:border-[#0ea5e9]" />
+                        className="col-span-1 h-7 px-1 text-xs border border-[#e5e7eb] rounded-lg bg-white text-center outline-none focus:border-[var(--mia-primary)]" />
                       <input type="text" value={it.quy_cach} onChange={e => updateItem(i, 'quy_cach', e.target.value)}
                         placeholder="Quy cách..."
-                        className="col-span-2 h-7 px-2 text-xs border border-[#e5e7eb] rounded-lg bg-white outline-none focus:border-[#0ea5e9] placeholder:text-gray-300" />
+                        className="col-span-2 h-7 px-2 text-xs border border-[#e5e7eb] rounded-lg bg-white outline-none focus:border-[var(--mia-primary)] placeholder:text-gray-300" />
                       <div className="col-span-4 text-right text-xs text-gray-500">
                         {it.unit_price > 0 ? fmtNum(it.unit_price) : '—'}
                       </div>
@@ -355,7 +359,7 @@ function CreateOrderModal({ onClose, onCreate, prefill }: {
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Ghi chú</label>
             <textarea value={note} onChange={e => setNote(e.target.value)} rows={2}
               placeholder="Yêu cầu đặc biệt, hướng dẫn giao hàng..."
-              className="w-full px-3 py-2 text-sm border border-[#e5e7eb] rounded-lg bg-white text-gray-700 outline-none focus:border-[#0ea5e9] resize-none" />
+              className="w-full px-3 py-2 text-sm border border-[#e5e7eb] rounded-lg bg-white text-gray-700 outline-none focus:border-[var(--mia-primary)] resize-none" />
           </div>
         </div>
 
@@ -363,7 +367,7 @@ function CreateOrderModal({ onClose, onCreate, prefill }: {
         <div className="flex items-center justify-between px-6 py-4 border-t border-[#e5e7eb] bg-gray-50 rounded-b-2xl">
           <div>
             <span className="text-xs text-gray-400">Tổng cộng</span>
-            <p className="text-lg font-bold text-[#0ea5e9]">{formatVND(total)}</p>
+            <p className="text-lg font-bold text-[var(--mia-primary)]">{formatVND(total)}</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={onClose}>Hủy bỏ</Button>
@@ -436,7 +440,7 @@ function ParseOrderModal({ onClose, onCreate }: {
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#e5e7eb]">
           <div>
             <h2 className="text-base font-bold text-[#1e2a3a] flex items-center gap-2">
-              <Sparkles size={16} className="text-[#0ea5e9]" /> AI Parse đơn từ tin nhắn
+              <Sparkles size={16} className="text-[var(--mia-primary)]" /> AI Parse đơn từ tin nhắn
             </h2>
             <p className="text-xs text-gray-400 mt-0.5">Dán tin nhắn Zalo/chat → AI tự tạo đơn hàng</p>
           </div>
@@ -447,18 +451,18 @@ function ParseOrderModal({ onClose, onCreate }: {
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-xs font-semibold text-gray-500">Nội dung tin nhắn</label>
-              <button onClick={() => setText(EXAMPLE_TEXT)} className="text-[11px] text-[#0ea5e9] hover:underline">
+              <button onClick={() => setText(EXAMPLE_TEXT)} className="text-[11px] text-[var(--mia-primary)] hover:underline">
                 Dùng ví dụ
               </button>
             </div>
             <textarea value={text} onChange={e => { setText(e.target.value); setResult(null) }} rows={5}
               placeholder={'Ví dụ:\n"Anh ơi cho em 500L SN150 và 200 phụ gia A nha, giao thứ 3 nhé"'}
-              className="w-full px-3 py-2.5 text-sm border border-[#e5e7eb] rounded-xl outline-none focus:border-[#0ea5e9] resize-none font-mono" />
+              className="w-full px-3 py-2.5 text-sm border border-[#e5e7eb] rounded-xl outline-none focus:border-[var(--mia-primary)] resize-none font-mono" />
           </div>
 
           {!result && (
             <button onClick={handleParse} disabled={!text.trim() || parsing}
-              className="w-full py-2.5 bg-[#0ea5e9] text-white text-sm font-semibold rounded-xl hover:bg-[#0284c7] disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+              className="w-full py-2.5 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
               {parsing ? <>
                 <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 AI đang phân tích...
@@ -489,7 +493,7 @@ function ParseOrderModal({ onClose, onCreate }: {
                           <p className="text-xs font-semibold text-[#1e2a3a]">{it.name}</p>
                           <p className="text-[11px] text-gray-500">{it.qty} {it.unit} × {(it.unit_price/1000).toFixed(0)}k = {((it.qty * it.unit_price)/1e6).toFixed(1)}tr đ</p>
                         </div>
-                        <span className="text-xs font-bold text-[#0ea5e9]">{it.qty} {it.unit}</span>
+                        <span className="text-xs font-bold text-[var(--mia-primary)]">{it.qty} {it.unit}</span>
                       </div>
                     ))}
                   </div>
@@ -513,7 +517,7 @@ function ParseOrderModal({ onClose, onCreate }: {
                 </button>
                 <button onClick={() => result.items.length > 0 && (onCreate(result.items, result.deliveryNote), onClose())}
                   disabled={result.items.length === 0}
-                  className="flex-1 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-xl hover:bg-[#0284c7] disabled:opacity-50 transition-all">
+                  className="flex-1 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 transition-all">
                   Tạo đơn từ kết quả
                 </button>
               </div>
@@ -531,6 +535,7 @@ function OrderDetailDrawer({ order, onClose, onTransition, role }: {
   onTransition: (id: string, to: OrderStatus, action: string) => void
   role?: UserRole
 }) {
+  const { id: tenantId } = useTenant()
   const [tab, setTab] = useState<'order' | 'warehouse' | 'logistics'>('order')
   const [stockIssue, setStockIssue] = useState<any>(null)
   const [delivery, setDelivery] = useState<any>(null)
@@ -543,6 +548,7 @@ function OrderDetailDrawer({ order, onClose, onTransition, role }: {
         fetch(`/api/stock-issues?sales_order_id=${order.id}`).then(r => r.json()),
         supabase.from('deliveries')
           .select('id, code, route, planned_date, actual_date, freight_cost, status, carrier_type, distance_km, vehicle:vehicles(plate, type, brand), driver:drivers(name, phone, license_type, rating)')
+          .eq('tenant_id', tenantId)
           .eq('sales_order_id', order.id)
           .maybeSingle(),
       ])
@@ -580,7 +586,7 @@ function OrderDetailDrawer({ order, onClose, onTransition, role }: {
             <button key={t.key} onClick={() => setTab(t.key)}
               className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
                 tab === t.key
-                  ? 'border-[#0ea5e9] text-[#0ea5e9]'
+                  ? 'border-[var(--mia-primary)] text-[var(--mia-primary)]'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}>
               {t.icon} {t.label}
@@ -616,7 +622,7 @@ function OrderDetailDrawer({ order, onClose, onTransition, role }: {
 
             <div className="flex justify-between items-center bg-[#f0f9ff] rounded-xl px-4 py-3">
               <span className="text-sm font-medium text-[#1e2a3a]">Tổng cộng</span>
-              <span className="text-base font-bold text-[#0ea5e9]">{formatVND(order.total)}</span>
+              <span className="text-base font-bold text-[var(--mia-primary)]">{formatVND(order.total)}</span>
             </div>
 
             <div>
@@ -767,13 +773,13 @@ function OrderTimeline({ status }: { status: OrderStatus }) {
         return (
           <div key={step.status} className="flex items-center flex-1">
             <div className={`flex flex-col items-center flex-1 min-w-0`}>
-              <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${done ? 'bg-[#0ea5e9] text-white' : 'bg-gray-200 text-gray-400'}`}>
+              <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${done ? 'bg-[var(--mia-primary)] text-white' : 'bg-gray-200 text-gray-400'}`}>
                 {i + 1}
               </div>
-              <span className={`text-[9px] mt-0.5 text-center leading-tight ${done ? 'text-[#0ea5e9] font-medium' : 'text-gray-400'}`}>{step.label}</span>
+              <span className={`text-[9px] mt-0.5 text-center leading-tight ${done ? 'text-[var(--mia-primary)] font-medium' : 'text-gray-400'}`}>{step.label}</span>
             </div>
             {i < TIMELINE_STEPS.length - 1 && (
-              <div className={`h-0.5 flex-1 mb-3 ${i < current ? 'bg-[#0ea5e9]' : 'bg-gray-200'}`} />
+              <div className={`h-0.5 flex-1 mb-3 ${i < current ? 'bg-[var(--mia-primary)]' : 'bg-gray-200'}`} />
             )}
           </div>
         )
@@ -788,14 +794,17 @@ function EditOrderModal({ order, onClose, onSave }: {
   onClose: () => void
   onSave: (id: string, payload: OrderPendingAction['payload']) => void
 }) {
+  const { id: tenantId } = useTenant()
   const [deliveryDate, setDeliveryDate] = useState(order.delivery_date)
   const [items, setItems] = useState(order.items.map(it => ({ ...it })))
   const [products, setProducts] = useState<ModalProduct[]>([])
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    supabase.from('products').select('id, sku, name, unit, sale_price').eq('status', 'active').order('name').limit(300)
+    if (!tenantId) return
+    supabase.from('products').select('id, sku, name, unit, sale_price').eq('tenant_id', tenantId).eq('status', 'active').order('name').limit(300)
       .then(({ data }) => setProducts(data ?? []))
-  }, [])
+  }, [tenantId])
 
   const addItem = () => setItems(prev => [...prev, { product_id: '', name: '', unit: '', quantity: 1, unit_price: 0 }])
   const removeItem = (i: number) => setItems(prev => prev.filter((_, idx) => idx !== i))
@@ -828,23 +837,23 @@ function EditOrderModal({ order, onClose, onSave }: {
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Ngày giao dự kiến</label>
             <input type="date" value={deliveryDate} onChange={e => setDeliveryDate(e.target.value)}
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg bg-white outline-none focus:border-[#0ea5e9]" />
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg bg-white outline-none focus:border-[var(--mia-primary)]" />
           </div>
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-semibold text-gray-500">Sản phẩm</label>
-              <button onClick={addItem} className="flex items-center gap-1 text-xs text-[#0ea5e9] hover:text-[#0284c7] font-medium"><Plus size={12} />Thêm dòng</button>
+              <button onClick={addItem} className="flex items-center gap-1 text-xs text-[var(--mia-primary)] hover:text-[#0284c7] font-medium"><Plus size={12} />Thêm dòng</button>
             </div>
             <div className="space-y-2">
               {items.map((it, i) => (
                 <div key={i} className="grid grid-cols-12 gap-2 items-center bg-gray-50 rounded-lg px-2 py-2">
                   <select value={it.product_id} onChange={e => updateItem(i, 'product_id', e.target.value)}
-                    className="col-span-5 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg bg-white outline-none focus:border-[#0ea5e9]">
+                    className="col-span-5 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg bg-white outline-none focus:border-[var(--mia-primary)]">
                     <option value="">-- Chọn SP --</option>
                     {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
                   <input type="number" min={1} value={it.quantity} onChange={e => updateItem(i, 'quantity', +e.target.value)}
-                    className="col-span-2 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg bg-white text-center outline-none focus:border-[#0ea5e9]" />
+                    className="col-span-2 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg bg-white text-center outline-none focus:border-[var(--mia-primary)]" />
                   <span className="col-span-3 text-xs text-gray-500 text-right">{(it.quantity * it.unit_price / 1e6).toFixed(1)}M</span>
                   <button onClick={() => removeItem(i)} className="col-span-1 flex justify-center text-gray-300 hover:text-red-400"><Trash2 size={13} /></button>
                 </div>
@@ -853,7 +862,7 @@ function EditOrderModal({ order, onClose, onSave }: {
           </div>
         </div>
         <div className="flex justify-between items-center px-6 py-4 border-t border-[#e5e7eb] bg-gray-50 rounded-b-2xl">
-          <span className="text-sm font-bold text-[#0ea5e9]">{formatVND(total)}</span>
+          <span className="text-sm font-bold text-[var(--mia-primary)]">{formatVND(total)}</span>
           <div className="flex gap-2">
             <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border border-[#e5e7eb] rounded-lg hover:bg-gray-100 transition-colors">Hủy</button>
             <button onClick={() => onSave(order.id, { customer: order.customer, items, total, delivery_date: deliveryDate })}
@@ -912,7 +921,7 @@ function WarehouseSelectModal({ warehouses, onClose, onConfirm }: {
           <button
             onClick={() => selectedId && onConfirm(selectedId)}
             disabled={!selectedId || warehouses.length === 0}
-            className="px-4 py-2 text-sm rounded-lg bg-[#0ea5e9] text-white font-semibold hover:bg-sky-600 transition-colors disabled:opacity-40"
+            className="px-4 py-2 text-sm rounded-lg bg-[var(--mia-primary)] text-white font-semibold hover:bg-sky-600 transition-colors disabled:opacity-40"
           >
             Xác nhận & Tạo phiếu xuất
           </button>
@@ -924,6 +933,7 @@ function WarehouseSelectModal({ warehouses, onClose, onConfirm }: {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function SalesOrdersPage() {
+  const { id: tenantId } = useTenant()
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
   const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS)
@@ -975,11 +985,13 @@ export default function SalesOrdersPage() {
     }
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
+    if (!tenantId) return
     loadOrders()
-    supabase.from('warehouses').select('id, name, code').eq('status', 'active').order('name')
+    supabase.from('warehouses').select('id, name, code').eq('tenant_id', tenantId).eq('status', 'active').order('name')
       .then(({ data }) => { if (data) setWarehouses(data) })
-  }, [])
+  }, [tenantId])
 
   useOrdersRealtime(loadOrders)
   useAutoRefresh(loadOrders, 15_000)
@@ -1148,7 +1160,7 @@ export default function SalesOrdersPage() {
           <>
             <ExportButton module="ban-hang" />
             <button onClick={() => setShowParse(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-[#0ea5e9] text-[#0ea5e9] text-sm font-semibold rounded-lg hover:bg-blue-50 transition-all">
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-[var(--mia-primary)] text-[var(--mia-primary)] text-sm font-semibold rounded-lg hover:bg-blue-50 transition-all">
               <Sparkles size={13} /> Nhập từ Zalo
             </button>
             <Button onClick={() => setShowCreate(true)}><Plus size={14} />Tạo đơn hàng</Button>
@@ -1177,7 +1189,7 @@ export default function SalesOrdersPage() {
           <div className="flex items-center gap-1.5 flex-wrap">
             {STATUS_FILTERS.map(s => (
               <button key={s} onClick={() => { setStatusFilter(s); setPage(1) }}
-                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-[#0ea5e9] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-[var(--mia-primary)] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                 {FILTER_LABELS[s]}
               </button>
             ))}
@@ -1202,7 +1214,7 @@ export default function SalesOrdersPage() {
                 return (
                 <tr key={o.id} className={`border-b border-[#f0f2f5] hover:bg-gray-50/60 transition-colors ${pa ? 'bg-yellow-50/30' : ''}`}>
                   <td className="px-4 py-3">
-                    <button onClick={() => setSelected(o)} className="flex items-center gap-1 text-[#0ea5e9] font-medium text-xs hover:underline">
+                    <button onClick={() => setSelected(o)} className="flex items-center gap-1 text-[var(--mia-primary)] font-medium text-xs hover:underline">
                       {o.code} <ChevronRight size={11} />
                     </button>
                   </td>
@@ -1268,7 +1280,7 @@ export default function SalesOrdersPage() {
             <div className="flex gap-1">
               {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
                 <button key={p} onClick={() => setPage(p)}
-                  className={`w-7 h-7 rounded-lg text-xs font-medium transition-colors ${p === page ? 'bg-[#0ea5e9] text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
+                  className={`w-7 h-7 rounded-lg text-xs font-medium transition-colors ${p === page ? 'bg-[var(--mia-primary)] text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
                   {p}
                 </button>
               ))}

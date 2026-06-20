@@ -1,8 +1,9 @@
-'use client'
+﻿'use client'
 import { useState, useEffect } from 'react'
 import { Plus, Search, Phone, Star, Truck, CheckCircle, X, UserCheck, Link2, Copy, Check, ExternalLink } from 'lucide-react'
 import PageHeader from '@/components/layout/PageHeader'
 import { supabase } from '@/lib/supabase'
+import { useTenant } from '@/contexts/TenantContext'
 import { createDriverToken } from '@/lib/delivery-token'
 
 interface Driver {
@@ -21,7 +22,7 @@ const STATUS_MAP: Record<string, { label: string; className: string; dot: string
 }
 
 // Fetch users with role='driver', merge with drivers table for persisted extra fields
-async function loadAllDrivers(): Promise<Driver[]> {
+async function loadAllDrivers(tenantId: string): Promise<Driver[]> {
   const { data: { session } } = await supabase.auth.getSession()
   const token = session?.access_token
   if (!token) return []
@@ -36,6 +37,7 @@ async function loadAllDrivers(): Promise<Driver[]> {
   const { data: driverRecords } = await supabase
     .from('drivers')
     .select('id, license_type, rating, total_trips, status, warehouse_id, warehouse:warehouses(id, name), vehicle:vehicles(plate)')
+    .eq('tenant_id', tenantId)
     .in('id', driverUsers.map((u: { id: string }) => u.id))
 
   const drMap: Record<string, any> = {}
@@ -66,15 +68,16 @@ async function loadAllDrivers(): Promise<Driver[]> {
 }
 
 // Upsert extra driver info using user UUID as drivers.id (implicit link, no schema change needed)
-async function saveDriverToDB(driver: Driver) {
+async function saveDriverToDB(driver: Driver, tenantId?: string) {
   // Try to find vehicle by plate
   let vehicleId: string | null = null
   if (driver.vehicle_plate.trim()) {
-    const { data } = await supabase
+    let vq = supabase
       .from('vehicles')
       .select('id')
       .eq('plate', driver.vehicle_plate.trim())
-      .maybeSingle()
+    if (tenantId) vq = vq.eq('tenant_id', tenantId)
+    const { data } = await vq.maybeSingle()
     vehicleId = data?.id ?? null
   }
 
@@ -110,7 +113,7 @@ function DriverLinkModal({ driver, onClose }: { driver: Driver; onClose: () => v
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#e5e7eb]">
           <div className="flex items-center gap-2">
-            <Link2 size={16} className="text-[#0ea5e9]" />
+            <Link2 size={16} className="text-[var(--mia-primary)]" />
             <h2 className="text-base font-bold text-[#1e2a3a]">Link giao hàng</h2>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={16} /></button>
@@ -142,7 +145,7 @@ function DriverLinkModal({ driver, onClose }: { driver: Driver; onClose: () => v
 
           <div className="flex gap-2">
             <button onClick={handleCopy}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-xl transition-all hover:scale-[1.02] active:scale-95 ${copied ? 'bg-green-500 text-white' : 'bg-[#0ea5e9] text-white hover:bg-[#0284c7]'}`}>
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-xl transition-all hover:scale-[1.02] active:scale-95 ${copied ? 'bg-green-500 text-white' : 'bg-[var(--mia-primary)] text-white hover:opacity-90'}`}>
               {copied ? <><Check size={15} /> Đã sao chép!</> : <><Copy size={15} /> Sao chép link</>}
             </button>
             <a href={url} target="_blank" rel="noopener noreferrer"
@@ -162,6 +165,7 @@ interface WarehouseOption { id: string; name: string }
 function DriverFormModal({ driver, onClose, onSave }: {
   driver?: Driver; onClose: () => void; onSave: (d: Driver) => Promise<void>
 }) {
+  const { id: tenantId } = useTenant()
   const blank: Driver = { id: String(Date.now()), name: '', phone: '', license_type: 'B2', vehicle_plate: '', rating: 5.0, total_trips: 0, status: 'available', joined_date: '', address: '', notes: '', warehouse_id: null }
   const [form, setForm] = useState<Driver>(driver ?? blank)
   const [saving, setSaving] = useState(false)
@@ -169,15 +173,17 @@ function DriverFormModal({ driver, onClose, onSave }: {
   const [warehouses, setWarehouses] = useState<WarehouseOption[]>([])
   const set = (k: keyof Driver, v: string | number | null) => setForm(f => ({ ...f, [k]: v }))
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
+    if (!tenantId) return
     Promise.all([
-      supabase.from('vehicles').select('id, brand, plate').eq('status', 'available').order('plate'),
-      supabase.from('warehouses').select('id, name').eq('status', 'active').order('name'),
+      supabase.from('vehicles').select('id, brand, plate').eq('status', 'available').eq('tenant_id', tenantId).order('plate'),
+      supabase.from('warehouses').select('id, name').eq('status', 'active').eq('tenant_id', tenantId).order('name'),
     ]).then(([v, w]) => {
       setVehicles(v.data ?? [])
       setWarehouses(w.data ?? [])
     })
-  }, [])
+  }, [tenantId])
 
   const handleSubmit = async () => {
     setSaving(true)
@@ -204,7 +210,7 @@ function DriverFormModal({ driver, onClose, onSave }: {
             <div key={key}>
               <label className="block text-xs font-semibold text-gray-500 mb-1.5">{label}</label>
               <input type={type} value={form[key] as string} onChange={e => set(key, e.target.value)}
-                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
             </div>
           ))}
 
@@ -212,7 +218,7 @@ function DriverFormModal({ driver, onClose, onSave }: {
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Xe phụ trách</label>
             <select value={form.vehicle_plate} onChange={e => set('vehicle_plate', e.target.value)}
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] bg-white">
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] bg-white">
               <option value="">— Chưa phân công —</option>
               {vehicles.map(v => (
                 <option key={v.id} value={v.plate}>
@@ -229,7 +235,7 @@ function DriverFormModal({ driver, onClose, onSave }: {
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Kho phụ trách</label>
             <select value={form.warehouse_id ?? ''} onChange={e => set('warehouse_id', e.target.value || null)}
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] bg-white">
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] bg-white">
               <option value="">— Không giới hạn kho —</option>
               {warehouses.map(w => (
                 <option key={w.id} value={w.id}>{w.name}</option>
@@ -243,20 +249,20 @@ function DriverFormModal({ driver, onClose, onSave }: {
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Trạng thái</label>
             <select value={form.status} onChange={e => set('status', e.target.value)}
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]">
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]">
               {Object.entries(STATUS_MAP).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
             </select>
           </div>
           <div className="col-span-2">
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Ghi chú</label>
             <input type="text" value={form.notes} onChange={e => set('notes', e.target.value)}
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
           </div>
         </div>
         <div className="flex gap-2 px-6 py-4 border-t border-[#e5e7eb]">
           <button onClick={onClose} className="flex-1 py-2 text-sm text-gray-600 border border-[#e5e7eb] rounded-lg hover:bg-gray-50 transition-colors">Hủy</button>
           <button onClick={handleSubmit} disabled={!form.name || saving}
-            className="flex-1 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] disabled:opacity-40 transition-all hover:scale-[1.02] active:scale-95">
+            className="flex-1 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-40 transition-all hover:scale-[1.02] active:scale-95">
             {saving ? 'Đang lưu...' : 'Lưu'}
           </button>
         </div>
@@ -279,6 +285,7 @@ function StarRating({ rating }: { rating: number }) {
 const PAGE_SIZE = 20
 
 export default function TaiXePage() {
+  const { id: tenantId } = useTenant()
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -288,13 +295,15 @@ export default function TaiXePage() {
   const [page, setPage] = useState(1)
 
   const reload = async () => {
+    if (!tenantId) return
     setLoading(true)
-    const list = await loadAllDrivers()
+    const list = await loadAllDrivers(tenantId)
     setDrivers(list)
     setLoading(false)
   }
 
-  useEffect(() => { reload() }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!tenantId) return; reload() }, [tenantId])
 
   const filtered = drivers.filter(d => {
     const matchSearch = d.name.toLowerCase().includes(search.toLowerCase()) || d.phone.includes(search)
@@ -305,7 +314,7 @@ export default function TaiXePage() {
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   const handleSave = async (d: Driver) => {
-    await saveDriverToDB(d)
+    await saveDriverToDB(d, tenantId)
     await reload()
   }
 
@@ -316,7 +325,7 @@ export default function TaiXePage() {
   return (
     <div>
       <PageHeader title="Quản lý tài xế" subtitle="Danh sách tài xế, tình trạng và chỉ số hiệu suất">
-        <button onClick={() => setModal('new')} className="flex items-center gap-2 px-4 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all">
+        <button onClick={() => setModal('new')} className="flex items-center gap-2 px-4 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all">
           <Plus size={15} /> Thêm tài xế
         </button>
       </PageHeader>
@@ -347,7 +356,7 @@ export default function TaiXePage() {
               const LABELS = { all: 'Tất cả', available: 'Sẵn sàng', on_trip: 'Đang giao', off_duty: 'Nghỉ phép', inactive: 'Ngừng HĐ' }
               return (
                 <button key={s} onClick={() => setStatusFilter(s)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-[#0ea5e9] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-[var(--mia-primary)] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                   {LABELS[s]}
                 </button>
               )
@@ -394,7 +403,7 @@ export default function TaiXePage() {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <a href={`tel:${d.phone}`} className="flex items-center gap-1 text-xs text-[#0ea5e9] hover:underline">
+                    <a href={`tel:${d.phone}`} className="flex items-center gap-1 text-xs text-[var(--mia-primary)] hover:underline">
                       <Phone size={11} />{d.phone || '—'}
                     </a>
                   </td>
@@ -425,7 +434,7 @@ export default function TaiXePage() {
                   </td>
                   <td className="px-4 py-3">
                     <button onClick={() => setModal(d)}
-                      className="px-3 py-1.5 border border-[#e5e7eb] text-gray-600 text-xs font-medium rounded-lg hover:bg-gray-50 hover:border-[#0ea5e9] hover:text-[#0ea5e9] transition-colors">
+                      className="px-3 py-1.5 border border-[#e5e7eb] text-gray-600 text-xs font-medium rounded-lg hover:bg-gray-50 hover:border-[var(--mia-primary)] hover:text-[var(--mia-primary)] transition-colors">
                       Chỉnh sửa
                     </button>
                   </td>
@@ -443,7 +452,7 @@ export default function TaiXePage() {
                   className="h-7 px-2 rounded-lg border border-[#e5e7eb] text-xs text-gray-500 hover:bg-gray-50 disabled:opacity-40 transition-colors">‹</button>
                 {Array.from({ length: Math.ceil(filtered.length / PAGE_SIZE) }, (_, i) => i + 1).map(n => (
                   <button key={n} onClick={() => setPage(n)}
-                    className={`h-7 w-7 flex items-center justify-center rounded-lg text-xs transition-colors ${n === page ? 'bg-[#0ea5e9] text-white font-semibold' : 'border border-[#e5e7eb] text-gray-600 hover:bg-gray-50'}`}>
+                    className={`h-7 w-7 flex items-center justify-center rounded-lg text-xs transition-colors ${n === page ? 'bg-[var(--mia-primary)] text-white font-semibold' : 'border border-[#e5e7eb] text-gray-600 hover:bg-gray-50'}`}>
                     {n}
                   </button>
                 ))}

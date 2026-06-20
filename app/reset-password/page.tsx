@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Eye, EyeOff, CheckCircle2, AlertCircle, KeyRound } from 'lucide-react'
@@ -83,7 +83,7 @@ function ResetPasswordForm() {
         <div className="bg-white rounded-2xl border border-[#e5e7eb] shadow-sm p-8">
           {checking && (
             <div className="text-center py-6">
-              <span className="w-8 h-8 border-2 border-[#0ea5e9]/30 border-t-[#0ea5e9] rounded-full animate-spin inline-block" />
+              <span className="w-8 h-8 border-2 border-[var(--mia-primary)]/30 border-t-[#0ea5e9] rounded-full animate-spin inline-block" />
               <p className="text-sm text-gray-400 mt-3">Đang xác thực link...</p>
             </div>
           )}
@@ -124,7 +124,7 @@ function ResetPasswordForm() {
                         value={password}
                         onChange={e => setPassword(e.target.value)}
                         autoFocus
-                        className="w-full px-4 py-3 pr-11 border-2 border-[#e5e7eb] rounded-xl text-sm text-[#1e2a3a] placeholder-gray-300 focus:outline-none focus:border-[#0ea5e9] focus:ring-2 focus:ring-[#0ea5e9]/20 transition-all"
+                        className="w-full px-4 py-3 pr-11 border-2 border-[#e5e7eb] rounded-xl text-sm text-[#1e2a3a] placeholder-gray-300 focus:outline-none focus:border-[var(--mia-primary)] focus:ring-2 focus:ring-[var(--mia-primary)]/20 transition-all"
                       />
                       <button type="button" onClick={() => setShowPwd(v => !v)}
                         className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
@@ -140,12 +140,12 @@ function ResetPasswordForm() {
                       placeholder="••••••••"
                       value={confirm}
                       onChange={e => setConfirm(e.target.value)}
-                      className="w-full px-4 py-3 border-2 border-[#e5e7eb] rounded-xl text-sm text-[#1e2a3a] placeholder-gray-300 focus:outline-none focus:border-[#0ea5e9] focus:ring-2 focus:ring-[#0ea5e9]/20 transition-all"
+                      className="w-full px-4 py-3 border-2 border-[#e5e7eb] rounded-xl text-sm text-[#1e2a3a] placeholder-gray-300 focus:outline-none focus:border-[var(--mia-primary)] focus:ring-2 focus:ring-[var(--mia-primary)]/20 transition-all"
                     />
                   </div>
 
                   <button type="submit" disabled={loading || !password || !confirm}
-                    className="w-full bg-[#0ea5e9] hover:bg-[#0284c7] text-white font-bold py-3.5 px-4 rounded-xl transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100">
+                    className="w-full bg-[var(--mia-primary)] hover:opacity-90 text-white font-bold py-3.5 px-4 rounded-xl transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100">
                     {loading
                       ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Đang lưu...</>
                       : 'Đặt lại mật khẩu'}
@@ -155,13 +155,13 @@ function ResetPasswordForm() {
 
               {!ready && !error && (
                 <div className="text-center py-4">
-                  <a href="/login" className="text-sm text-[#0ea5e9] hover:underline">← Quay lại đăng nhập</a>
+                  <a href="/login" className="text-sm text-[var(--mia-primary)] hover:underline">← Quay lại đăng nhập</a>
                 </div>
               )}
 
               {!ready && error && (
                 <div className="text-center pt-2">
-                  <a href="/login" className="text-sm text-[#0ea5e9] hover:underline">← Quay lại đăng nhập</a>
+                  <a href="/login" className="text-sm text-[var(--mia-primary)] hover:underline">← Quay lại đăng nhập</a>
                 </div>
               )}
             </form>

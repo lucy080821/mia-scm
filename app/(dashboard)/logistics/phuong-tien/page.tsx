@@ -1,9 +1,10 @@
-'use client'
+﻿'use client'
 import { useState, useEffect } from 'react'
 import { Plus, Search, Car, Wrench, CheckCircle, AlertTriangle, X, Fuel, Shield, Truck } from 'lucide-react'
 import PageHeader from '@/components/layout/PageHeader'
 import { formatDate } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
+import { useTenant } from '@/contexts/TenantContext'
 
 interface Vehicle {
   id: string; plate: string; brand: string; type: string
@@ -106,6 +107,7 @@ function VehicleFormModal({ vehicle, onClose, onSave }: {
   vehicle?: Vehicle; onClose: () => void
   onSave: (v: Vehicle, isNew: boolean) => Promise<string | undefined>
 }) {
+  const { id: tenantId } = useTenant()
   const blank: Vehicle = { id: '', plate: '', brand: '', type: 'truck_3t', capacity_kg: 3000, fuel_level: 100, insurance_expiry: '', registration_expiry: '', status: 'available', last_trip: '', total_trips: 0, notes: '', warehouse_id: null }
   const [form, setForm] = useState<Vehicle>(vehicle ?? blank)
   const [saving, setSaving] = useState(false)
@@ -114,10 +116,12 @@ function VehicleFormModal({ vehicle, onClose, onSave }: {
   const isNew = !vehicle
   const set = (k: keyof Vehicle, v: string | number | null) => setForm(f => ({ ...f, [k]: v }))
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    supabase.from('warehouses').select('id, name').eq('status', 'active').order('name')
+    if (!tenantId) return
+    supabase.from('warehouses').select('id, name').eq('status', 'active').eq('tenant_id', tenantId).order('name')
       .then(({ data }) => setWarehouses(data ?? []))
-  }, [])
+  }, [tenantId])
 
   const handleSubmit = async () => {
     if (!form.plate.trim()) return
@@ -148,27 +152,27 @@ function VehicleFormModal({ vehicle, onClose, onSave }: {
             <div key={key}>
               <label className="block text-xs font-semibold text-gray-500 mb-1.5">{label}</label>
               <input type={type} value={form[key] as string | number} onChange={e => set(key, type === 'number' ? +e.target.value : e.target.value)}
-                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
             </div>
           ))}
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Loại xe</label>
             <select value={form.type} onChange={e => set('type', e.target.value)}
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]">
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]">
               {VEHICLE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Trạng thái</label>
             <select value={form.status} onChange={e => set('status', e.target.value)}
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]">
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]">
               {Object.entries(STATUS_MAP).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Kho phụ trách</label>
             <select value={form.warehouse_id ?? ''} onChange={e => set('warehouse_id', e.target.value || null)}
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] bg-white">
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] bg-white">
               <option value="">— Không giới hạn kho —</option>
               {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
             </select>
@@ -176,7 +180,7 @@ function VehicleFormModal({ vehicle, onClose, onSave }: {
           <div className="col-span-2">
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Ghi chú</label>
             <input type="text" value={form.notes} onChange={e => set('notes', e.target.value)}
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
           </div>
         </div>
         {saveError && (
@@ -185,7 +189,7 @@ function VehicleFormModal({ vehicle, onClose, onSave }: {
         <div className="flex gap-2 px-6 py-4 border-t border-[#e5e7eb]">
           <button onClick={onClose} className="flex-1 py-2 text-sm text-gray-600 border border-[#e5e7eb] rounded-lg hover:bg-gray-50 transition-colors">Hủy</button>
           <button onClick={handleSubmit} disabled={!form.plate.trim() || saving}
-            className="flex-1 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] disabled:opacity-40 transition-all hover:scale-[1.02] active:scale-95">
+            className="flex-1 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-40 transition-all hover:scale-[1.02] active:scale-95">
             {saving ? 'Đang lưu...' : 'Lưu'}
           </button>
         </div>
@@ -197,6 +201,7 @@ function VehicleFormModal({ vehicle, onClose, onSave }: {
 const PAGE_SIZE = 20
 
 export default function PhuongTienPage() {
+  const { id: tenantId } = useTenant()
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -211,7 +216,8 @@ export default function PhuongTienPage() {
     setLoading(false)
   }
 
-  useEffect(() => { reload() }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!tenantId) return; reload() }, [tenantId])
 
   const filtered = vehicles.filter(v => {
     const typeLabel = (VEHICLE_TYPE_LABEL[v.type] ?? v.type).toLowerCase()
@@ -240,7 +246,7 @@ export default function PhuongTienPage() {
   return (
     <div>
       <PageHeader title="Quản lý phương tiện" subtitle="Theo dõi đội xe, tình trạng và lịch bảo dưỡng">
-        <button onClick={() => setModal('new')} className="flex items-center gap-2 px-4 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all">
+        <button onClick={() => setModal('new')} className="flex items-center gap-2 px-4 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all">
           <Plus size={15} /> Thêm xe
         </button>
       </PageHeader>
@@ -283,7 +289,7 @@ export default function PhuongTienPage() {
               const LABELS: Record<string, string> = { all: 'Tất cả', available: 'Rảnh', on_trip: 'Đang chạy', maintenance: 'Bảo dưỡng', inactive: 'Ngừng HĐ' }
               return (
                 <button key={s} onClick={() => setStatusFilter(s)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-[#0ea5e9] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-[var(--mia-primary)] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                   {LABELS[s]}
                 </button>
               )
@@ -361,7 +367,7 @@ export default function PhuongTienPage() {
 
                   {v.notes && <p className="text-xs text-yellow-700 bg-yellow-100 rounded-lg px-2 py-1 mb-3">{v.notes}</p>}
 
-                  <button onClick={() => setModal(v)} className="w-full py-1.5 border border-[#e5e7eb] text-xs font-medium text-gray-600 rounded-lg hover:bg-gray-50 hover:border-[#0ea5e9] hover:text-[#0ea5e9] transition-colors">
+                  <button onClick={() => setModal(v)} className="w-full py-1.5 border border-[#e5e7eb] text-xs font-medium text-gray-600 rounded-lg hover:bg-gray-50 hover:border-[var(--mia-primary)] hover:text-[var(--mia-primary)] transition-colors">
                     Chỉnh sửa thông tin
                   </button>
                 </div>
@@ -378,7 +384,7 @@ export default function PhuongTienPage() {
                 className="h-7 px-2 rounded-lg border border-[#e5e7eb] text-xs text-gray-500 hover:bg-gray-50 disabled:opacity-40 transition-colors">‹</button>
               {Array.from({ length: Math.ceil(filtered.length / PAGE_SIZE) }, (_, i) => i + 1).map(n => (
                 <button key={n} onClick={() => setPage(n)}
-                  className={`h-7 w-7 flex items-center justify-center rounded-lg text-xs transition-colors ${n === page ? 'bg-[#0ea5e9] text-white font-semibold' : 'border border-[#e5e7eb] text-gray-600 hover:bg-gray-50'}`}>
+                  className={`h-7 w-7 flex items-center justify-center rounded-lg text-xs transition-colors ${n === page ? 'bg-[var(--mia-primary)] text-white font-semibold' : 'border border-[#e5e7eb] text-gray-600 hover:bg-gray-50'}`}>
                   {n}
                 </button>
               ))}

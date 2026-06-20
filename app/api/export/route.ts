@@ -22,14 +22,14 @@ async function getExportUser(req: NextRequest) {
   const { data: { user }, error } = await supabaseAdmin.auth.getUser(token)
   if (error || !user) return null
 
-  let dbProfile: { id: string; role: string } | null = null
-  const { data: byId } = await supabaseAdmin.from('users').select('id, role').eq('id', user.id).maybeSingle()
+  let dbProfile: { id: string; role: string; tenant_id: string | null } | null = null
+  const { data: byId } = await supabaseAdmin.from('users').select('id, role, tenant_id').eq('id', user.id).maybeSingle()
   if (byId) { dbProfile = byId }
   else if (user.email) {
-    const { data: byEmail } = await supabaseAdmin.from('users').select('id, role').eq('email', user.email).maybeSingle()
+    const { data: byEmail } = await supabaseAdmin.from('users').select('id, role, tenant_id').eq('email', user.email).maybeSingle()
     dbProfile = byEmail
   }
-  return { dbId: dbProfile?.id ?? user.id, role: dbProfile?.role ?? 'sales', email: user.email ?? '' }
+  return { dbId: dbProfile?.id ?? user.id, role: dbProfile?.role ?? 'sales', email: user.email ?? '', tenantId: dbProfile?.tenant_id ?? null }
 }
 
 // ── Excel styles ──────────────────────────────────────────────────────────────
@@ -118,7 +118,7 @@ function fmtN(v: number | null | undefined) { return v ?? 0 }
 
 // ── Module: BAN HÀNG ──────────────────────────────────────────────────────────
 
-async function buildBanHang(wb: ExcelJS.Workbook, from: string, to: string, role: string, dbId: string) {
+async function buildBanHang(wb: ExcelJS.Workbook, from: string, to: string, role: string, dbId: string, tenantId: string | null) {
   const isSales = role === 'sales'
 
   // Sheet 1: Đơn hàng bán
@@ -126,6 +126,7 @@ async function buildBanHang(wb: ExcelJS.Workbook, from: string, to: string, role
     .from('sales_orders')
     .select('id, code, order_date, delivery_date, total_amount, discount, vat_amount, final_amount, payment_status, status, note, customer:customers(name), assigned:users(full_name)')
     .gte('order_date', from).lte('order_date', to).order('order_date', { ascending: false })
+  if (tenantId) ordQ = ordQ.eq('tenant_id', tenantId)
   if (isSales) ordQ = ordQ.eq('assigned_to', dbId)
   const { data: orders } = await ordQ
 
@@ -182,6 +183,7 @@ async function buildBanHang(wb: ExcelJS.Workbook, from: string, to: string, role
     .from('customers')
     .select('code, name, short_name, type, tax_code, phone, email, address, credit_limit, payment_term, status')
     .order('code')
+  if (tenantId) cusQ = cusQ.eq('tenant_id', tenantId)
   if (isSales) cusQ = cusQ.eq('assigned_to', dbId)
   const { data: custs } = await cusQ
   makeSheet(wb, 'Khách hàng', [
@@ -208,11 +210,11 @@ async function buildBanHang(wb: ExcelJS.Workbook, from: string, to: string, role
 
 // ── Module: KHO HÀNG ─────────────────────────────────────────────────────────
 
-async function buildKhoHang(wb: ExcelJS.Workbook, from: string, to: string) {
-  const { data: inv } = await supabaseAdmin
-    .from('inventory')
+async function buildKhoHang(wb: ExcelJS.Workbook, from: string, to: string, tenantId: string | null) {
+  const invQ = supabaseAdmin.from('inventory')
     .select('quantity, expiry_date, lot_number, updated_at, product:products(name, sku, unit), warehouse:warehouses(name)')
     .order('updated_at', { ascending: false })
+  const { data: inv } = await (tenantId ? invQ.eq('tenant_id', tenantId) : invQ)
   makeSheet(wb, 'Tồn kho', [
     { label: 'SKU',          key: 'sku',       width: 14 },
     { label: 'Sản phẩm',    key: 'product',   width: 30 },
@@ -229,10 +231,10 @@ async function buildKhoHang(wb: ExcelJS.Workbook, from: string, to: string) {
     expiry: fmtD(i.expiry_date), updated: fmtD(i.updated_at),
   })))
 
-  const { data: prods } = await supabaseAdmin
-    .from('products')
+  const prodsQ = supabaseAdmin.from('products')
     .select('sku, name, unit, purchase_price, sale_price, min_stock, expiry_days, status, supplier:suppliers(name)')
     .order('sku')
+  const { data: prods } = await (tenantId ? prodsQ.eq('tenant_id', tenantId) : prodsQ)
   makeSheet(wb, 'Sản phẩm', [
     { label: 'SKU',              key: 'sku',            width: 14 },
     { label: 'Tên sản phẩm',    key: 'name',           width: 30 },
@@ -251,10 +253,10 @@ async function buildKhoHang(wb: ExcelJS.Workbook, from: string, to: string) {
     status: p.status === 'active' ? 'Hoạt động' : 'Ngưng',
   })))
 
-  const { data: receipts } = await supabaseAdmin
-    .from('stock_receipts')
+  const receiptsQ = supabaseAdmin.from('stock_receipts')
     .select('code, receipt_date, total_amount, status, supplier:suppliers(name), warehouse:warehouses(name), created_by:users(full_name)')
     .gte('receipt_date', from).lte('receipt_date', to).order('receipt_date', { ascending: false })
+  const { data: receipts } = await (tenantId ? receiptsQ.eq('tenant_id', tenantId) : receiptsQ)
   makeSheet(wb, 'Nhập kho', [
     { label: 'Mã phiếu',    key: 'code',       width: 22 },
     { label: 'Ngày nhập',   key: 'date',       width: 12, align: 'center' },
@@ -270,10 +272,10 @@ async function buildKhoHang(wb: ExcelJS.Workbook, from: string, to: string) {
     created_by: (r.created_by as any)?.full_name ?? '',
   })))
 
-  const { data: issues } = await supabaseAdmin
-    .from('stock_issues')
+  const issuesQ = supabaseAdmin.from('stock_issues')
     .select('code, issue_date, status, sales_order:sales_orders(code), warehouse:warehouses(name), created_by:users(full_name)')
     .gte('issue_date', from).lte('issue_date', to).order('issue_date', { ascending: false })
+  const { data: issues } = await (tenantId ? issuesQ.eq('tenant_id', tenantId) : issuesQ)
   makeSheet(wb, 'Xuất kho', [
     { label: 'Mã phiếu',   key: 'code',       width: 22 },
     { label: 'Ngày xuất',  key: 'date',       width: 12, align: 'center' },
@@ -290,12 +292,16 @@ async function buildKhoHang(wb: ExcelJS.Workbook, from: string, to: string) {
 
 // ── Module: LOGISTICS ─────────────────────────────────────────────────────────
 
-async function buildLogistics(wb: ExcelJS.Workbook, from: string, to: string) {
+async function buildLogistics(wb: ExcelJS.Workbook, from: string, to: string, tenantId: string | null) {
   const SEL = 'id, code, route, planned_date, actual_date, distance_km, freight_cost, carrier_type, status, sales_order:sales_orders(code), driver:drivers(name), vehicle:vehicles(plate)'
   const toTs = to + 'T23:59:59'
   const [{ data: byPlanned }, { data: byActual }] = await Promise.all([
-    supabaseAdmin.from('deliveries').select(SEL).gte('planned_date', from).lte('planned_date', toTs),
-    supabaseAdmin.from('deliveries').select(SEL).gte('actual_date',  from).lte('actual_date',  toTs),
+    tenantId
+      ? supabaseAdmin.from('deliveries').select(SEL).eq('tenant_id', tenantId).gte('planned_date', from).lte('planned_date', toTs)
+      : supabaseAdmin.from('deliveries').select(SEL).gte('planned_date', from).lte('planned_date', toTs),
+    tenantId
+      ? supabaseAdmin.from('deliveries').select(SEL).eq('tenant_id', tenantId).gte('actual_date', from).lte('actual_date', toTs)
+      : supabaseAdmin.from('deliveries').select(SEL).gte('actual_date', from).lte('actual_date', toTs),
   ])
   const seen = new Set<string>()
   const deliveries = [...(byPlanned ?? []), ...(byActual ?? [])].filter(d => {
@@ -327,8 +333,8 @@ async function buildLogistics(wb: ExcelJS.Workbook, from: string, to: string) {
     status: DELIVERY_STATUS[d.status] ?? d.status,
   })))
 
-  const { data: vehicles } = await supabaseAdmin.from('vehicles')
-    .select('plate, type, brand, capacity_kg, fuel_level, insurance_expiry, status').order('plate')
+  const vehQ = supabaseAdmin.from('vehicles').select('plate, type, brand, capacity_kg, fuel_level, insurance_expiry, status').order('plate')
+  const { data: vehicles } = await (tenantId ? vehQ.eq('tenant_id', tenantId) : vehQ)
   makeSheet(wb, 'Phương tiện', [
     { label: 'Biển số',        key: 'plate',     width: 14 },
     { label: 'Loại xe',       key: 'type',      width: 14 },
@@ -343,8 +349,8 @@ async function buildLogistics(wb: ExcelJS.Workbook, from: string, to: string) {
     insurance: fmtD(v.insurance_expiry), status: VEH_STATUS[v.status] ?? v.status,
   })))
 
-  const { data: drivers } = await supabaseAdmin.from('drivers')
-    .select('name, phone, license_type, rating, total_trips, status, vehicle:vehicles(plate)').order('name')
+  const drvQ = supabaseAdmin.from('drivers').select('name, phone, license_type, rating, total_trips, status, vehicle:vehicles(plate)').order('name')
+  const { data: drivers } = await (tenantId ? drvQ.eq('tenant_id', tenantId) : drvQ)
   makeSheet(wb, 'Tài xế', [
     { label: 'Họ tên',       key: 'name',    width: 24 },
     { label: 'SĐT',          key: 'phone',   width: 15 },
@@ -362,11 +368,11 @@ async function buildLogistics(wb: ExcelJS.Workbook, from: string, to: string) {
 
 // ── Module: MUA HÀNG ─────────────────────────────────────────────────────────
 
-async function buildMuaHang(wb: ExcelJS.Workbook, from: string, to: string) {
-  const { data: pos } = await supabaseAdmin
-    .from('purchase_orders')
+async function buildMuaHang(wb: ExcelJS.Workbook, from: string, to: string, tenantId: string | null) {
+  const posQ = supabaseAdmin.from('purchase_orders')
     .select('code, order_date, expected_date, total_amount, status, note, supplier:suppliers(name), created_by:users(full_name)')
     .gte('order_date', from).lte('order_date', to).order('order_date', { ascending: false })
+  const { data: pos } = await (tenantId ? posQ.eq('tenant_id', tenantId) : posQ)
   makeSheet(wb, 'Đơn mua hàng', [
     { label: 'Mã PO',          key: 'code',       width: 22 },
     { label: 'Ngày đặt',      key: 'order_date', width: 12, align: 'center' },
@@ -383,10 +389,10 @@ async function buildMuaHang(wb: ExcelJS.Workbook, from: string, to: string) {
     created_by: (p.created_by as any)?.full_name ?? '', note: p.note ?? '',
   })))
 
-  const { data: supps } = await supabaseAdmin
-    .from('suppliers')
+  const suppsQ = supabaseAdmin.from('suppliers')
     .select('code, name, type, tax_code, phone, email, address, payment_term, delivery_days, rating, status')
     .order('code')
+  const { data: supps } = await (tenantId ? suppsQ.eq('tenant_id', tenantId) : suppsQ)
   makeSheet(wb, 'Nhà cung cấp', [
     { label: 'Mã NCC',         key: 'code',          width: 12 },
     { label: 'Tên NCC',        key: 'name',          width: 30 },
@@ -410,10 +416,11 @@ async function buildMuaHang(wb: ExcelJS.Workbook, from: string, to: string) {
 
 // ── Module: TÀI CHÍNH ─────────────────────────────────────────────────────────
 
-async function buildTaiChinh(wb: ExcelJS.Workbook, from: string, to: string) {
-  const { data: orders } = await supabaseAdmin
-    .from('sales_orders').select('code, order_date, total_amount, discount, vat_amount, final_amount, payment_status, customer:customers(name)')
+async function buildTaiChinh(wb: ExcelJS.Workbook, from: string, to: string, tenantId: string | null) {
+  const ordQ = supabaseAdmin.from('sales_orders')
+    .select('code, order_date, total_amount, discount, vat_amount, final_amount, payment_status, customer:customers(name)')
     .eq('status', 'completed').gte('order_date', from).lte('order_date', to).order('order_date', { ascending: false })
+  const { data: orders } = await (tenantId ? ordQ.eq('tenant_id', tenantId) : ordQ)
   makeSheet(wb, 'Doanh thu', [
     { label: 'Mã đơn',          key: 'code',         width: 22 },
     { label: 'Ngày',            key: 'date',         width: 12, align: 'center' },
@@ -428,9 +435,10 @@ async function buildTaiChinh(wb: ExcelJS.Workbook, from: string, to: string) {
     payment: PAY_STATUS[o.payment_status] ?? o.payment_status,
   })))
 
-  const { data: exps } = await supabaseAdmin.from('expenses')
+  const expsQ = supabaseAdmin.from('expenses')
     .select('code, expense_date, category, description, amount, note, created_by:users(full_name)')
     .gte('expense_date', from).lte('expense_date', to).order('expense_date', { ascending: false })
+  const { data: exps } = await (tenantId ? expsQ.eq('tenant_id', tenantId) : expsQ)
   makeSheet(wb, 'Chi phí phát sinh', [
     { label: 'Mã CP',       key: 'code',        width: 20 },
     { label: 'Ngày',        key: 'date',        width: 12, align: 'center' },
@@ -445,9 +453,10 @@ async function buildTaiChinh(wb: ExcelJS.Workbook, from: string, to: string) {
     created_by: (e.created_by as any)?.full_name ?? '',
   })))
 
-  const { data: cpay } = await supabaseAdmin.from('customer_payments')
+  const cpayQ = supabaseAdmin.from('customer_payments')
     .select('code, payment_date, amount, method, note, customer:customers(name), sales_order:sales_orders(code), created_by:users(full_name)')
     .gte('payment_date', from).lte('payment_date', to).order('payment_date', { ascending: false })
+  const { data: cpay } = await (tenantId ? cpayQ.eq('tenant_id', tenantId) : cpayQ)
   makeSheet(wb, 'Công nợ KH', [
     { label: 'Mã phiếu',    key: 'code',       width: 20 },
     { label: 'Ngày',        key: 'date',       width: 12, align: 'center' },
@@ -462,9 +471,10 @@ async function buildTaiChinh(wb: ExcelJS.Workbook, from: string, to: string) {
     method: PAY_METHOD[p.method] ?? p.method, note: p.note ?? '',
   })))
 
-  const { data: spay } = await supabaseAdmin.from('supplier_payments')
+  const spayQ = supabaseAdmin.from('supplier_payments')
     .select('code, payment_date, amount, method, note, supplier:suppliers(name), purchase_order:purchase_orders(code), created_by:users(full_name)')
     .gte('payment_date', from).lte('payment_date', to).order('payment_date', { ascending: false })
+  const { data: spay } = await (tenantId ? spayQ.eq('tenant_id', tenantId) : spayQ)
   makeSheet(wb, 'Công nợ NCC', [
     { label: 'Mã phiếu',    key: 'code',     width: 20 },
     { label: 'Ngày',        key: 'date',     width: 12, align: 'center' },
@@ -509,11 +519,11 @@ export async function GET(req: NextRequest) {
 
     for (const m of mods) {
       switch (m) {
-        case 'ban-hang':  await buildBanHang(wb, from, to, user.role, user.dbId);  break
-        case 'kho-hang':  await buildKhoHang(wb, from, to);                         break
-        case 'logistics': await buildLogistics(wb, from, to);                       break
-        case 'mua-hang':  await buildMuaHang(wb, from, to);                         break
-        case 'tai-chinh': await buildTaiChinh(wb, from, to);                        break
+        case 'ban-hang':  await buildBanHang(wb, from, to, user.role, user.dbId, user.tenantId);  break
+        case 'kho-hang':  await buildKhoHang(wb, from, to, user.tenantId);                         break
+        case 'logistics': await buildLogistics(wb, from, to, user.tenantId);                       break
+        case 'mua-hang':  await buildMuaHang(wb, from, to, user.tenantId);                         break
+        case 'tai-chinh': await buildTaiChinh(wb, from, to, user.tenantId);                        break
       }
     }
 

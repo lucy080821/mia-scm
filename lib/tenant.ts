@@ -1,3 +1,35 @@
+export interface ThemeConfig {
+  sidebarBg?: string        // màu nền sidebar (default: '#1e2a3a')
+  sidebarText?: string      // màu chữ sidebar (default: '#ffffff')
+  accentColor?: string      // màu accent nút bấm (default: bằng primaryColor)
+  fontFamily?: 'inter' | 'be-vietnam-pro' | 'roboto' | 'nunito'
+  fontSize?: 'sm' | 'md' | 'lg'
+}
+
+export interface DashboardWidget {
+  id: string
+  enabled: boolean
+}
+
+export const DASHBOARD_WIDGET_DEFS: { id: string; label: string; desc: string }[] = [
+  { id: 'kpi-revenue',        label: 'Doanh thu tháng',         desc: 'Card KPI doanh thu tháng hiện tại' },
+  { id: 'kpi-year-revenue',   label: 'Doanh thu năm',           desc: 'Card KPI doanh thu cả năm' },
+  { id: 'kpi-orders',         label: 'Đơn hàng mới',            desc: 'Card KPI số đơn hàng trong tháng' },
+  { id: 'kpi-delivering',     label: 'Đang giao hàng',          desc: 'Card KPI đơn hàng đang vận chuyển' },
+  { id: 'kpi-customers',      label: 'Khách hàng',              desc: 'Card KPI tổng số khách hàng' },
+  { id: 'kpi-low-stock',      label: 'Cảnh báo tồn kho',        desc: 'Card KPI sản phẩm sắp hết hàng' },
+  { id: 'chart-revenue',      label: 'Biểu đồ doanh thu',       desc: 'Đường doanh thu theo thời gian' },
+  { id: 'chart-inventory',    label: 'Tồn kho theo trạng thái', desc: 'Biểu đồ donut tồn kho' },
+  { id: 'chart-products',     label: 'Sản phẩm bán chạy',       desc: 'Biểu đồ cột doanh thu theo sản phẩm' },
+  { id: 'section-orders',     label: 'Đơn hàng gần đây',        desc: 'Bảng đơn hàng mới nhất' },
+  { id: 'section-customers',  label: 'Khách hàng Top 5',        desc: 'Khách hàng mua nhiều nhất' },
+  { id: 'section-deliveries', label: 'Lịch giao hàng',          desc: 'Giao hàng hôm nay' },
+  { id: 'section-notifs',     label: 'Thông báo hệ thống',      desc: 'Cảnh báo và thông báo nội bộ' },
+]
+
+export const DEFAULT_DASHBOARD_WIDGETS: DashboardWidget[] =
+  DASHBOARD_WIDGET_DEFS.map(d => ({ id: d.id, enabled: true }))
+
 export interface TenantConfig {
   id: string
   name: string
@@ -9,7 +41,9 @@ export interface TenantConfig {
   address?: string
   phone?: string
   taxCode?: string
-  isPlatform?: boolean  // true = chủ app, false = công ty khách hàng
+  isPlatform?: boolean
+  themeConfig?: ThemeConfig
+  dashboardWidgets?: DashboardWidget[]
 }
 
 export const DEFAULT_TENANT: TenantConfig = {
@@ -55,11 +89,19 @@ export function loadTenantFromStorage(): TenantConfig | null {
 }
 
 export function clearTenantFromStorage() {
-  if (typeof window !== 'undefined') localStorage.removeItem(STORAGE_KEY)
+  _tenantCache.clear()
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(STORAGE_KEY)
+    localStorage.removeItem('mia_avatar') // xóa avatar chung (legacy, không gắn user ID)
+  }
 }
 
 // In-memory cache để tránh gọi Supabase nhiều lần trong 1 session
 const _tenantCache = new Map<string, TenantConfig>()
+
+export function clearTenantCache() {
+  _tenantCache.clear()
+}
 
 /** Resolve tenant từ cache → localStorage → Supabase → fallback */
 export async function resolveTenant(tenantId: string | null | undefined, supabase: any): Promise<TenantConfig> {

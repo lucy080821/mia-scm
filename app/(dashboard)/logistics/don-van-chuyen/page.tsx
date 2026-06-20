@@ -5,6 +5,7 @@ import PageHeader from '@/components/layout/PageHeader'
 import ExportButton from '@/components/ui/ExportButton'
 import { formatVND, formatDate } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
+import { useTenant } from '@/contexts/TenantContext'
 import { useOrdersRealtime } from '@/hooks/useOrdersRealtime'
 import { useAutoRefresh } from '@/hooks/useAutoRefresh'
 
@@ -46,6 +47,7 @@ function AssignModal({ delivery, onClose, onAssign }: {
   delivery: Delivery; onClose: () => void
   onAssign: (id: string, vehicle_id: string, driver_id: string, route: string) => void
 }) {
+  const { id: tenantId } = useTenant()
   const [vehicleId, setVehicleId] = useState(delivery.vehicle_id ?? '')
   const [driverId, setDriverId] = useState(delivery.driver_id ?? '')
   const [route, setRoute] = useState(delivery.route ?? '')
@@ -57,8 +59,8 @@ function AssignModal({ delivery, onClose, onAssign }: {
 
   useEffect(() => {
     Promise.all([
-      supabase.from('vehicles').select('id, plate, type, capacity_kg, status, warehouse_id').in('status', ['available', 'on_trip']).order('plate'),
-      supabase.from('drivers').select('id, name, phone, rating, status, warehouse_id').in('status', ['available', 'on_trip']).order('name'),
+      supabase.from('vehicles').select('id, plate, type, capacity_kg, status, warehouse_id').eq('tenant_id', tenantId).in('status', ['available', 'on_trip']).order('plate'),
+      supabase.from('drivers').select('id, name, phone, rating, status, warehouse_id').eq('tenant_id', tenantId).in('status', ['available', 'on_trip']).order('name'),
     ]).then(([v, d]) => {
       setAvailVehicles(((v.data ?? []) as any).filter((x: any) => matchWarehouse(x.warehouse_id, wid)))
       setAvailDrivers(((d.data ?? []) as any).filter((x: any) => matchWarehouse(x.warehouse_id, wid)))
@@ -81,13 +83,13 @@ function AssignModal({ delivery, onClose, onAssign }: {
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Tuyến đường</label>
             <div className="relative">
-              <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#0ea5e9]" />
+              <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--mia-primary)]" />
               <input
                 type="text"
                 value={route}
                 onChange={e => setRoute(e.target.value)}
                 placeholder="VD: TP.HCM → Bình Dương"
-                className="w-full pl-8 pr-3 py-2.5 text-sm border border-[#e5e7eb] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0ea5e9]/30 focus:border-[#0ea5e9]"
+                className="w-full pl-8 pr-3 py-2.5 text-sm border border-[#e5e7eb] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--mia-primary)]/30 focus:border-[var(--mia-primary)]"
               />
             </div>
             {delivery.distance_km || delivery.freight_cost ? (
@@ -102,7 +104,7 @@ function AssignModal({ delivery, onClose, onAssign }: {
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Chọn xe *</label>
             <div className="space-y-2">
               {availVehicles.map(v => (
-                <label key={v.id} className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-colors ${vehicleId === v.id ? 'border-[#0ea5e9] bg-blue-50' : 'border-[#e5e7eb] hover:bg-gray-50'}`}>
+                <label key={v.id} className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-colors ${vehicleId === v.id ? 'border-[var(--mia-primary)] bg-blue-50' : 'border-[#e5e7eb] hover:bg-gray-50'}`}>
                   <div className="flex items-center gap-3">
                     <input type="radio" name="vehicle" value={v.id} checked={vehicleId === v.id} onChange={() => setVehicleId(v.id)} className="accent-[#0ea5e9]" />
                     <div>
@@ -124,7 +126,7 @@ function AssignModal({ delivery, onClose, onAssign }: {
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Chọn tài xế *</label>
             <div className="space-y-2">
               {availDrivers.map(d => (
-                <label key={d.id} className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-colors ${driverId === d.id ? 'border-[#0ea5e9] bg-blue-50' : 'border-[#e5e7eb] hover:bg-gray-50'}`}>
+                <label key={d.id} className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-colors ${driverId === d.id ? 'border-[var(--mia-primary)] bg-blue-50' : 'border-[#e5e7eb] hover:bg-gray-50'}`}>
                   <div className="flex items-center gap-3">
                     <input type="radio" name="driver" value={d.id} checked={driverId === d.id} onChange={() => setDriverId(d.id)} className="accent-[#0ea5e9]" />
                     <div>
@@ -148,7 +150,7 @@ function AssignModal({ delivery, onClose, onAssign }: {
           <button
             disabled={!vehicleId || !driverId || loadingOpts}
             onClick={() => { onAssign(delivery.id, vehicleId, driverId, route); onClose() }}
-            className="flex-1 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] disabled:opacity-40 transition-all hover:scale-[1.02] active:scale-95">
+            className="flex-1 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-40 transition-all hover:scale-[1.02] active:scale-95">
             Xác nhận phân xe
           </button>
         </div>
@@ -196,11 +198,11 @@ function PODModal({ delivery, onClose, onConfirm, onFail }: {
           {tab === 'success' ? (
             <>
               <div className="grid grid-cols-2 gap-3">
-                <div className="border-2 border-dashed border-[#e5e7eb] rounded-xl p-4 flex flex-col items-center gap-2 text-gray-400 hover:border-[#0ea5e9] cursor-pointer transition-colors">
+                <div className="border-2 border-dashed border-[#e5e7eb] rounded-xl p-4 flex flex-col items-center gap-2 text-gray-400 hover:border-[var(--mia-primary)] cursor-pointer transition-colors">
                   <Camera size={22} />
                   <span className="text-xs">Ảnh giao hàng</span>
                 </div>
-                <div className="border-2 border-dashed border-[#e5e7eb] rounded-xl p-4 flex flex-col items-center gap-2 text-gray-400 hover:border-[#0ea5e9] cursor-pointer transition-colors">
+                <div className="border-2 border-dashed border-[#e5e7eb] rounded-xl p-4 flex flex-col items-center gap-2 text-gray-400 hover:border-[var(--mia-primary)] cursor-pointer transition-colors">
                   <PenLine size={22} />
                   <span className="text-xs">Chữ ký người nhận</span>
                 </div>
@@ -211,7 +213,7 @@ function PODModal({ delivery, onClose, onConfirm, onFail }: {
                 </label>
                 <div className="flex items-center gap-2">
                   <input type="number" value={cod} onChange={e => setCod(+e.target.value)}
-                    className="flex-1 h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                    className="flex-1 h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
                   <span className="text-xs text-gray-400 shrink-0">đ</span>
                 </div>
                 <p className="text-xs text-gray-400 mt-1">Giá trị COD đơn: {formatVND(delivery.cod_amount)}</p>
@@ -250,6 +252,7 @@ function PODModal({ delivery, onClose, onConfirm, onFail }: {
 function SalesOrderAssignModal({ order, onClose, onDone }: {
   order: PickedSO; onClose: () => void; onDone: () => void
 }) {
+  const { id: tenantId } = useTenant()
   const [vehicleId, setVehicleId] = useState('')
   const [driverId, setDriverId] = useState('')
   const [vehicles, setVehicles] = useState<{ id: string; plate: string; type: string; capacity_kg: number; status: string }[]>([])
@@ -273,8 +276,8 @@ function SalesOrderAssignModal({ order, onClose, onDone }: {
       setWarehouseName(wname)
 
       const [v, d] = await Promise.all([
-        supabase.from('vehicles').select('id, plate, type, capacity_kg, status, warehouse_id').in('status', ['available', 'on_trip']).order('plate'),
-        supabase.from('drivers').select('id, name, phone, rating, status, warehouse_id').in('status', ['available', 'on_trip']).order('name'),
+        supabase.from('vehicles').select('id, plate, type, capacity_kg, status, warehouse_id').eq('tenant_id', tenantId).in('status', ['available', 'on_trip']).order('plate'),
+        supabase.from('drivers').select('id, name, phone, rating, status, warehouse_id').eq('tenant_id', tenantId).in('status', ['available', 'on_trip']).order('name'),
       ])
       setVehicles(((v.data ?? []) as any).filter((x: any) => matchWarehouse(x.warehouse_id, wid)))
       setDrivers(((d.data ?? []) as any).filter((x: any) => matchWarehouse(x.warehouse_id, wid)))
@@ -360,7 +363,7 @@ function SalesOrderAssignModal({ order, onClose, onDone }: {
                 ? <p className="text-sm text-gray-400 text-center py-3 bg-gray-50 rounded-xl">Không có xe khả dụng</p>
                 : <div className="space-y-2 max-h-48 overflow-y-auto">
                     {vehicles.map(v => (
-                      <label key={v.id} className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-colors ${vehicleId === v.id ? 'border-[#0ea5e9] bg-blue-50' : 'border-[#e5e7eb] hover:bg-gray-50'}`}>
+                      <label key={v.id} className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-colors ${vehicleId === v.id ? 'border-[var(--mia-primary)] bg-blue-50' : 'border-[#e5e7eb] hover:bg-gray-50'}`}>
                         <div className="flex items-center gap-3">
                           <input type="radio" name="so-vehicle" value={v.id} checked={vehicleId === v.id} onChange={() => setVehicleId(v.id)} className="accent-[#0ea5e9]" />
                           <div>
@@ -384,7 +387,7 @@ function SalesOrderAssignModal({ order, onClose, onDone }: {
                 ? <p className="text-sm text-gray-400 text-center py-3 bg-gray-50 rounded-xl">Không có tài xế khả dụng</p>
                 : <div className="space-y-2 max-h-48 overflow-y-auto">
                     {drivers.map(d => (
-                      <label key={d.id} className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-colors ${driverId === d.id ? 'border-[#0ea5e9] bg-blue-50' : 'border-[#e5e7eb] hover:bg-gray-50'}`}>
+                      <label key={d.id} className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-colors ${driverId === d.id ? 'border-[var(--mia-primary)] bg-blue-50' : 'border-[#e5e7eb] hover:bg-gray-50'}`}>
                         <div className="flex items-center gap-3">
                           <input type="radio" name="so-driver" value={d.id} checked={driverId === d.id} onChange={() => setDriverId(d.id)} className="accent-[#0ea5e9]" />
                           <div>
@@ -415,7 +418,7 @@ function SalesOrderAssignModal({ order, onClose, onDone }: {
         <div className="flex gap-2 px-6 py-4 border-t border-[#e5e7eb]">
           <button onClick={onClose} className="flex-1 py-2 text-sm text-gray-600 border border-[#e5e7eb] rounded-lg hover:bg-gray-50 transition-colors">Hủy</button>
           <button onClick={handleConfirm} disabled={!vehicleId || !driverId || saving || loading}
-            className="flex-1 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] disabled:opacity-40 transition-all hover:scale-[1.02] active:scale-95">
+            className="flex-1 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-40 transition-all hover:scale-[1.02] active:scale-95">
             {saving ? 'Đang lưu...' : 'Xác nhận phân xe'}
           </button>
         </div>
@@ -432,6 +435,7 @@ interface PickedSO {
 }
 
 function PickedOrdersPanel() {
+  const { id: tenantId } = useTenant()
   const [orders, setOrders]           = useState<PickedSO[]>([])
   const [assignTarget, setAssignTarget] = useState<PickedSO | null>(null)
   const [updating, setUpdating]       = useState<string | null>(null)
@@ -442,6 +446,7 @@ function PickedOrdersPanel() {
       .select(`id, code, status, delivery_date,
         customer:customers(name),
         items:sales_order_items(quantity, product:products(name, unit))`)
+      .eq('tenant_id', tenantId)
       .in('status', ['picked', 'pending_ship'])
       .order('created_at')
     setOrders((data ?? []).map((o: any) => ({
@@ -454,7 +459,8 @@ function PickedOrdersPanel() {
     })))
   }
 
-  useEffect(() => { load() }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!tenantId) return; load() }, [tenantId])
   useOrdersRealtime(load)
 
   const startDelivering = async (orderId: string) => {
@@ -496,7 +502,7 @@ function PickedOrdersPanel() {
             <div key={o.id} className="bg-white rounded-xl border border-sky-100 px-4 py-3 flex items-center justify-between gap-4">
               <div className="flex items-center gap-4 min-w-0 flex-1">
                 <div className="shrink-0">
-                  <span className="text-xs font-bold text-[#0ea5e9]">{o.code}</span>
+                  <span className="text-xs font-bold text-[var(--mia-primary)]">{o.code}</span>
                   <span className={`ml-2 inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium ${o.status === 'picked' ? 'bg-purple-100 text-purple-700' : 'bg-orange-100 text-orange-700'}`}>
                     {o.status === 'picked' ? 'Chờ phân xe' : 'Đã phân xe — chờ xuất phát'}
                   </span>
@@ -512,7 +518,7 @@ function PickedOrdersPanel() {
               <div className="shrink-0">
                 {o.status === 'picked' && (
                   <button onClick={() => setAssignTarget(o)}
-                    className="px-3 py-1.5 bg-[#0ea5e9] text-white text-xs font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all whitespace-nowrap">
+                    className="px-3 py-1.5 bg-[var(--mia-primary)] text-white text-xs font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all whitespace-nowrap">
                     Phân xe giao hàng
                   </button>
                 )}
@@ -541,6 +547,7 @@ function PickedOrdersPanel() {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function DonVanChuyenPage() {
+  const { id: tenantId } = useTenant()
   const [deliveries, setDeliveries] = useState<Delivery[]>([])
   const [loading, setLoading]       = useState(true)
   const [search, setSearch] = useState('')
@@ -556,6 +563,7 @@ export default function DonVanChuyenPage() {
         sales_order:sales_orders(id, final_amount, customer:customers(name)),
         vehicle:vehicles(id, plate, type, capacity_kg),
         driver:drivers(id, name, phone, rating)`)
+      .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false })
       .limit(200)
     setDeliveries((data ?? []).map((d: any) => ({
@@ -579,7 +587,8 @@ export default function DonVanChuyenPage() {
     setLoading(false)
   }
 
-  useEffect(() => { loadDeliveries() }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!tenantId) return; loadDeliveries() }, [tenantId])
   useOrdersRealtime(loadDeliveries, ['sales_orders', 'deliveries'])
   useAutoRefresh(loadDeliveries, 5_000)
 
@@ -624,7 +633,7 @@ export default function DonVanChuyenPage() {
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Làm mới
         </button>
         <ExportButton module="logistics" />
-        <button className="flex items-center gap-2 px-4 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all">
+        <button className="flex items-center gap-2 px-4 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all">
           <Plus size={15} /> Tạo đơn vận chuyển
         </button>
       </PageHeader>
@@ -660,7 +669,7 @@ export default function DonVanChuyenPage() {
               const LABELS: Record<string, string> = { all: 'Tất cả', pending: 'Chờ phân xe', assigned: 'Đã phân', delivering: 'Đang giao', delivered: 'Đã giao', failed: 'Thất bại' }
               return (
                 <button key={s} onClick={() => setStatusFilter(s)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-[#0ea5e9] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-[var(--mia-primary)] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                   {LABELS[s]}
                 </button>
               )
@@ -689,7 +698,7 @@ export default function DonVanChuyenPage() {
                 return (
                   <tr key={d.id} className="border-b border-[#f0f2f5] hover:bg-gray-50/60 transition-colors">
                     <td className="px-4 py-3">
-                      <p className="text-xs font-medium text-[#0ea5e9]">{d.code}</p>
+                      <p className="text-xs font-medium text-[var(--mia-primary)]">{d.code}</p>
                       <p className="text-[10px] text-gray-400">{d.orderId}</p>
                     </td>
                     <td className="px-4 py-3 text-xs font-medium text-[#1e2a3a] max-w-[140px] truncate">{d.customer}</td>
@@ -725,7 +734,7 @@ export default function DonVanChuyenPage() {
                       <div className="flex flex-col gap-1.5">
                         {d.status === 'pending' && (
                           <button onClick={() => setAssignModal(d)}
-                            className="px-3 py-1.5 bg-[#0ea5e9] text-white text-xs font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all whitespace-nowrap">
+                            className="px-3 py-1.5 bg-[var(--mia-primary)] text-white text-xs font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all whitespace-nowrap">
                             Phân tuyến
                           </button>
                         )}

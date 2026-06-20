@@ -1,10 +1,11 @@
-'use client'
+﻿'use client'
 import { useState, useEffect } from 'react'
 import { Plus, Search, FileText, Clock, CheckCircle, Send, Copy, Eye, X, Trash2, ChevronDown, Pencil, AlertTriangle } from 'lucide-react'
 import PageHeader from '@/components/layout/PageHeader'
 import { formatVND, formatDate } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
+import { useTenant } from '@/contexts/TenantContext'
 
 interface QuoteItem { id: number; name: string; unit: string; qty: number; price: number; discount: number }
 interface PendingAction {
@@ -132,7 +133,7 @@ function CreateQuoteModal({ onClose, onCreate, customers, products }: {
             <div className="col-span-2">
               <label className="block text-xs font-semibold text-gray-500 mb-1">Khách hàng <span className="text-red-400">*</span></label>
               <select value={customerId} onChange={e => setCustomerId(e.target.value)}
-                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] bg-white">
+                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] bg-white">
                 <option value="">-- Chọn khách hàng --</option>
                 {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
@@ -140,12 +141,12 @@ function CreateQuoteModal({ onClose, onCreate, customers, products }: {
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1">Ngày tạo <span className="text-red-400">*</span></label>
               <input type="date" value={date} onChange={e => setDate(e.target.value)}
-                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1">Hiệu lực đến <span className="text-red-400">*</span></label>
               <input type="date" value={expiry} onChange={e => setExpiry(e.target.value)}
-                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
             </div>
           </div>
 
@@ -154,7 +155,7 @@ function CreateQuoteModal({ onClose, onCreate, customers, products }: {
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Danh sách sản phẩm</h3>
               <button onClick={addRow}
-                className="flex items-center gap-1 px-2.5 py-1 bg-[#0ea5e9]/10 text-[#0ea5e9] rounded-lg text-xs font-semibold hover:bg-[#0ea5e9]/20 transition-colors">
+                className="flex items-center gap-1 px-2.5 py-1 bg-[var(--mia-primary)]/10 text-[var(--mia-primary)] rounded-lg text-xs font-semibold hover:bg-[var(--mia-primary)]/20 transition-colors">
                 <Plus size={12} /> Thêm dòng
               </button>
             </div>
@@ -175,29 +176,29 @@ function CreateQuoteModal({ onClose, onCreate, customers, products }: {
                       <tr key={it.id} className="border-b border-[#f0f2f5] last:border-0">
                         <td className="px-3 py-2 min-w-[180px]">
                           <select value={it.name} onChange={e => selectProduct(it.id, e.target.value)}
-                            className="w-full h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] bg-white">
+                            className="w-full h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] bg-white">
                             <option value="">-- Chọn SP --</option>
                             {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                           </select>
                         </td>
                         <td className="px-3 py-2 w-16">
                           <input value={it.unit} onChange={e => setItemField(it.id, 'unit', e.target.value)}
-                            className="w-14 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] text-center" />
+                            className="w-14 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] text-center" />
                         </td>
                         <td className="px-3 py-2 w-20">
                           <input type="number" min={1} value={it.qty || ''} onChange={e => setItemField(it.id, 'qty', +e.target.value)}
-                            className="w-16 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] text-center" />
+                            className="w-16 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] text-center" />
                         </td>
                         <td className="px-3 py-2 w-32">
                           <input type="number" min={0} value={it.price || ''} onChange={e => setItemField(it.id, 'price', +e.target.value)}
                             placeholder="0"
-                            className="w-28 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                            className="w-28 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
                         </td>
                         <td className="px-3 py-2 w-16">
                           <div className="flex items-center gap-0.5">
                             <input type="number" min={0} max={100} value={it.discount || ''} onChange={e => setItemField(it.id, 'discount', +e.target.value)}
                               placeholder="0"
-                              className="w-12 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] text-center" />
+                              className="w-12 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] text-center" />
                             <span className="text-[10px] text-gray-400">%</span>
                           </div>
                         </td>
@@ -225,7 +226,7 @@ function CreateQuoteModal({ onClose, onCreate, customers, products }: {
               <label className="block text-xs font-semibold text-gray-500 mb-1">Ghi chú</label>
               <textarea value={note} onChange={e => setNote(e.target.value)} rows={3}
                 placeholder="Điều kiện giao hàng, thanh toán, lưu ý khác..."
-                className="w-full px-3 py-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] resize-none" />
+                className="w-full px-3 py-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] resize-none" />
             </div>
             <div className="w-56 shrink-0 bg-gray-50 rounded-xl p-4 space-y-2">
               <div className="flex justify-between text-xs">
@@ -238,7 +239,7 @@ function CreateQuoteModal({ onClose, onCreate, customers, products }: {
               </div>
               <div className="flex justify-between text-sm font-bold border-t border-[#e5e7eb] pt-2">
                 <span className="text-[#1e2a3a]">Tổng cộng:</span>
-                <span className="text-[#0ea5e9]">{formatVND(total)}</span>
+                <span className="text-[var(--mia-primary)]">{formatVND(total)}</span>
               </div>
             </div>
           </div>
@@ -265,7 +266,7 @@ function CreateQuoteModal({ onClose, onCreate, customers, products }: {
             <FileText size={13} className="inline mr-1.5" />Lưu nháp
           </button>
           <button onClick={handleSend} disabled={saving}
-            className="px-5 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50">
+            className="px-5 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50">
             <Send size={13} className="inline mr-1.5" />{saving ? 'Đang lưu...' : 'Gửi duyệt'}
           </button>
         </div>
@@ -321,7 +322,7 @@ function EditQuoteModal({ quote, onClose, onSave, customers, products }: {
             <div className="col-span-2">
               <label className="block text-xs font-semibold text-gray-500 mb-1">Khách hàng</label>
               <select value={customerId} onChange={e => setCustomerId(e.target.value)}
-                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] bg-white">
+                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] bg-white">
                 <option value="">-- Chọn khách hàng --</option>
                 {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
@@ -329,19 +330,19 @@ function EditQuoteModal({ quote, onClose, onSave, customers, products }: {
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1">Ngày tạo</label>
               <input type="date" value={date} onChange={e => setDate(e.target.value)}
-                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1">Hiệu lực đến</label>
               <input type="date" value={expiry} onChange={e => setExpiry(e.target.value)}
-                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
             </div>
           </div>
           <div>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xs font-semibold text-gray-500 uppercase">Sản phẩm</h3>
               <button onClick={() => setItems(prev => [...prev, { id: Date.now(), name: '', unit: 'thùng', qty: 1, price: 0, discount: 0 }])}
-                className="flex items-center gap-1 px-2.5 py-1 bg-[#0ea5e9]/10 text-[#0ea5e9] rounded-lg text-xs font-semibold hover:bg-[#0ea5e9]/20 transition-colors">
+                className="flex items-center gap-1 px-2.5 py-1 bg-[var(--mia-primary)]/10 text-[var(--mia-primary)] rounded-lg text-xs font-semibold hover:bg-[var(--mia-primary)]/20 transition-colors">
                 <Plus size={12} /> Thêm dòng
               </button>
             </div>
@@ -357,7 +358,7 @@ function EditQuoteModal({ quote, onClose, onSave, customers, products }: {
                     <tr key={it.id} className="border-b border-[#f0f2f5] last:border-0">
                       <td className="px-3 py-2 min-w-[160px]">
                         <select value={it.name} onChange={e => selectProduct(it.id, e.target.value)}
-                          className="w-full h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] bg-white">
+                          className="w-full h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] bg-white">
                           <option value="">-- Chọn SP --</option>
                           {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                         </select>
@@ -377,7 +378,7 @@ function EditQuoteModal({ quote, onClose, onSave, customers, products }: {
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1">Ghi chú</label>
             <textarea value={note} onChange={e => setNote(e.target.value)} rows={2}
-              className="w-full px-3 py-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] resize-none" />
+              className="w-full px-3 py-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] resize-none" />
           </div>
         </div>
         <div className="px-6 py-4 border-t border-[#e5e7eb] flex justify-end gap-2">
@@ -412,7 +413,7 @@ function RejectModal({ quoteId, onClose, onReject }: { quoteId: string; onClose:
         </div>
         <p className="text-xs text-gray-500 mb-3">Nhập lý do từ chối báo giá <strong>{quoteId}</strong>:</p>
         <textarea value={reason} onChange={e => setReason(e.target.value)} rows={3} placeholder="Ví dụ: Giá chưa phù hợp, cần điều chỉnh chiết khấu..."
-          className="w-full px-3 py-2 text-sm border border-[#e5e7eb] rounded-xl outline-none focus:border-[#0ea5e9] resize-none mb-4" />
+          className="w-full px-3 py-2 text-sm border border-[#e5e7eb] rounded-xl outline-none focus:border-[var(--mia-primary)] resize-none mb-4" />
         <div className="flex gap-2">
           <button onClick={onClose} className="flex-1 py-2 text-sm text-gray-600 border border-[#e5e7eb] rounded-lg hover:bg-gray-50 transition-colors">Hủy</button>
           <button onClick={() => { onReject(quoteId, reason); onClose() }} disabled={!reason.trim()}
@@ -490,7 +491,7 @@ function QuoteDetailModal({ quote, onClose, onApprove, onReject, isAdmin }: {
               <div className="flex justify-between text-xs"><span className="text-gray-500">VAT 10%:</span><span>{formatVND(vat)}</span></div>
               <div className="flex justify-between text-sm font-bold border-t border-[#e5e7eb] pt-1.5">
                 <span className="text-[#1e2a3a]">Tổng cộng:</span>
-                <span className="text-[#0ea5e9]">{formatVND(subtotal + vat)}</span>
+                <span className="text-[var(--mia-primary)]">{formatVND(subtotal + vat)}</span>
               </div>
             </div>
           </div>
@@ -529,12 +530,12 @@ function SendModal({ quote, onClose, onSend }: { quote: Quote; onClose: () => vo
           <label className="block text-xs font-semibold text-gray-500 mb-1.5">Email gửi đến</label>
           <input type="email" value={email} onChange={e => setEmail(e.target.value)}
             placeholder="email@khachhang.vn"
-            className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+            className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
         </div>
         <div className="flex gap-2">
           <button onClick={onClose} className="flex-1 py-2 text-sm text-gray-600 border border-[#e5e7eb] rounded-lg hover:bg-gray-50 transition-colors">Hủy</button>
           <button onClick={() => { onSend(quote.id); onClose() }}
-            className="flex-1 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] transition-all hover:scale-[1.02] active:scale-95">
+            className="flex-1 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 transition-all hover:scale-[1.02] active:scale-95">
             <Send size={13} className="inline mr-1.5" />Gửi ngay
           </button>
         </div>
@@ -545,6 +546,7 @@ function SendModal({ quote, onClose, onSend }: { quote: Quote; onClose: () => vo
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function BaoGiaPage() {
+  const { id: tenantId } = useTenant()
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
   const [quotes,     setQuotes]     = useState<Quote[]>([])
@@ -560,11 +562,13 @@ export default function BaoGiaPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [toast,      setToast]      = useState('')
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
+    if (!tenantId) return
     Promise.all([
       fetch('/api/quotes').then(r => r.json()),
-      supabase.from('customers').select('id, name').eq('status', 'active').order('name'),
-      supabase.from('products').select('id, name, unit, sale_price').eq('status', 'active').order('name'),
+      supabase.from('customers').select('id, name').eq('tenant_id', tenantId).eq('status', 'active').order('name'),
+      supabase.from('products').select('id, name, unit, sale_price').eq('tenant_id', tenantId).eq('status', 'active').order('name'),
     ]).then(([q, { data: cust }, { data: prod }]) => {
       if (q?.error) { setNoTable(true) } else {
         setQuotes((q ?? []).map((r: any) => ({
@@ -583,7 +587,7 @@ export default function BaoGiaPage() {
       setProducts((prod ?? []).map((p: any) => ({ id: p.id, name: p.name, unit: p.unit, price: p.sale_price })))
       setLoading(false)
     }).catch(() => setLoading(false))
-  }, [])
+  }, [tenantId])
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2500) }
 
@@ -669,7 +673,7 @@ export default function BaoGiaPage() {
   return (
     <div>
       <PageHeader title="Báo giá" subtitle="Quản lý báo giá gửi cho khách hàng">
-        <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all">
+        <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all">
           <Plus size={15} /> Tạo báo giá
         </button>
       </PageHeader>
@@ -738,7 +742,7 @@ export default function BaoGiaPage() {
               const paLabel = pa?.type === 'create' ? 'Chờ duyệt tạo' : pa?.type === 'edit' ? 'Chờ duyệt sửa' : pa?.type === 'delete' ? 'Chờ duyệt xóa' : null
               return (
                 <tr key={q.id} className={`border-b border-[#f0f2f5] hover:bg-gray-50/50 transition-colors ${pa ? 'bg-yellow-50/30' : ''}`}>
-                  <td className="px-4 py-3 text-sm font-medium text-[#0ea5e9]">{q.id}</td>
+                  <td className="px-4 py-3 text-sm font-medium text-[var(--mia-primary)]">{q.id}</td>
                   <td className="px-4 py-3 text-sm font-medium text-[#1e2a3a]">{q.customer}</td>
                   <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{formatDate(q.date)}</td>
                   <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{formatDate(q.expiry)}</td>

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { ButtonHTMLAttributes, ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
@@ -21,11 +21,11 @@ export default function Button({
   const base = 'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-150 cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-offset-1'
 
   const variants = {
-    primary:   'bg-[#0ea5e9] text-white hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 focus:ring-[#0ea5e9]',
+    primary:   'bg-[var(--mia-primary)] text-white hover:opacity-90 hover:scale-[1.02] active:scale-95 focus:ring-[var(--mia-primary)]',
     secondary: 'bg-[#1e2a3a] text-white hover:bg-[#1a3a5c] hover:scale-[1.02] active:scale-95 focus:ring-[#1e2a3a]',
     danger:    'bg-red-500 text-white hover:bg-red-600 hover:scale-[1.02] active:scale-95 focus:ring-red-500',
     ghost:     'text-gray-600 hover:bg-gray-100 hover:text-[#1e2a3a] active:scale-95 focus:ring-gray-300',
-    outline:   'border border-[#e5e7eb] text-[#1e2a3a] hover:bg-gray-50 hover:border-[#0ea5e9] hover:text-[#0ea5e9] active:scale-95 focus:ring-[#0ea5e9]',
+    outline:   'border border-[#e5e7eb] text-[#1e2a3a] hover:bg-gray-50 hover:border-[var(--mia-primary)] hover:text-[var(--mia-primary)] active:scale-95 focus:ring-[var(--mia-primary)]',
   }
 
   const sizes = {

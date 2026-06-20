@@ -4,6 +4,9 @@ import { getServerTenantId } from '@/lib/server-auth'
 
 // Returns financial summary: monthly P&L, revenue orders, expenses, debts
 export async function GET(req: NextRequest) {
+  const tenantId = await getServerTenantId()
+  if (!tenantId) return NextResponse.json([])
+
   const { searchParams } = new URL(req.url)
   const type = searchParams.get('type') ?? 'monthly'
 
@@ -23,6 +26,7 @@ export async function GET(req: NextRequest) {
     const { data: orders } = await supabaseAdmin
       .from('sales_orders')
       .select('id, order_date, final_amount')
+      .eq('tenant_id', tenantId)
       .eq('status', 'completed')
       .gte('order_date', months[0].start)
 
@@ -42,12 +46,14 @@ export async function GET(req: NextRequest) {
     const { data: expenses } = await supabaseAdmin
       .from('expenses')
       .select('expense_date, amount, category')
+      .eq('tenant_id', tenantId)
       .gte('expense_date', months[0].start)
 
     // Fetch delivery freight costs
     const { data: deliveries } = await supabaseAdmin
       .from('deliveries')
       .select('actual_date, planned_date, freight_cost')
+      .eq('tenant_id', tenantId)
       .eq('status', 'delivered')
       .gte('actual_date', months[0].start)
 
@@ -85,6 +91,7 @@ export async function GET(req: NextRequest) {
     const { data } = await supabaseAdmin
       .from('sales_orders')
       .select('id, code, order_date, status, payment_status, final_amount, customer:customers(name)')
+      .eq('tenant_id', tenantId)
       .in('status', ['completed', 'delivering', 'confirmed', 'picking', 'picked', 'pending_ship'])
       .order('order_date', { ascending: false })
       .limit(200)
@@ -106,6 +113,7 @@ export async function GET(req: NextRequest) {
     const { data } = await supabaseAdmin
       .from('expenses')
       .select('id, code, expense_date, category, description, amount, note')
+      .eq('tenant_id', tenantId)
       .order('expense_date', { ascending: false })
       .limit(200)
     return NextResponse.json(data ?? [])
@@ -116,12 +124,14 @@ export async function GET(req: NextRequest) {
     const { data: orders } = await supabaseAdmin
       .from('sales_orders')
       .select('customer_id, final_amount, order_date, payment_status, code, customer:customers(name, phone)')
+      .eq('tenant_id', tenantId)
       .in('status', ['completed', 'delivering'])
       .neq('payment_status', 'paid')
 
     const { data: payments } = await supabaseAdmin
       .from('customer_payments')
       .select('customer_id, amount')
+      .eq('tenant_id', tenantId)
 
     const paymentMap: Record<string, number> = {}
     ;(payments ?? []).forEach((p: any) => {
@@ -159,11 +169,13 @@ export async function GET(req: NextRequest) {
     const { data: orders } = await supabaseAdmin
       .from('purchase_orders')
       .select('supplier_id, total_amount, order_date, code, supplier:suppliers(name, phone)')
+      .eq('tenant_id', tenantId)
       .in('status', ['completed', 'delivering', 'sent'])
 
     const { data: payments } = await supabaseAdmin
       .from('supplier_payments')
       .select('supplier_id, amount')
+      .eq('tenant_id', tenantId)
 
     const paymentMap: Record<string, number> = {}
     ;(payments ?? []).forEach((p: any) => {

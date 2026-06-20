@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Search, X, CreditCard } from 'lucide-react'
 
@@ -217,7 +217,7 @@ export default function CongNoPage() {
                     </td>
                     <td className="px-4 py-3">
                       <button onClick={() => openPayModal(r)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 bg-[#0ea5e9] text-white text-xs font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all whitespace-nowrap">
+                        className="flex items-center gap-1 px-2.5 py-1.5 bg-[var(--mia-primary)] text-white text-xs font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all whitespace-nowrap">
                         <CreditCard size={11} /> Ghi TT
                       </button>
                     </td>
@@ -253,7 +253,7 @@ export default function CongNoPage() {
                   type="number" min={0} max={payModal.debt}
                   value={payModal.amount}
                   onChange={e => setPayModal(m => ({ ...m, amount: e.target.value }))}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm font-semibold text-[#1e2a3a] outline-none focus:ring-2 focus:ring-[#0ea5e9]"
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm font-semibold text-[#1e2a3a] outline-none focus:ring-2 focus:ring-[var(--mia-primary)]"
                   placeholder="Nhập số tiền..."
                 />
               </div>
@@ -262,7 +262,7 @@ export default function CongNoPage() {
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5">Phương thức</label>
                   <select value={payModal.method} onChange={e => setPayModal(m => ({ ...m, method: e.target.value }))}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[#0ea5e9]">
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--mia-primary)]">
                     <option value="transfer">Chuyển khoản</option>
                     <option value="cash">Tiền mặt</option>
                     <option value="cod">COD</option>
@@ -272,7 +272,7 @@ export default function CongNoPage() {
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5">Ngày thanh toán</label>
                   <input type="date" value={payModal.date}
                     onChange={e => setPayModal(m => ({ ...m, date: e.target.value }))}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[#0ea5e9]" />
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--mia-primary)]" />
                 </div>
               </div>
 
@@ -281,7 +281,7 @@ export default function CongNoPage() {
                 <textarea rows={2} value={payModal.note}
                   onChange={e => setPayModal(m => ({ ...m, note: e.target.value }))}
                   placeholder="Số tài khoản, lý do..."
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[#0ea5e9] resize-none" />
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[var(--mia-primary)] resize-none" />
               </div>
             </div>
 
@@ -291,7 +291,7 @@ export default function CongNoPage() {
                 Hủy
               </button>
               <button onClick={handlePaySubmit} disabled={payModal.saving}
-                className="flex-1 py-2.5 bg-[#0ea5e9] text-white text-sm font-semibold rounded-xl hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-60 disabled:scale-100">
+                className="flex-1 py-2.5 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-xl hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-60 disabled:scale-100">
                 {payModal.saving ? 'Đang lưu...' : 'Xác nhận thanh toán'}
               </button>
             </div>

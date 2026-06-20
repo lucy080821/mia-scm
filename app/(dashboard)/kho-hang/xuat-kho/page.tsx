@@ -1,10 +1,11 @@
-'use client'
+﻿'use client'
 import { useState, useEffect } from 'react'
 import { Plus, Search, ArrowUpFromLine, CheckCircle, X, Package, AlertTriangle, ClipboardCheck, Trash2, ShoppingCart } from 'lucide-react'
 import PageHeader from '@/components/layout/PageHeader'
 import ExportButton from '@/components/ui/ExportButton'
 import { formatVND, formatDate } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
+import { useTenant } from '@/contexts/TenantContext'
 import { useOrdersRealtime } from '@/hooks/useOrdersRealtime'
 import { useAutoRefresh } from '@/hooks/useAutoRefresh'
 
@@ -75,6 +76,7 @@ function CreateIssueModal({ onClose, onCreate }: {
   onClose: () => void
   onCreate: (issue: StockIssue) => void
 }) {
+  const { id: tenantId } = useTenant()
   const today = new Date().toISOString().slice(0, 10)
   const [customerId,  setCustomerId]  = useState('')
   const [soCode,      setSoCode]      = useState('')
@@ -90,18 +92,20 @@ function CreateIssueModal({ onClose, onCreate }: {
   const [products,    setProducts]    = useState<ProductOption[]>([])
   const [loadingOpts, setLoadingOpts] = useState(true)
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
+    if (!tenantId) return
     Promise.all([
-      supabase.from('customers').select('id, name').eq('status', 'active').order('name').limit(200),
-      supabase.from('warehouses').select('id, name').eq('status', 'active').order('name').limit(50),
-      supabase.from('products').select('id, sku, name, unit').eq('status', 'active').order('name').limit(300),
+      supabase.from('customers').select('id, name').eq('status', 'active').eq('tenant_id', tenantId).order('name').limit(200),
+      supabase.from('warehouses').select('id, name').eq('status', 'active').eq('tenant_id', tenantId).order('name').limit(50),
+      supabase.from('products').select('id, sku, name, unit').eq('status', 'active').eq('tenant_id', tenantId).order('name').limit(300),
     ]).then(([c, w, p]) => {
       setCustomers((c.data ?? []) as DropdownItem[])
       setWarehouses((w.data ?? []) as DropdownItem[])
       setProducts((p.data ?? []) as ProductOption[])
       setLoadingOpts(false)
     })
-  }, [])
+  }, [tenantId])
 
   const setRowField = (i: number, field: keyof DraftRow, val: string | number) => {
     setRows(prev => { const next = [...prev]; next[i] = { ...next[i], [field]: val }; return next })
@@ -186,7 +190,7 @@ function CreateIssueModal({ onClose, onCreate }: {
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 mb-1">Khách hàng <span className="text-red-400">*</span></label>
                   <select value={customerId} onChange={e => setCustomerId(e.target.value)}
-                    className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] bg-white">
+                    className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] bg-white">
                     <option value="">-- Chọn khách hàng --</option>
                     {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
@@ -195,12 +199,12 @@ function CreateIssueModal({ onClose, onCreate }: {
                   <label className="block text-xs font-semibold text-gray-500 mb-1">Đơn hàng liên kết (SO)</label>
                   <input value={soCode} onChange={e => setSoCode(e.target.value)}
                     placeholder="VD: SO-260614-001"
-                    className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                    className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 mb-1">Kho xuất <span className="text-red-400">*</span></label>
                   <select value={warehouseId} onChange={e => setWarehouseId(e.target.value)}
-                    className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] bg-white">
+                    className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] bg-white">
                     <option value="">-- Chọn kho --</option>
                     {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                   </select>
@@ -208,7 +212,7 @@ function CreateIssueModal({ onClose, onCreate }: {
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 mb-1">Ngày xuất <span className="text-red-400">*</span></label>
                   <input type="date" value={date} onChange={e => setDate(e.target.value)}
-                    className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                    className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
                 </div>
               </div>
 
@@ -216,7 +220,7 @@ function CreateIssueModal({ onClose, onCreate }: {
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Danh sách hàng xuất</h3>
                   <button onClick={addRow}
-                    className="flex items-center gap-1 px-2.5 py-1 bg-[#0ea5e9]/10 text-[#0ea5e9] rounded-lg text-xs font-semibold hover:bg-[#0ea5e9]/20 transition-colors">
+                    className="flex items-center gap-1 px-2.5 py-1 bg-[var(--mia-primary)]/10 text-[var(--mia-primary)] rounded-lg text-xs font-semibold hover:bg-[var(--mia-primary)]/20 transition-colors">
                     <Plus size={12} /> Thêm dòng
                   </button>
                 </div>
@@ -236,7 +240,7 @@ function CreateIssueModal({ onClose, onCreate }: {
                           <tr key={i} className="border-b border-[#f0f2f5] last:border-0">
                             <td className="px-3 py-2 min-w-[200px]">
                               <select value={row.product_id} onChange={e => setRowField(i, 'product_id', e.target.value)}
-                                className="w-full h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] bg-white">
+                                className="w-full h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] bg-white">
                                 <option value="">-- Chọn sản phẩm --</option>
                                 {products.map(p => (
                                   <option key={p.id} value={p.id}>{p.name}</option>
@@ -246,7 +250,7 @@ function CreateIssueModal({ onClose, onCreate }: {
                             <td className="px-3 py-2 w-36">
                               <div className="flex items-center gap-1.5">
                                 <input type="number" min={1} value={row.required || ''} onChange={e => setRowField(i, 'required', +e.target.value)}
-                                  className="w-20 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] text-center" />
+                                  className="w-20 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] text-center" />
                                 <span className="text-[10px] text-gray-400">{p?.unit ?? ''}</span>
                               </div>
                             </td>
@@ -269,7 +273,7 @@ function CreateIssueModal({ onClose, onCreate }: {
                 <label className="block text-xs font-semibold text-gray-500 mb-1">Ghi chú</label>
                 <textarea value={note} onChange={e => setNote(e.target.value)} rows={2}
                   placeholder="Ghi chú thêm về đơn xuất..."
-                  className="w-full px-3 py-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] resize-none" />
+                  className="w-full px-3 py-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] resize-none" />
               </div>
             </>
           )}
@@ -290,7 +294,7 @@ function CreateIssueModal({ onClose, onCreate }: {
             Hủy
           </button>
           <button onClick={handleSubmit} disabled={saving || loadingOpts}
-            className="px-5 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50">
+            className="px-5 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50">
             {saving ? 'Đang lưu...' : <><ArrowUpFromLine size={14} className="inline mr-1.5" />Tạo phiếu xuất</>}
           </button>
         </div>
@@ -306,6 +310,7 @@ function PickingModal({ issue, onClose, onComplete, onStart }: {
   onComplete: (id: string, items: PickItem[]) => void
   onStart: (id: string) => void
 }) {
+  const { id: tenantId } = useTenant()
   const [items,    setItems]    = useState<PickItem[]>(issue.items.map(it => ({ ...it })))
   const [saving,   setSaving]   = useState(false)
   const [loading,  setLoading]  = useState(true)
@@ -317,6 +322,7 @@ function PickingModal({ issue, onClose, onComplete, onStart }: {
     supabase
       .from('inventory')
       .select('product_id, lot_number, quantity, expiry_date')
+      .eq('tenant_id', tenantId)
       .eq('warehouse_id', issue.warehouse_id)
       .in('product_id', productIds)
       .gt('quantity', 0)
@@ -391,10 +397,10 @@ function PickingModal({ issue, onClose, onComplete, onStart }: {
         <div className="px-6 py-3 bg-gray-50 border-b border-[#e5e7eb]">
           <div className="flex justify-between text-xs mb-1.5">
             <span className="text-gray-500">Tiến độ soạn hàng</span>
-            <span className="font-semibold text-[#0ea5e9]">{progress}%</span>
+            <span className="font-semibold text-[var(--mia-primary)]">{progress}%</span>
           </div>
           <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div className="h-full bg-[#0ea5e9] rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
+            <div className="h-full bg-[var(--mia-primary)] rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
           </div>
         </div>
 
@@ -458,11 +464,11 @@ function PickingModal({ issue, onClose, onComplete, onStart }: {
                     <input type="number" min={0} max={maxPick} value={it.pickQty || ''}
                       onChange={e => updateItem(i, 'pickQty', +e.target.value)}
                       placeholder={`Nhập số lượng (tối đa ${maxPick})`}
-                      className="flex-1 h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                      className="flex-1 h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
                     <span className="text-xs text-gray-400 shrink-0">{it.unit}</span>
                     <button onClick={() => confirmPick(i)}
                       disabled={!it.pickQty || it.pickQty <= 0}
-                      className="px-4 h-9 bg-[#0ea5e9] text-white text-xs font-semibold rounded-lg hover:bg-[#0284c7] disabled:opacity-40 transition-all hover:scale-[1.02] active:scale-95">
+                      className="px-4 h-9 bg-[var(--mia-primary)] text-white text-xs font-semibold rounded-lg hover:opacity-90 disabled:opacity-40 transition-all hover:scale-[1.02] active:scale-95">
                       Xác nhận
                     </button>
                   </div>
@@ -492,7 +498,7 @@ function PickingModal({ issue, onClose, onComplete, onStart }: {
               onStart(issue.id)
               onClose()
             }}
-              className="px-4 py-2 text-sm border border-[#0ea5e9] text-[#0ea5e9] rounded-lg hover:bg-blue-50 transition-colors font-medium">
+              className="px-4 py-2 text-sm border border-[var(--mia-primary)] text-[var(--mia-primary)] rounded-lg hover:bg-blue-50 transition-colors font-medium">
               Bắt đầu soạn
             </button>
           )}
@@ -521,6 +527,7 @@ interface PendingSO {
 }
 
 function ConfirmedOrdersPanel() {
+  const { id: tenantId } = useTenant()
   const [orders, setOrders] = useState<PendingSO[]>([])
   const [updating, setUpdating] = useState<string | null>(null)
 
@@ -530,6 +537,7 @@ function ConfirmedOrdersPanel() {
       .select(`id, code, status, delivery_date,
         customer:customers(name),
         items:sales_order_items(quantity, product:products(name, unit))`)
+      .eq('tenant_id', tenantId)
       .in('status', ['confirmed', 'picking'])
       .order('created_at')
     setOrders((data ?? []).map((o: any) => ({
@@ -542,7 +550,8 @@ function ConfirmedOrdersPanel() {
     })))
   }
 
-  useEffect(() => { load() }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!tenantId) return; load() }, [tenantId])
   useOrdersRealtime(load)
   useAutoRefresh(load, 15_000)
 
@@ -572,7 +581,7 @@ function ConfirmedOrdersPanel() {
           <div key={o.id} className="bg-white rounded-xl border border-amber-100 px-4 py-3 flex items-center justify-between gap-4">
             <div className="flex items-center gap-4 min-w-0 flex-1">
               <div className="shrink-0">
-                <span className="text-xs font-bold text-[#0ea5e9]">{o.code}</span>
+                <span className="text-xs font-bold text-[var(--mia-primary)]">{o.code}</span>
                 <span className={`ml-2 inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium ${o.status === 'confirmed' ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700'}`}>
                   {o.status === 'confirmed' ? 'Chờ soạn' : 'Đang soạn'}
                 </span>
@@ -610,6 +619,7 @@ function ConfirmedOrdersPanel() {
 const PAGE_SIZE = 20
 
 export default function XuatKhoPage() {
+  const { id: tenantId } = useTenant()
   const [issues, setIssues]             = useState<StockIssue[]>([])
   const [loading, setLoading]           = useState(true)
   const [search, setSearch]             = useState('')
@@ -630,7 +640,8 @@ export default function XuatKhoPage() {
     setLoading(false)
   }
 
-  useEffect(() => { loadIssues() }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!tenantId) return; loadIssues() }, [tenantId])
 
   const filtered = issues.filter(r => {
     const matchSearch = r.code.includes(search) || r.customer.toLowerCase().includes(search.toLowerCase())
@@ -660,7 +671,7 @@ export default function XuatKhoPage() {
     <div>
       <PageHeader title="Xuất kho" subtitle="Quản lý phiếu xuất và vận hành soạn hàng FEFO">
         <ExportButton module="kho-hang" />
-        <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all">
+        <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all">
           <Plus size={15} /> Tạo phiếu xuất
         </button>
       </PageHeader>
@@ -697,7 +708,7 @@ export default function XuatKhoPage() {
               const LABELS: Record<string, string> = { all: 'Tất cả', pending: 'Chờ soạn', picking: 'Đang soạn', completed: 'Đã xuất', cancelled: 'Đã hủy' }
               return (
                 <button key={s} onClick={() => setStatusFilter(s)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-[#0ea5e9] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-[var(--mia-primary)] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                   {LABELS[s]}
                 </button>
               )
@@ -725,7 +736,7 @@ export default function XuatKhoPage() {
               const pct           = totalRequired > 0 ? Math.round(totalPicked / totalRequired * 100) : 0
               return (
                 <tr key={r.id} className="border-b border-[#f0f2f5] hover:bg-gray-50/60 transition-colors">
-                  <td className="px-4 py-3 text-sm font-medium text-[#0ea5e9]">{r.code}</td>
+                  <td className="px-4 py-3 text-sm font-medium text-[var(--mia-primary)]">{r.code}</td>
                   <td className="px-4 py-3 text-xs text-gray-400">{r.sales_order_code}</td>
                   <td className="px-4 py-3 text-xs font-medium text-[#1e2a3a]">{r.customer}</td>
                   <td className="px-4 py-3 text-xs text-gray-500">{r.warehouse}</td>
@@ -733,7 +744,7 @@ export default function XuatKhoPage() {
                   <td className="px-4 py-3 w-32">
                     <div className="flex items-center gap-2">
                       <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full transition-all ${pct === 100 ? 'bg-green-500' : 'bg-[#0ea5e9]'}`} style={{ width: `${pct}%` }} />
+                        <div className={`h-full rounded-full transition-all ${pct === 100 ? 'bg-green-500' : 'bg-[var(--mia-primary)]'}`} style={{ width: `${pct}%` }} />
                       </div>
                       <span className="text-xs text-gray-500 shrink-0">{pct}%</span>
                     </div>
@@ -744,7 +755,7 @@ export default function XuatKhoPage() {
                   <td className="px-4 py-3">
                     {r.status !== 'completed' && r.status !== 'cancelled' && (
                       <button onClick={() => setPicking(r)}
-                        className="px-3 py-1.5 bg-[#0ea5e9] text-white text-xs font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all whitespace-nowrap">
+                        className="px-3 py-1.5 bg-[var(--mia-primary)] text-white text-xs font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all whitespace-nowrap">
                         {r.status === 'pending' ? 'Bắt đầu soạn' : 'Tiếp tục soạn'}
                       </button>
                     )}
@@ -782,7 +793,7 @@ export default function XuatKhoPage() {
                 className="h-7 px-2 rounded-lg border border-[#e5e7eb] text-xs text-gray-500 hover:bg-gray-50 disabled:opacity-40 transition-colors">‹</button>
               {Array.from({ length: Math.ceil(filtered.length / PAGE_SIZE) }, (_, i) => i + 1).map(n => (
                 <button key={n} onClick={() => setPage(n)}
-                  className={`h-7 w-7 flex items-center justify-center rounded-lg text-xs transition-colors ${n === page ? 'bg-[#0ea5e9] text-white font-semibold' : 'border border-[#e5e7eb] text-gray-600 hover:bg-gray-50'}`}>
+                  className={`h-7 w-7 flex items-center justify-center rounded-lg text-xs transition-colors ${n === page ? 'bg-[var(--mia-primary)] text-white font-semibold' : 'border border-[#e5e7eb] text-gray-600 hover:bg-gray-50'}`}>
                   {n}
                 </button>
               ))}

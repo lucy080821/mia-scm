@@ -3,6 +3,9 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { getServerTenantId } from '@/lib/server-auth'
 
 export async function GET(req: NextRequest) {
+  const tenantId = await getServerTenantId()
+  if (!tenantId) return NextResponse.json([])
+
   const { searchParams } = new URL(req.url)
   const salesOrderId = searchParams.get('sales_order_id')
 
@@ -14,6 +17,7 @@ export async function GET(req: NextRequest) {
       warehouse:warehouses ( id, code, name ),
       created_by:users ( full_name )
     `)
+    .eq('tenant_id', tenantId)
     .order('created_at', { ascending: false })
 
   if (salesOrderId) {

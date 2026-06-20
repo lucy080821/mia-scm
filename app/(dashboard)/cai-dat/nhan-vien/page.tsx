@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { UserPlus, Pencil, Ban, CheckCircle, Search, X, Eye, EyeOff, AlertCircle, Check } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -187,7 +187,7 @@ export default function NhanVienPage() {
         </div>
         <button
           onClick={openAdd}
-          className="flex items-center gap-2 px-4 py-2 bg-[#0ea5e9] hover:bg-[#0284c7] text-white text-sm font-semibold rounded-xl transition-all hover:scale-[1.02] active:scale-95"
+          className="flex items-center gap-2 px-4 py-2 bg-[var(--mia-primary)] hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-all hover:scale-[1.02] active:scale-95"
         >
           <UserPlus size={16} /> Thêm nhân viên
         </button>
@@ -201,7 +201,7 @@ export default function NhanVienPage() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Tìm theo tên, email, mã NV..."
-              className="w-full pl-9 pr-3 py-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] transition"
+              className="w-full pl-9 pr-3 py-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] transition"
             />
           </div>
         </div>
@@ -234,7 +234,7 @@ export default function NhanVienPage() {
                 <tr key={emp.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-[#0ea5e9] flex items-center justify-center text-white text-xs font-bold shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-[var(--mia-primary)] flex items-center justify-center text-white text-xs font-bold shrink-0">
                         {(emp.full_name ?? emp.email ?? '?').charAt(0).toUpperCase()}
                       </div>
                       <span className="text-sm font-medium text-[#1e2a3a]">{emp.full_name ?? '—'}</span>
@@ -256,7 +256,7 @@ export default function NhanVienPage() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
                       <button onClick={() => openEdit(emp)} title="Chỉnh sửa"
-                        className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-[#0ea5e9] transition-colors">
+                        className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-[var(--mia-primary)] transition-colors">
                         <Pencil size={14} />
                       </button>
                       <button onClick={() => toggleStatus(emp)} title={emp.status === 'active' ? 'Khóa tài khoản' : 'Mở khóa'}
@@ -280,7 +280,7 @@ export default function NhanVienPage() {
                   className="h-7 px-2 rounded-lg border border-[#e5e7eb] text-xs text-gray-500 hover:bg-gray-50 disabled:opacity-40 transition-colors">‹</button>
                 {Array.from({ length: Math.ceil(filtered.length / PAGE_SIZE) }, (_, i) => i + 1).map(n => (
                   <button key={n} onClick={() => setPage(n)}
-                    className={`h-7 w-7 flex items-center justify-center rounded-lg text-xs transition-colors ${n === page ? 'bg-[#0ea5e9] text-white font-semibold' : 'border border-[#e5e7eb] text-gray-600 hover:bg-gray-50'}`}>
+                    className={`h-7 w-7 flex items-center justify-center rounded-lg text-xs transition-colors ${n === page ? 'bg-[var(--mia-primary)] text-white font-semibold' : 'border border-[#e5e7eb] text-gray-600 hover:bg-gray-50'}`}>
                     {n}
                   </button>
                 ))}
@@ -330,7 +330,7 @@ export default function NhanVienPage() {
                     onChange={e => set(e.target.value)}
                     placeholder={placeholder}
                     disabled={disabled}
-                    className="w-full border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm text-[#1e2a3a] outline-none focus:border-[#0ea5e9] focus:ring-1 focus:ring-[#0ea5e9]/20 transition disabled:bg-gray-50 disabled:text-gray-400"
+                    className="w-full border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm text-[#1e2a3a] outline-none focus:border-[var(--mia-primary)] focus:ring-1 focus:ring-[var(--mia-primary)]/20 transition disabled:bg-gray-50 disabled:text-gray-400"
                   />
                 </div>
               ))}
@@ -340,7 +340,7 @@ export default function NhanVienPage() {
                 <select
                   value={formRole}
                   onChange={e => setFormRole(e.target.value)}
-                  className="w-full border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm text-[#1e2a3a] outline-none focus:border-[#0ea5e9] transition bg-white"
+                  className="w-full border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm text-[#1e2a3a] outline-none focus:border-[var(--mia-primary)] transition bg-white"
                 >
                   {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                 </select>
@@ -356,7 +356,7 @@ export default function NhanVienPage() {
                     value={formPassword}
                     onChange={e => setFormPassword(e.target.value)}
                     placeholder={modal.mode === 'edit' ? 'Để trống nếu không đổi' : 'Tối thiểu 6 ký tự'}
-                    className="w-full border border-[#e5e7eb] rounded-lg px-3 py-2 pr-9 text-sm text-[#1e2a3a] outline-none focus:border-[#0ea5e9] focus:ring-1 focus:ring-[#0ea5e9]/20 transition"
+                    className="w-full border border-[#e5e7eb] rounded-lg px-3 py-2 pr-9 text-sm text-[#1e2a3a] outline-none focus:border-[var(--mia-primary)] focus:ring-1 focus:ring-[var(--mia-primary)]/20 transition"
                   />
                   <button type="button" onClick={() => setShowPassword(v => !v)}
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -373,7 +373,7 @@ export default function NhanVienPage() {
                 Hủy
               </button>
               <button onClick={handleSave} disabled={saving}
-                className="px-5 py-2 text-sm font-medium text-white bg-[#0ea5e9] hover:bg-[#0284c7] rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2">
+                className="px-5 py-2 text-sm font-medium text-white bg-[var(--mia-primary)] hover:opacity-90 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2">
                 {saving ? 'Đang lưu...' : modal.mode === 'add' ? 'Tạo tài khoản' : 'Lưu thay đổi'}
               </button>
             </div>

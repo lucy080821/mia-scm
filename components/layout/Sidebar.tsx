@@ -125,25 +125,38 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
     return tenant.enabledModules.includes(mod)
   })
 
+  const sidebarBg   = tenant.themeConfig?.sidebarBg   ?? '#1e2a3a'
+  const sidebarText = tenant.themeConfig?.sidebarText ?? '#ffffff'
+
+  // hex + opacity → rgba string
+  const c = (hex: string, a: number) => {
+    const r = parseInt(hex.slice(1, 3), 16)
+    const g = parseInt(hex.slice(3, 5), 16)
+    const b = parseInt(hex.slice(5, 7), 16)
+    return `rgba(${r},${g},${b},${a})`
+  }
+
   const navContent = (
     <div className="flex flex-col h-full">
       {/* Logo */}
-      <div className="flex items-center gap-2.5 px-4 py-4 border-b border-white/10">
+      <div className="flex items-center gap-2.5 px-4 py-4"
+        style={{ borderBottom: `1px solid ${c(sidebarText, 0.1)}` }}>
         {tenant.logoUrl
           ? <img src={tenant.logoUrl} alt={tenant.name} className="w-8 h-8 rounded-lg shrink-0 object-cover" />
           : (
-            <div className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center text-white font-bold text-sm"
-              style={{ backgroundColor: tenant.primaryColor }}>
+            <div className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center font-bold text-sm"
+              style={{ backgroundColor: tenant.primaryColor, color: '#ffffff' }}>
               {tenant.name.charAt(0)}
             </div>
           )
         }
         <div className="min-w-0">
-          <p className="text-white font-bold text-sm leading-none truncate">{tenant.name}</p>
-          <p className="text-white/50 text-[10px] leading-tight mt-0.5">Supply Chain</p>
+          <p className="font-bold text-sm leading-none truncate" style={{ color: sidebarText }}>{tenant.name}</p>
+          <p className="text-[10px] leading-tight mt-0.5" style={{ color: c(sidebarText, 0.5) }}>Supply Chain</p>
         </div>
         {mobileOpen && (
-          <button onClick={onMobileClose} className="ml-auto text-white/60 hover:text-white lg:hidden">
+          <button onClick={onMobileClose} className="ml-auto lg:hidden transition-opacity hover:opacity-100"
+            style={{ color: c(sidebarText, 0.6) }}>
             <X size={18} />
           </button>
         )}
@@ -155,7 +168,8 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
           <div key={gi}>
             {group.section && (
               <button
-                className="w-full flex items-center justify-between px-2 py-2 mt-2 text-[10px] font-semibold text-white/40 uppercase tracking-widest hover:text-white/60 transition-colors"
+                className="w-full flex items-center justify-between px-2 py-2 mt-2 text-[10px] font-semibold uppercase tracking-widest transition-colors"
+                style={{ color: c(sidebarText, 0.45) }}
                 onClick={() => toggleSection(group.section!)}
               >
                 {group.section}
@@ -170,11 +184,13 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                   key={item.href}
                   href={item.href}
                   onClick={onMobileClose}
-                  className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-150 group
-                    ${active ? 'text-white font-medium' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
-                  style={active ? { backgroundColor: tenant.primaryColor } : {}}
+                  className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-150
+                    ${active ? 'font-medium' : 'hover:bg-white/10'}`}
+                  style={active
+                    ? { backgroundColor: tenant.primaryColor, color: '#ffffff' }
+                    : { color: c(sidebarText, 0.75) }}
                 >
-                  <Icon size={15} className={active ? 'text-white' : 'text-white/60 group-hover:text-white/90'} />
+                  <Icon size={15} style={{ color: active ? '#ffffff' : c(sidebarText, 0.65) }} />
                   <span className="truncate flex-1">{item.label}</span>
                   {!!badgeCounts[item.href] && (
                     <span className="shrink-0 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center leading-none">
@@ -189,29 +205,32 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
       </nav>
 
       {/* Sign out */}
-      <div className="p-3 border-t border-white/10 space-y-1">
+      <div className="p-3 space-y-1" style={{ borderTop: `1px solid ${c(sidebarText, 0.1)}` }}>
         <button
           onClick={handleSignOut}
-          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-white/50 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm hover:bg-white/10 transition-all cursor-pointer"
+          style={{ color: c(sidebarText, 0.55) }}
         >
           <LogOut size={14} />
           <span>Đăng xuất</span>
         </button>
-        <p className="text-white/20 text-[10px] text-center">Mia SCM v1.0 © 2025</p>
+        <p className="text-[10px] text-center" style={{ color: c(sidebarText, 0.25) }}>Mia SCM v1.0 © 2025</p>
       </div>
     </div>
   )
 
   return (
     <>
-      <aside className="hidden lg:flex flex-col w-[200px] shrink-0 bg-[#1e2a3a] fixed top-0 left-0 h-screen z-30">
+      <aside className="hidden lg:flex flex-col w-[200px] shrink-0 fixed top-0 left-0 h-screen z-30"
+        style={{ backgroundColor: sidebarBg, '--sb-text': sidebarText } as React.CSSProperties}>
         {navContent}
       </aside>
 
       {mobileOpen && (
         <div className="lg:hidden fixed inset-0 z-40 flex">
           <div className="absolute inset-0 bg-black/50" onClick={onMobileClose} />
-          <aside className="relative w-[220px] bg-[#1e2a3a] h-full z-50 flex flex-col">
+          <aside className="relative w-[220px] h-full z-50 flex flex-col"
+            style={{ backgroundColor: sidebarBg, '--sb-text': sidebarText } as React.CSSProperties}>
             {navContent}
           </aside>
         </div>

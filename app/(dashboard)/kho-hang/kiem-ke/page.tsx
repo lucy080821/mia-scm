@@ -1,9 +1,10 @@
-'use client'
+﻿'use client'
 import { useState, useEffect } from 'react'
 import { Plus, Search, ClipboardCheck, X, AlertTriangle, CheckCircle, TrendingDown, TrendingUp, Trash2 } from 'lucide-react'
 import PageHeader from '@/components/layout/PageHeader'
 import { formatDate } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
+import { useTenant } from '@/contexts/TenantContext'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface StocktakeItem {
@@ -61,6 +62,7 @@ function CreateStocktakeModal({ onClose, onCreate }: {
   onClose: () => void
   onCreate: (s: Stocktake) => void
 }) {
+  const { id: tenantId } = useTenant()
   const today = new Date().toISOString().slice(0, 10)
   const [warehouseId, setWarehouseId] = useState('')
   const [date, setDate]               = useState(today)
@@ -74,20 +76,25 @@ function CreateStocktakeModal({ onClose, onCreate }: {
   const [loadingProd, setLoadingProd] = useState(false)
   const [selected, setSelected]       = useState<Set<string>>(new Set())
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    supabase.from('warehouses').select('id, name').eq('status', 'active').order('name').limit(50)
+    if (!tenantId) return
+    supabase.from('warehouses').select('id, name').eq('tenant_id', tenantId).eq('status', 'active').order('name').limit(50)
       .then(({ data }) => { setWarehouses((data ?? []) as DropdownWarehouse[]); setLoadingWh(false) })
-  }, [])
+  }, [tenantId])
 
   const selectAll   = () => setSelected(new Set(products.map(p => p.id)))
   const clearSelect = () => setSelected(new Set())
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!warehouseId) { setProducts([]); setSelected(new Set()); return }
+    if (!tenantId) return
     setLoadingProd(true)
     supabase
       .from('inventory')
       .select('product_id, quantity, products(id, sku, name, unit)')
+      .eq('tenant_id', tenantId)
       .eq('warehouse_id', warehouseId)
       .then(({ data }) => {
         const byProduct: Record<string, ProductStock> = {}
@@ -105,7 +112,7 @@ function CreateStocktakeModal({ onClose, onCreate }: {
         setSelected(new Set(list.map(p => p.id)))
         setLoadingProd(false)
       })
-  }, [warehouseId])
+  }, [warehouseId, tenantId])
 
   const toggleSelect = (id: string) => {
     setSelected(prev => {
@@ -171,7 +178,7 @@ function CreateStocktakeModal({ onClose, onCreate }: {
                 <div className="h-9 bg-gray-50 border border-[#e5e7eb] rounded-lg animate-pulse" />
               ) : (
                 <select value={warehouseId} onChange={e => setWarehouseId(e.target.value)}
-                  className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] bg-white">
+                  className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] bg-white">
                   <option value="">-- Chọn kho --</option>
                   {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                 </select>
@@ -180,14 +187,14 @@ function CreateStocktakeModal({ onClose, onCreate }: {
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1">Ngày kiểm kê <span className="text-red-400">*</span></label>
               <input type="date" value={date} onChange={e => setDate(e.target.value)}
-                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
             </div>
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1">Ghi chú</label>
             <input type="text" value={note} onChange={e => setNote(e.target.value)} placeholder="Ghi chú kiểm kê..."
-              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+              className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
           </div>
 
           <div>
@@ -198,7 +205,7 @@ function CreateStocktakeModal({ onClose, onCreate }: {
               </h3>
               {products.length > 0 && (
                 <div className="flex gap-1.5">
-                  <button onClick={selectAll} className="px-2.5 py-0.5 text-xs font-medium text-[#0ea5e9] hover:bg-[#0ea5e9]/10 rounded-lg transition-colors">Chọn tất cả</button>
+                  <button onClick={selectAll} className="px-2.5 py-0.5 text-xs font-medium text-[var(--mia-primary)] hover:bg-[var(--mia-primary)]/10 rounded-lg transition-colors">Chọn tất cả</button>
                   <button onClick={clearSelect} className="px-2.5 py-0.5 text-xs font-medium text-gray-500 hover:bg-gray-100 rounded-lg transition-colors">Bỏ chọn</button>
                 </div>
               )}
@@ -221,7 +228,7 @@ function CreateStocktakeModal({ onClose, onCreate }: {
                   <tbody>
                     {products.map(p => (
                       <tr key={p.id} onClick={() => toggleSelect(p.id)}
-                        className={`border-b border-[#f0f2f5] last:border-0 transition-colors ${selected.has(p.id) ? 'bg-[#0ea5e9]/5' : 'hover:bg-gray-50'}`}>
+                        className={`border-b border-[#f0f2f5] last:border-0 transition-colors ${selected.has(p.id) ? 'bg-[var(--mia-primary)]/5' : 'hover:bg-gray-50'}`}>
                         <td className="px-3 py-2">
                           <input type="checkbox" checked={selected.has(p.id)} readOnly
                             className="w-3.5 h-3.5 rounded accent-[#0ea5e9]" />
@@ -255,7 +262,7 @@ function CreateStocktakeModal({ onClose, onCreate }: {
           <div className="flex gap-2">
             <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border border-[#e5e7eb] rounded-lg hover:bg-gray-50 transition-colors">Hủy</button>
             <button onClick={handleSubmit} disabled={saving}
-              className="px-5 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50">
+              className="px-5 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50">
               {saving ? 'Đang lưu...' : <><ClipboardCheck size={14} className="inline mr-1.5" />Tạo phiếu kiểm kê</>}
             </button>
           </div>
@@ -354,7 +361,7 @@ function CountingModal({ stocktake, onClose, onSave }: {
                         <div className="flex items-center gap-1.5">
                           <input type="number" min={0} value={it.counted_qty ?? ''} onChange={e => setCounted(i, e.target.value)}
                             placeholder="—"
-                            className="w-20 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] text-center" />
+                            className="w-20 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] text-center" />
                           <span className="text-[10px] text-gray-400">{it.unit}</span>
                         </div>
                       )}
@@ -421,6 +428,7 @@ function CountingModal({ stocktake, onClose, onSave }: {
 const PAGE_SIZE = 20
 
 export default function KiemKePage() {
+  const { id: tenantId } = useTenant()
   const [stocktakes, setStocktakes]     = useState<Stocktake[]>([])
   const [loading, setLoading]           = useState(true)
   const [search, setSearch]             = useState('')
@@ -439,7 +447,8 @@ export default function KiemKePage() {
     setLoading(false)
   }
 
-  useEffect(() => { loadStocktakes() }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!tenantId) return; loadStocktakes() }, [tenantId])
 
   const filtered = stocktakes.filter(s => {
     const matchSearch = s.code.includes(search) || s.warehouse.toLowerCase().includes(search.toLowerCase())
@@ -464,7 +473,7 @@ export default function KiemKePage() {
   return (
     <div>
       <PageHeader title="Kiểm kê kho" subtitle="Đối chiếu tồn kho thực tế với hệ thống">
-        <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all">
+        <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all">
           <Plus size={15} /> Tạo phiếu kiểm kê
         </button>
       </PageHeader>
@@ -498,7 +507,7 @@ export default function KiemKePage() {
               const LABELS: Record<string, string> = { all: 'Tất cả', open: 'Đang kiểm', pending: 'Chờ duyệt', approved: 'Đã duyệt' }
               return (
                 <button key={s} onClick={() => setStatusFilter(s)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-[#0ea5e9] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-[var(--mia-primary)] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                   {LABELS[s]}
                 </button>
               )
@@ -524,7 +533,7 @@ export default function KiemKePage() {
               const discrepancies = countDiscrepancies(s)
               return (
                 <tr key={s.id} className="border-b border-[#f0f2f5] hover:bg-gray-50/50 transition-colors">
-                  <td className="px-4 py-3 text-sm font-medium text-[#0ea5e9]">{s.code}</td>
+                  <td className="px-4 py-3 text-sm font-medium text-[var(--mia-primary)]">{s.code}</td>
                   <td className="px-4 py-3 text-sm text-[#1e2a3a]">{s.warehouse}</td>
                   <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">{formatDate(s.date)}</td>
                   <td className="px-4 py-3 text-xs text-gray-500 max-w-[160px] truncate">{s.note || '—'}</td>
@@ -562,7 +571,7 @@ export default function KiemKePage() {
                 className="h-7 px-2 rounded-lg border border-[#e5e7eb] text-xs text-gray-500 hover:bg-gray-50 disabled:opacity-40 transition-colors">‹</button>
               {Array.from({ length: Math.ceil(filtered.length / PAGE_SIZE) }, (_, i) => i + 1).map(n => (
                 <button key={n} onClick={() => setPage(n)}
-                  className={`h-7 w-7 flex items-center justify-center rounded-lg text-xs transition-colors ${n === page ? 'bg-[#0ea5e9] text-white font-semibold' : 'border border-[#e5e7eb] text-gray-600 hover:bg-gray-50'}`}>
+                  className={`h-7 w-7 flex items-center justify-center rounded-lg text-xs transition-colors ${n === page ? 'bg-[var(--mia-primary)] text-white font-semibold' : 'border border-[#e5e7eb] text-gray-600 hover:bg-gray-50'}`}>
                   {n}
                 </button>
               ))}

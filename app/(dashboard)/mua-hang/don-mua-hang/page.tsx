@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { useState, useEffect } from 'react'
 import { Plus, Search, ClipboardList, Clock, CheckCircle, Send, X, Trash2, ChevronRight, Copy, Check } from 'lucide-react'
 import PageHeader from '@/components/layout/PageHeader'
@@ -6,6 +6,7 @@ import ExportButton from '@/components/ui/ExportButton'
 import { formatVND, formatDate } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
+import { useTenant } from '@/contexts/TenantContext'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface POItem { product_id: string; name: string; unit: string; quantity: number; unit_price: number }
@@ -33,6 +34,7 @@ function CreatePOModal({ onClose, onCreate }: {
   onClose: () => void
   onCreate: (po: Omit<PurchaseOrder, 'id' | 'code' | 'created_by'> & { supplier_id: string }) => void
 }) {
+  const { id: tenantId } = useTenant()
   const [supplierId, setSupplierId] = useState('')
   const [expectedDate, setExpectedDate] = useState('')
   const [note, setNote] = useState('')
@@ -40,12 +42,14 @@ function CreatePOModal({ onClose, onCreate }: {
   const [dbSuppliers, setDbSuppliers] = useState<{ id: string; name: string }[]>([])
   const [dbProducts, setDbProducts] = useState<{ id: string; name: string; unit: string; purchase_price: number }[]>([])
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    supabase.from('suppliers').select('id, name').eq('status', 'active').order('name').limit(200)
+    if (!tenantId) return
+    supabase.from('suppliers').select('id, name').eq('status', 'active').eq('tenant_id', tenantId).order('name').limit(200)
       .then(({ data }) => setDbSuppliers(data ?? []))
-    supabase.from('products').select('id, name, unit, purchase_price').eq('status', 'active').order('name').limit(300)
+    supabase.from('products').select('id, name, unit, purchase_price').eq('status', 'active').eq('tenant_id', tenantId).order('name').limit(300)
       .then(({ data }) => setDbProducts(data ?? []))
-  }, [])
+  }, [tenantId])
 
   const addItem = () => setItems(prev => [...prev, { product_id: '', name: '', unit: '', quantity: 1, unit_price: 0 }])
   const removeItem = (i: number) => setItems(prev => prev.filter((_, idx) => idx !== i))
@@ -84,7 +88,7 @@ function CreatePOModal({ onClose, onCreate }: {
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1.5">Nhà cung cấp *</label>
               <select value={supplierId} onChange={e => setSupplierId(e.target.value)}
-                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]">
+                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]">
                 <option value="">-- Chọn NCC --</option>
                 {dbSuppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
@@ -92,14 +96,14 @@ function CreatePOModal({ onClose, onCreate }: {
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1.5">Ngày giao dự kiến</label>
               <input type="date" value={expectedDate} onChange={e => setExpectedDate(e.target.value)}
-                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
             </div>
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-semibold text-gray-500">Danh sách sản phẩm</label>
-              <button onClick={addItem} className="flex items-center gap-1 text-xs text-[#0ea5e9] font-medium hover:text-[#0284c7] transition-colors">
+              <button onClick={addItem} className="flex items-center gap-1 text-xs text-[var(--mia-primary)] font-medium hover:text-[#0284c7] transition-colors">
                 <Plus size={12} /> Thêm dòng
               </button>
             </div>
@@ -113,14 +117,14 @@ function CreatePOModal({ onClose, onCreate }: {
               {items.map((it, i) => (
                 <div key={i} className="grid grid-cols-12 gap-2 items-center bg-gray-50 rounded-lg px-2 py-2">
                   <select value={it.product_id} onChange={e => updateItem(i, 'product_id', e.target.value)}
-                    className="col-span-5 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg bg-white outline-none focus:border-[#0ea5e9]">
+                    className="col-span-5 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg bg-white outline-none focus:border-[var(--mia-primary)]">
                     <option value="">-- Chọn SP --</option>
                     {dbProducts.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
                   <input type="number" min={1} value={it.quantity} onChange={e => updateItem(i, 'quantity', +e.target.value)}
-                    className="col-span-2 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg bg-white text-center outline-none focus:border-[#0ea5e9]" />
+                    className="col-span-2 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg bg-white text-center outline-none focus:border-[var(--mia-primary)]" />
                   <input type="number" value={it.unit_price} onChange={e => updateItem(i, 'unit_price', +e.target.value)}
-                    className="col-span-3 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg bg-white text-right outline-none focus:border-[#0ea5e9]" />
+                    className="col-span-3 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg bg-white text-right outline-none focus:border-[var(--mia-primary)]" />
                   <div className="col-span-1 text-right text-xs font-semibold text-[#1e2a3a]">
                     {it.quantity * it.unit_price > 0 ? (it.quantity * it.unit_price / 1000000).toFixed(1) + 'M' : '—'}
                   </div>
@@ -135,14 +139,14 @@ function CreatePOModal({ onClose, onCreate }: {
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Ghi chú</label>
             <textarea value={note} onChange={e => setNote(e.target.value)} rows={2}
-              className="w-full px-3 py-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] resize-none" />
+              className="w-full px-3 py-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] resize-none" />
           </div>
         </div>
 
         <div className="flex items-center justify-between px-6 py-4 border-t border-[#e5e7eb] bg-gray-50 rounded-b-2xl">
           <div>
             <span className="text-xs text-gray-400">Tổng cộng</span>
-            <p className="text-lg font-bold text-[#0ea5e9]">{formatVND(total)}</p>
+            <p className="text-lg font-bold text-[var(--mia-primary)]">{formatVND(total)}</p>
           </div>
           <div className="flex gap-2">
             <button onClick={() => handleSubmit('draft')} disabled={!supplierId}
@@ -150,7 +154,7 @@ function CreatePOModal({ onClose, onCreate }: {
               Lưu nháp
             </button>
             <button onClick={() => handleSubmit('pending')} disabled={!supplierId || items.every(it => !it.product_id)}
-              className="px-4 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] disabled:opacity-40 transition-all hover:scale-[1.02] active:scale-95">
+              className="px-4 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-40 transition-all hover:scale-[1.02] active:scale-95">
               <Send size={13} className="inline mr-1.5" />Gửi duyệt
             </button>
           </div>
@@ -188,7 +192,7 @@ function ApprovalModal({ po, onClose, onApprove, onReject }: {
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-gray-500">Giá trị đơn:</span>
-            <span className="font-bold text-[#0ea5e9]">{formatVND(po.total_amount)}</span>
+            <span className="font-bold text-[var(--mia-primary)]">{formatVND(po.total_amount)}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-gray-500">Số sản phẩm:</span>
@@ -220,7 +224,7 @@ function ApprovalModal({ po, onClose, onApprove, onReject }: {
           <>
             <p className="text-xs text-gray-500 mb-2">Ghi chú phê duyệt (không bắt buộc):</p>
             <textarea value={note} onChange={e => setNote(e.target.value)} rows={2} placeholder="Thêm ghi chú khi duyệt..."
-              className="w-full px-3 py-2 text-sm border border-[#e5e7eb] rounded-xl outline-none focus:border-[#0ea5e9] resize-none mb-4" />
+              className="w-full px-3 py-2 text-sm border border-[#e5e7eb] rounded-xl outline-none focus:border-[var(--mia-primary)] resize-none mb-4" />
             <div className="flex gap-2">
               <button onClick={() => setMode('reject')}
                 className="flex-1 py-2 bg-red-50 border border-red-200 text-red-600 text-sm font-semibold rounded-lg hover:bg-red-100 transition-all">
@@ -295,7 +299,7 @@ function SendPreviewModal({ po, onClose, onConfirm }: {
               className={`absolute top-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 copied
                   ? 'bg-green-100 text-green-700'
-                  : 'bg-white border border-[#e5e7eb] text-gray-600 hover:border-[#0ea5e9] hover:text-[#0ea5e9]'
+                  : 'bg-white border border-[#e5e7eb] text-gray-600 hover:border-[var(--mia-primary)] hover:text-[var(--mia-primary)]'
               }`}>
               {copied ? <><Check size={12} /> Đã copy!</> : <><Copy size={12} /> Copy</>}
             </button>
@@ -311,7 +315,7 @@ function SendPreviewModal({ po, onClose, onConfirm }: {
             Đóng
           </button>
           <button onClick={() => { onConfirm(); onClose() }}
-            className="flex-1 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-xl hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2">
+            className="flex-1 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-xl hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2">
             <CheckCircle size={15} /> Xác nhận đã gửi NCC
           </button>
         </div>
@@ -324,6 +328,7 @@ function SendPreviewModal({ po, onClose, onConfirm }: {
 const PAGE_SIZE = 20
 
 export default function DonMuaHangPage() {
+  const { id: tenantId } = useTenant()
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
   const [pos, setPos] = useState<PurchaseOrder[]>(INITIAL_POS)
@@ -365,7 +370,8 @@ export default function DonMuaHangPage() {
     }
   }
 
-  useEffect(() => { loadPOs() }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!tenantId) return; loadPOs() }, [tenantId])
 
   const filtered = pos.filter(p => {
     const matchSearch = p.code.includes(search) || p.supplier.toLowerCase().includes(search.toLowerCase())
@@ -426,7 +432,7 @@ export default function DonMuaHangPage() {
     <div>
       <PageHeader title="Đơn mua hàng" subtitle="Tạo và theo dõi đơn mua từ nhà cung cấp">
         <ExportButton module="mua-hang" />
-        <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all">
+        <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all">
           <Plus size={15} /> Tạo đơn mua
         </button>
       </PageHeader>
@@ -457,7 +463,7 @@ export default function DonMuaHangPage() {
               const LABELS: Record<string, string> = { all: 'Tất cả', draft: 'Nháp', pending: 'Chờ duyệt', sent: 'Đã gửi', delivering: 'Đang giao', completed: 'Hoàn thành' }
               return (
                 <button key={s} onClick={() => setStatusFilter(s)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-[#0ea5e9] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-[var(--mia-primary)] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                   {LABELS[s]}
                 </button>
               )
@@ -479,7 +485,7 @@ export default function DonMuaHangPage() {
               return (
                 <tr key={p.id} className="border-b border-[#f0f2f5] hover:bg-gray-50/60 transition-colors">
                   <td className="px-4 py-3">
-                    <button onClick={() => setDetail(p)} className="flex items-center gap-1 text-xs font-medium text-[#0ea5e9] hover:underline">
+                    <button onClick={() => setDetail(p)} className="flex items-center gap-1 text-xs font-medium text-[var(--mia-primary)] hover:underline">
                       {p.code}<ChevronRight size={11} />
                     </button>
                   </td>
@@ -496,7 +502,7 @@ export default function DonMuaHangPage() {
                   <td className="px-4 py-3">
                     {p.status === 'draft' && (
                       <button onClick={() => handleSubmitForApproval(p.id)}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-[#0ea5e9] text-white text-xs font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all">
+                        className="flex items-center gap-1 px-3 py-1.5 bg-[var(--mia-primary)] text-white text-xs font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all">
                         <Send size={11} />Gửi duyệt
                       </button>
                     )}
@@ -520,7 +526,7 @@ export default function DonMuaHangPage() {
                 className="h-7 px-2 rounded-lg border border-[#e5e7eb] text-xs text-gray-500 hover:bg-gray-50 disabled:opacity-40 transition-colors">‹</button>
               {Array.from({ length: Math.ceil(filtered.length / PAGE_SIZE) }, (_, i) => i + 1).map(n => (
                 <button key={n} onClick={() => setPage(n)}
-                  className={`h-7 w-7 flex items-center justify-center rounded-lg text-xs transition-colors ${n === page ? 'bg-[#0ea5e9] text-white font-semibold' : 'border border-[#e5e7eb] text-gray-600 hover:bg-gray-50'}`}>
+                  className={`h-7 w-7 flex items-center justify-center rounded-lg text-xs transition-colors ${n === page ? 'bg-[var(--mia-primary)] text-white font-semibold' : 'border border-[#e5e7eb] text-gray-600 hover:bg-gray-50'}`}>
                   {n}
                 </button>
               ))}
@@ -594,7 +600,7 @@ export default function DonMuaHangPage() {
               </div>
               <div className="flex justify-between bg-[#f0f9ff] rounded-xl px-4 py-3">
                 <span className="text-sm font-medium text-[#1e2a3a]">Tổng cộng</span>
-                <span className="text-base font-bold text-[#0ea5e9]">{formatVND(detail.total_amount)}</span>
+                <span className="text-base font-bold text-[var(--mia-primary)]">{formatVND(detail.total_amount)}</span>
               </div>
               {detail.note && <p className="text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2">{detail.note}</p>}
             </div>

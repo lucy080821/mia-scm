@@ -1,14 +1,18 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { getServerTenantId } from '@/lib/server-auth'
 
 export async function GET() {
   try {
+    const tenantId = await getServerTenantId()
+    if (!tenantId) return NextResponse.json({})
+
     const [orders, receipts, issues, deliveries, purchases] = await Promise.all([
-      supabaseAdmin.from('sales_orders').select('id', { count: 'exact', head: true }).eq('status', 'new'),
-      supabaseAdmin.from('stock_receipts').select('id', { count: 'exact', head: true }).in('status', ['pending', 'qc_check']),
-      supabaseAdmin.from('stock_issues').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-      supabaseAdmin.from('deliveries').select('id', { count: 'exact', head: true }).in('status', ['pending', 'assigned']),
-      supabaseAdmin.from('purchase_orders').select('id', { count: 'exact', head: true }).in('status', ['draft', 'pending']),
+      supabaseAdmin.from('sales_orders').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('status', 'new'),
+      supabaseAdmin.from('stock_receipts').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).in('status', ['pending', 'qc_check']),
+      supabaseAdmin.from('stock_issues').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('status', 'pending'),
+      supabaseAdmin.from('deliveries').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).in('status', ['pending', 'assigned']),
+      supabaseAdmin.from('purchase_orders').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).in('status', ['draft', 'pending']),
     ])
 
     return NextResponse.json({

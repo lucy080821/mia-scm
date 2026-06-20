@@ -1,8 +1,9 @@
-'use client'
+﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { Search, CalendarDays, CheckCircle2, XCircle, AlertCircle, DollarSign, Truck, User, Camera, FileText, ChevronDown } from 'lucide-react'
 import PageHeader from '@/components/layout/PageHeader'
 import { supabase } from '@/lib/supabase'
+import { useTenant } from '@/contexts/TenantContext'
 import { formatVND, formatDate } from '@/lib/utils'
 
 interface Driver { id: string; name: string; phone: string | null }
@@ -52,6 +53,7 @@ function todayISO() {
 }
 
 export default function DoiSoatCODPage() {
+  const { id: tenantId } = useTenant()
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [selectedDriver, setSelectedDriver] = useState('')
   const [selectedDate, setSelectedDate] = useState(todayISO())
@@ -63,17 +65,15 @@ export default function DoiSoatCODPage() {
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000) }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    supabase.from('drivers').select('id, name, phone').eq('status', 'available').order('name')
-      .then(({ data }) => {
-        if (data) setDrivers(data)
-      })
-    supabase.from('drivers').select('id, name, phone').order('name')
+    if (!tenantId) return
+    supabase.from('drivers').select('id, name, phone').eq('tenant_id', tenantId).order('name')
       .then(({ data }) => { if (data) setDrivers(data) })
-  }, [])
+  }, [tenantId])
 
   const loadData = useCallback(async () => {
-    if (!selectedDate) return
+    if (!selectedDate || !tenantId) return
     setLoading(true)
     try {
       let query = supabase
@@ -83,6 +83,7 @@ export default function DoiSoatCODPage() {
           cod_collected, payment_method, fail_reason, driver_note, pod_photo_url,
           sales_order:sales_orders(code, final_amount, customer:customers(name, phone))
         `)
+        .eq('tenant_id', tenantId)
         .gte('planned_date', selectedDate + 'T00:00:00')
         .lte('planned_date', selectedDate + 'T23:59:59')
         .order('planned_date')
@@ -99,7 +100,7 @@ export default function DoiSoatCODPage() {
     } finally {
       setLoading(false)
     }
-  }, [selectedDate, selectedDriver])
+  }, [selectedDate, selectedDriver, tenantId])
 
   useEffect(() => { loadData() }, [loadData])
 
@@ -139,7 +140,7 @@ export default function DoiSoatCODPage() {
                 type="date"
                 value={selectedDate}
                 onChange={e => setSelectedDate(e.target.value)}
-                className="h-9 pl-8 pr-3 text-sm border border-[#e5e7eb] rounded-lg bg-white outline-none focus:border-[#0ea5e9]"
+                className="h-9 pl-8 pr-3 text-sm border border-[#e5e7eb] rounded-lg bg-white outline-none focus:border-[var(--mia-primary)]"
               />
             </div>
           </div>
@@ -151,7 +152,7 @@ export default function DoiSoatCODPage() {
               <select
                 value={selectedDriver}
                 onChange={e => setSelectedDriver(e.target.value)}
-                className="w-full h-9 pl-8 pr-8 text-sm border border-[#e5e7eb] rounded-lg bg-white outline-none focus:border-[#0ea5e9] appearance-none"
+                className="w-full h-9 pl-8 pr-8 text-sm border border-[#e5e7eb] rounded-lg bg-white outline-none focus:border-[var(--mia-primary)] appearance-none"
               >
                 <option value="">Tất cả tài xế</option>
                 {drivers.map(d => (
@@ -164,7 +165,7 @@ export default function DoiSoatCODPage() {
 
           <button
             onClick={loadData}
-            className="h-9 px-4 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] transition-all flex items-center gap-2"
+            className="h-9 px-4 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 transition-all flex items-center gap-2"
           >
             <Search size={13} /> Tra cứu
           </button>
@@ -206,7 +207,7 @@ export default function DoiSoatCODPage() {
         </div>
         <div className="bg-white rounded-xl border border-[#e5e7eb] px-4 py-3">
           <p className="text-xs text-gray-500 mb-1">Tỷ lệ giao</p>
-          <p className="text-lg font-bold text-[#0ea5e9]">
+          <p className="text-lg font-bold text-[var(--mia-primary)]">
             {rows.length > 0 ? Math.round((delivered.length / rows.length) * 100) : 0}%
           </p>
           <p className="text-[11px] text-gray-400">{delivered.length}/{rows.length} đơn hoàn thành</p>
@@ -256,7 +257,7 @@ export default function DoiSoatCODPage() {
                 return (
                   <tr key={row.id} className={`border-b border-[#f0f2f5] hover:bg-gray-50/60 transition-colors ${row.status === 'failed' ? 'bg-red-50/20' : ''}`}>
                     <td className="px-4 py-3">
-                      <span className="text-xs font-mono text-[#0ea5e9] font-semibold">{row.code}</span>
+                      <span className="text-xs font-mono text-[var(--mia-primary)] font-semibold">{row.code}</span>
                     </td>
                     <td className="px-4 py-3">
                       <p className="text-xs font-medium text-[#1e2a3a] truncate max-w-[140px]">
@@ -307,7 +308,7 @@ export default function DoiSoatCODPage() {
                       {row.driver_note ? (
                         <button
                           onClick={() => setNoteModal(row)}
-                          className="flex items-center gap-1 text-[11px] text-[#0ea5e9] hover:underline"
+                          className="flex items-center gap-1 text-[11px] text-[var(--mia-primary)] hover:underline"
                         >
                           <FileText size={11} /> Xem ghi chú
                         </button>
@@ -317,7 +318,7 @@ export default function DoiSoatCODPage() {
                       {row.pod_photo_url ? (
                         <button
                           onClick={() => setPhotoModal(row.pod_photo_url!)}
-                          className="flex items-center gap-1 text-[11px] text-[#0ea5e9] hover:underline"
+                          className="flex items-center gap-1 text-[11px] text-[var(--mia-primary)] hover:underline"
                         >
                           <Camera size={11} /> Xem ảnh
                         </button>

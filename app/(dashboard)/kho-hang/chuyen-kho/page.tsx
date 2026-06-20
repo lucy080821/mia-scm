@@ -1,9 +1,10 @@
-'use client'
+﻿'use client'
 import { useState, useEffect } from 'react'
 import { Plus, Search, ArrowLeftRight, CheckCircle, X, AlertTriangle, Trash2, MoveRight } from 'lucide-react'
 import PageHeader from '@/components/layout/PageHeader'
 import { formatDate } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
+import { useTenant } from '@/contexts/TenantContext'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface TransferItem { product_id: string; sku: string; name: string; unit: string; quantity: number; lot_number: string }
@@ -64,6 +65,7 @@ function CreateTransferModal({ onClose, onCreate }: {
   onClose: () => void
   onCreate: (t: Transfer) => void
 }) {
+  const { id: tenantId } = useTenant()
   const today = new Date().toISOString().slice(0, 10)
   const [fromId,  setFromId]  = useState('')
   const [toId,    setToId]    = useState('')
@@ -78,20 +80,25 @@ function CreateTransferModal({ onClose, onCreate }: {
   const [products,    setProducts]    = useState<ProductOption[]>([])
   const [loadingOpts, setLoadingOpts] = useState(true)
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    supabase.from('warehouses').select('id, name').eq('status', 'active').order('name').limit(50)
+    if (!tenantId) return
+    supabase.from('warehouses').select('id, name').eq('tenant_id', tenantId).eq('status', 'active').order('name').limit(50)
       .then(({ data }) => {
         setWarehouses((data ?? []) as DropdownItem[])
         setLoadingOpts(false)
       })
-  }, [])
+  }, [tenantId])
 
   // Reload product inventory when source warehouse changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!fromId) { setProducts([]); return }
+    if (!tenantId) return
     supabase
       .from('inventory')
       .select('product_id, lot_number, quantity, products(id, sku, name, unit)')
+      .eq('tenant_id', tenantId)
       .eq('warehouse_id', fromId)
       .gt('quantity', 0)
       .order('quantity', { ascending: false })
@@ -110,7 +117,7 @@ function CreateTransferModal({ onClose, onCreate }: {
         })
         setProducts(mapped)
       })
-  }, [fromId])
+  }, [fromId, tenantId])
 
   const setRowField = (i: number, field: keyof DraftRow, val: string | number) => {
     setRows(prev => { const next = [...prev]; next[i] = { ...next[i], [field]: val }; return next })
@@ -211,7 +218,7 @@ function CreateTransferModal({ onClose, onCreate }: {
                 <div className="flex-1">
                   <label className="block text-xs font-semibold text-gray-500 mb-1">Kho nguồn <span className="text-red-400">*</span></label>
                   <select value={fromId} onChange={e => setFromId(e.target.value)}
-                    className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] bg-white">
+                    className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] bg-white">
                     <option value="">-- Chọn kho --</option>
                     {warehouses.map(w => <option key={w.id} value={w.id} disabled={w.id === toId}>{w.name}</option>)}
                   </select>
@@ -220,7 +227,7 @@ function CreateTransferModal({ onClose, onCreate }: {
                 <div className="flex-1">
                   <label className="block text-xs font-semibold text-gray-500 mb-1">Kho đích <span className="text-red-400">*</span></label>
                   <select value={toId} onChange={e => setToId(e.target.value)}
-                    className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] bg-white">
+                    className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] bg-white">
                     <option value="">-- Chọn kho --</option>
                     {warehouses.map(w => <option key={w.id} value={w.id} disabled={w.id === fromId}>{w.name}</option>)}
                   </select>
@@ -231,12 +238,12 @@ function CreateTransferModal({ onClose, onCreate }: {
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 mb-1">Ngày chuyển <span className="text-red-400">*</span></label>
                   <input type="date" value={date} onChange={e => setDate(e.target.value)}
-                    className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                    className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 mb-1">Lý do chuyển kho</label>
                   <select value={reason} onChange={e => setReason(e.target.value)}
-                    className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] bg-white">
+                    className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] bg-white">
                     <option value="">-- Chọn lý do --</option>
                     {REASONS.map(r => <option key={r}>{r}</option>)}
                   </select>
@@ -250,7 +257,7 @@ function CreateTransferModal({ onClose, onCreate }: {
                     {!fromId && <span className="ml-2 text-gray-400 font-normal normal-case">(chọn kho nguồn trước)</span>}
                   </h3>
                   <button onClick={addRow}
-                    className="flex items-center gap-1 px-2.5 py-1 bg-[#0ea5e9]/10 text-[#0ea5e9] rounded-lg text-xs font-semibold hover:bg-[#0ea5e9]/20 transition-colors">
+                    className="flex items-center gap-1 px-2.5 py-1 bg-[var(--mia-primary)]/10 text-[var(--mia-primary)] rounded-lg text-xs font-semibold hover:bg-[var(--mia-primary)]/20 transition-colors">
                     <Plus size={12} /> Thêm dòng
                   </button>
                 </div>
@@ -272,7 +279,7 @@ function CreateTransferModal({ onClose, onCreate }: {
                             <td className="px-3 py-2 min-w-[180px]">
                               <select value={row.product_id} onChange={e => selectProduct(i, e.target.value)}
                                 disabled={!fromId}
-                                className="w-full h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] bg-white disabled:bg-gray-50">
+                                className="w-full h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] bg-white disabled:bg-gray-50">
                                 <option value="">-- Chọn sản phẩm --</option>
                                 {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                               </select>
@@ -283,7 +290,7 @@ function CreateTransferModal({ onClose, onCreate }: {
                             <td className="px-3 py-2 w-28">
                               <div className="flex items-center gap-1">
                                 <input type="number" min={1} value={row.quantity || ''} onChange={e => setRowField(i, 'quantity', +e.target.value)}
-                                  className={`w-16 h-8 px-2 text-xs border rounded-lg outline-none focus:border-[#0ea5e9] text-center ${over ? 'border-red-400 bg-red-50' : 'border-[#e5e7eb]'}`} />
+                                  className={`w-16 h-8 px-2 text-xs border rounded-lg outline-none focus:border-[var(--mia-primary)] text-center ${over ? 'border-red-400 bg-red-50' : 'border-[#e5e7eb]'}`} />
                                 <span className="text-[10px] text-gray-400">{p?.unit ?? ''}</span>
                               </div>
                               {over && <p className="text-[10px] text-red-500 mt-0.5">Vượt tồn kho</p>}
@@ -291,7 +298,7 @@ function CreateTransferModal({ onClose, onCreate }: {
                             <td className="px-3 py-2 w-32">
                               <input type="text" value={row.lot_number} onChange={e => setRowField(i, 'lot_number', e.target.value)}
                                 placeholder="LOT-..."
-                                className="w-full h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9]" />
+                                className="w-full h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
                             </td>
                             <td className="px-3 py-2">
                               {rows.length > 1 && (
@@ -312,7 +319,7 @@ function CreateTransferModal({ onClose, onCreate }: {
                 <label className="block text-xs font-semibold text-gray-500 mb-1">Ghi chú</label>
                 <textarea value={note} onChange={e => setNote(e.target.value)} rows={2}
                   placeholder="Ghi chú thêm..."
-                  className="w-full px-3 py-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[#0ea5e9] resize-none" />
+                  className="w-full px-3 py-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] resize-none" />
               </div>
             </>
           )}
@@ -342,7 +349,7 @@ function CreateTransferModal({ onClose, onCreate }: {
               Hủy
             </button>
             <button onClick={handleSubmit} disabled={saving}
-              className="px-5 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50">
+              className="px-5 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50">
               {saving ? 'Đang lưu...' : <><ArrowLeftRight size={14} className="inline mr-1.5" />Tạo phiếu chuyển</>}
             </button>
           </div>
@@ -451,7 +458,7 @@ function DetailModal({ transfer, onClose, onApprove, onConfirmReceived }: {
           <div className="flex gap-2">
             {transfer.status === 'pending' && (
               <button onClick={() => handleAction('in_transit')} disabled={saving}
-                className="px-4 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50">
+                className="px-4 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50">
                 {saving ? 'Đang lưu...' : 'Duyệt & Vận chuyển'}
               </button>
             )}
@@ -472,6 +479,7 @@ function DetailModal({ transfer, onClose, onApprove, onConfirmReceived }: {
 const PAGE_SIZE = 20
 
 export default function ChuyenKhoPage() {
+  const { id: tenantId } = useTenant()
   const [transfers, setTransfers]       = useState<Transfer[]>([])
   const [loading, setLoading]           = useState(true)
   const [search, setSearch]             = useState('')
@@ -490,7 +498,8 @@ export default function ChuyenKhoPage() {
     setLoading(false)
   }
 
-  useEffect(() => { loadTransfers() }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!tenantId) return; loadTransfers() }, [tenantId])
 
   const filtered = transfers.filter(t => {
     const matchSearch = t.code.includes(search) || t.from.toLowerCase().includes(search.toLowerCase()) || t.to.toLowerCase().includes(search.toLowerCase())
@@ -507,7 +516,7 @@ export default function ChuyenKhoPage() {
   return (
     <div>
       <PageHeader title="Chuyển kho" subtitle="Điều chuyển hàng hóa giữa các kho">
-        <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 bg-[#0ea5e9] text-white text-sm font-semibold rounded-lg hover:bg-[#0284c7] hover:scale-[1.02] active:scale-95 transition-all">
+        <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all">
           <Plus size={15} /> Tạo phiếu chuyển
         </button>
       </PageHeader>
@@ -541,7 +550,7 @@ export default function ChuyenKhoPage() {
               const LABELS: Record<string, string> = { all: 'Tất cả', pending: 'Chờ duyệt', in_transit: 'Đang vận chuyển', completed: 'Hoàn thành' }
               return (
                 <button key={s} onClick={() => setStatusFilter(s)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-[#0ea5e9] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-[var(--mia-primary)] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                   {LABELS[s]}
                 </button>
               )
@@ -566,7 +575,7 @@ export default function ChuyenKhoPage() {
               const s = STATUS_MAP[t.status]
               return (
                 <tr key={t.id} className="border-b border-[#f0f2f5] hover:bg-gray-50/50 transition-colors">
-                  <td className="px-4 py-3 text-sm font-medium text-[#0ea5e9]">{t.code}</td>
+                  <td className="px-4 py-3 text-sm font-medium text-[var(--mia-primary)]">{t.code}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5 text-xs font-medium text-[#1e2a3a]">
                       <span>{t.from}</span>
@@ -599,7 +608,7 @@ export default function ChuyenKhoPage() {
                 className="h-7 px-2 rounded-lg border border-[#e5e7eb] text-xs text-gray-500 hover:bg-gray-50 disabled:opacity-40 transition-colors">‹</button>
               {Array.from({ length: Math.ceil(filtered.length / PAGE_SIZE) }, (_, i) => i + 1).map(n => (
                 <button key={n} onClick={() => setPage(n)}
-                  className={`h-7 w-7 flex items-center justify-center rounded-lg text-xs transition-colors ${n === page ? 'bg-[#0ea5e9] text-white font-semibold' : 'border border-[#e5e7eb] text-gray-600 hover:bg-gray-50'}`}>
+                  className={`h-7 w-7 flex items-center justify-center rounded-lg text-xs transition-colors ${n === page ? 'bg-[var(--mia-primary)] text-white font-semibold' : 'border border-[#e5e7eb] text-gray-600 hover:bg-gray-50'}`}>
                   {n}
                 </button>
               ))}

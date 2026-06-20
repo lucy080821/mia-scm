@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { ReactNode, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
@@ -80,7 +80,7 @@ export default function DataTable<T extends Record<string, unknown>>({
                     type="checkbox"
                     checked={data.length > 0 && selected.size === data.length}
                     onChange={toggleAll}
-                    className="rounded border-gray-300 text-[#0ea5e9] cursor-pointer"
+                    className="rounded border-gray-300 text-[var(--mia-primary)] cursor-pointer"
                   />
                 </th>
               )}
@@ -134,7 +134,7 @@ export default function DataTable<T extends Record<string, unknown>>({
                           type="checkbox"
                           checked={selected.has(rowId)}
                           onChange={() => toggleRow(rowId)}
-                          className="rounded border-gray-300 text-[#0ea5e9] cursor-pointer"
+                          className="rounded border-gray-300 text-[var(--mia-primary)] cursor-pointer"
                         />
                       </td>
                     )}
@@ -170,7 +170,7 @@ export default function DataTable<T extends Record<string, unknown>>({
                 <button
                   key={p}
                   onClick={() => onPageChange?.(p)}
-                  className={`w-8 h-8 flex items-center justify-center rounded border text-xs transition-colors ${page === p ? 'bg-[#0ea5e9] border-[#0ea5e9] text-white' : 'border-[#e5e7eb] text-gray-600 hover:bg-gray-50'}`}
+                  className={`w-8 h-8 flex items-center justify-center rounded border text-xs transition-colors ${page === p ? 'bg-[var(--mia-primary)] border-[var(--mia-primary)] text-white' : 'border-[#e5e7eb] text-gray-600 hover:bg-gray-50'}`}
                 >
                   {p}
                 </button>

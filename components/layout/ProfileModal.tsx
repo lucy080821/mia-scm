@@ -1,18 +1,19 @@
-'use client'
+﻿'use client'
 import { useState, useRef, useEffect } from 'react'
 import { X, Camera, Lock, User, Eye, EyeOff, Check, AlertCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 interface ProfileModalProps {
-  user: { name: string; email: string; role: string; initials: string; avatarUrl?: string } | null
+  user: { id: string; name: string; email: string; role: string; initials: string; avatarUrl?: string } | null
   onClose: () => void
   initialTab?: 'info' | 'password'
 }
 
 export default function ProfileModal({ user, onClose, initialTab = 'info' }: ProfileModalProps) {
+  const avatarKey = user?.id ? `mia_avatar_${user.id}` : null
   const [tab, setTab] = useState<'info' | 'password'>(initialTab)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(
-    typeof window !== 'undefined' ? localStorage.getItem('mia_avatar') : null
+    typeof window !== 'undefined' && avatarKey ? localStorage.getItem(avatarKey) : null
   )
   const [fullName, setFullName] = useState(user?.name ?? '')
   const [phone, setPhone] = useState('')
@@ -48,7 +49,7 @@ export default function ProfileModal({ user, onClose, initialTab = 'info' }: Pro
     reader.onload = ev => {
       const dataUrl = ev.target?.result as string
       setAvatarPreview(dataUrl)
-      localStorage.setItem('mia_avatar', dataUrl)
+      if (avatarKey) localStorage.setItem(avatarKey, dataUrl)
       window.dispatchEvent(new Event('mia:avatar-updated'))
     }
     reader.readAsDataURL(file)
@@ -133,7 +134,7 @@ export default function ProfileModal({ user, onClose, initialTab = 'info' }: Pro
         {/* Avatar */}
         <div className="flex flex-col items-center pt-6 pb-4 bg-gray-50 border-b border-[#e5e7eb]">
           <div className="relative group">
-            <div className="w-20 h-20 rounded-full bg-[#0ea5e9] flex items-center justify-center text-white text-2xl font-bold overflow-hidden">
+            <div className="w-20 h-20 rounded-full bg-[var(--mia-primary)] flex items-center justify-center text-white text-2xl font-bold overflow-hidden">
               {avatarPreview
                 ? <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" />
                 : (user?.initials ?? '?')}
@@ -158,7 +159,7 @@ export default function ProfileModal({ user, onClose, initialTab = 'info' }: Pro
               key={key}
               onClick={() => { setTab(key); setSaved(false); setInfoError(''); setPassError('') }}
               className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-medium transition-colors border-b-2 -mb-px
-                ${tab === key ? 'border-[#0ea5e9] text-[#0ea5e9]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                ${tab === key ? 'border-[var(--mia-primary)] text-[var(--mia-primary)]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
             >
               <Icon size={14} />
               {label}
@@ -175,7 +176,7 @@ export default function ProfileModal({ user, onClose, initialTab = 'info' }: Pro
                 <input
                   value={fullName}
                   onChange={e => setFullName(e.target.value)}
-                  className="w-full border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm text-[#1e2a3a] outline-none focus:border-[#0ea5e9] focus:ring-1 focus:ring-[#0ea5e9]/20 transition"
+                  className="w-full border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm text-[#1e2a3a] outline-none focus:border-[var(--mia-primary)] focus:ring-1 focus:ring-[var(--mia-primary)]/20 transition"
                 />
               </div>
               <div>
@@ -192,7 +193,7 @@ export default function ProfileModal({ user, onClose, initialTab = 'info' }: Pro
                   value={phone}
                   onChange={e => setPhone(e.target.value)}
                   placeholder="Nhập số điện thoại"
-                  className="w-full border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm text-[#1e2a3a] outline-none focus:border-[#0ea5e9] focus:ring-1 focus:ring-[#0ea5e9]/20 transition"
+                  className="w-full border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm text-[#1e2a3a] outline-none focus:border-[var(--mia-primary)] focus:ring-1 focus:ring-[var(--mia-primary)]/20 transition"
                 />
               </div>
               {infoError && (
@@ -215,7 +216,7 @@ export default function ProfileModal({ user, onClose, initialTab = 'info' }: Pro
                       type={show ? 'text' : 'password'}
                       value={val}
                       onChange={e => setVal(e.target.value)}
-                      className="w-full border border-[#e5e7eb] rounded-lg px-3 py-2 pr-9 text-sm text-[#1e2a3a] outline-none focus:border-[#0ea5e9] focus:ring-1 focus:ring-[#0ea5e9]/20 transition"
+                      className="w-full border border-[#e5e7eb] rounded-lg px-3 py-2 pr-9 text-sm text-[#1e2a3a] outline-none focus:border-[var(--mia-primary)] focus:ring-1 focus:ring-[var(--mia-primary)]/20 transition"
                     />
                     <button
                       type="button"
@@ -247,7 +248,7 @@ export default function ProfileModal({ user, onClose, initialTab = 'info' }: Pro
           <button
             onClick={tab === 'info' ? handleSaveInfo : handleChangePassword}
             disabled={saving}
-            className="px-5 py-2 text-sm font-medium text-white bg-[#0ea5e9] hover:bg-[#0284c7] rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+            className="px-5 py-2 text-sm font-medium text-white bg-[var(--mia-primary)] hover:opacity-90 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
           >
             {saved
               ? <><Check size={14} /> Đã lưu</>

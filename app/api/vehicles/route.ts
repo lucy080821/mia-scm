@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
   const { data, error } = await supabaseAdmin
     .from('vehicles')
     .select('id, plate, brand, type, capacity_kg, fuel_level, insurance_expiry, status, warehouse_id, warehouse:warehouses(id, name)')
+    .eq('tenant_id', caller.tenant_id)
     .order('plate')
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

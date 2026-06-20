@@ -18,6 +18,7 @@ export function useDriverTracking(
   vehiclePlate: string,
   routeId: string,
   routeName: string,
+  tenantId: string,
 ): DriverTrackingState {
   const [active, setActive]       = useState(false)
   const [lat, setLat]             = useState<number | null>(null)
@@ -42,12 +43,13 @@ export function useDriverTracking(
         vehicle_plate: vehiclePlate,
         route_id:      routeId,
         route_name:    routeName,
+        tenant_id:     tenantId,
         lat:           latitude,
         lng:           longitude,
         accuracy:      acc,
         speed_kmh:     speed !== null ? Math.round(speed * 3.6) : null,
         updated_at:    new Date().toISOString(),
-      }, { onConflict: 'driver_name' })
+      }, { onConflict: 'driver_name,tenant_id' })
     } catch {
       // không block nếu Supabase lỗi
     }
@@ -83,7 +85,7 @@ export function useDriverTracking(
     setLng(null)
     setSpeedKmh(null)
     try {
-      await supabase.from('driver_locations').delete().eq('driver_name', driverName)
+      await supabase.from('driver_locations').delete().eq('driver_name', driverName).eq('tenant_id', tenantId)
     } catch {}
   }, [driverName])
 

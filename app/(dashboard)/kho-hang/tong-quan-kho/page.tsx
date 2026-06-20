@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { useState, useEffect } from 'react'
 import { Package, TrendingDown, AlertTriangle, ArrowDownToLine, ArrowUpFromLine, Warehouse, Calendar } from 'lucide-react'
 import PageHeader from '@/components/layout/PageHeader'
@@ -8,6 +8,7 @@ import Badge from '@/components/ui/Badge'
 import { formatVND, formatDate } from '@/lib/utils'
 import { calcSafetyStock, calcROP, calcEOQ, classifyABC } from '@/lib/inventory-formulas'
 import { supabase } from '@/lib/supabase'
+import { useTenant } from '@/contexts/TenantContext'
 
 const MONTH_LABEL = `T${new Date().getMonth() + 1}`
 
@@ -85,6 +86,7 @@ interface SuggestedOrder {
 }
 
 export default function WarehouseOverviewPage() {
+  const { id: tenantId } = useTenant()
   const [loading, setLoading] = useState(true)
   const [kpis, setKpis] = useState<KpiState>({
     totalSKUs: 0, totalValue: 0, receiptCount: 0, issueCount: 0,
@@ -101,15 +103,17 @@ export default function WarehouseOverviewPage() {
   const [aiContent, setAiContent]         = useState('Đang phân tích dữ liệu tồn kho...')
 
   useEffect(() => {
+    if (!tenantId) return
     loadData()
     loadAbcData()
     loadExpiryData()
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenantId])
 
   async function loadAbcData() {
     const [{ data: items }, { count }] = await Promise.all([
-      supabase.from('sales_order_items').select('product_id, subtotal').limit(10000),
-      supabase.from('products').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+      supabase.from('sales_order_items').select('product_id, subtotal').eq('tenant_id', tenantId).limit(10000),
+      supabase.from('products').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('status', 'active'),
     ])
 
     setTotalProductCount(count ?? 0)
@@ -133,6 +137,7 @@ export default function WarehouseOverviewPage() {
     const { data: prods } = await supabase
       .from('products')
       .select('sku, name, unit, expiry_days, manufacture_date')
+      .eq('tenant_id', tenantId)
       .not('manufacture_date', 'is', null)
       .not('expiry_days', 'is', null)
       .eq('status', 'active')
@@ -170,17 +175,21 @@ export default function WarehouseOverviewPage() {
       supabase
         .from('products')
         .select('id, sku, name, unit, purchase_price, min_stock')
+        .eq('tenant_id', tenantId)
         .eq('status', 'active'),
       supabase
         .from('inventory')
-        .select('product_id, warehouse_id, quantity'),
+        .select('product_id, warehouse_id, quantity')
+        .eq('tenant_id', tenantId),
       supabase
         .from('warehouses')
         .select('id, name')
+        .eq('tenant_id', tenantId)
         .eq('status', 'active'),
       supabase
         .from('sales_orders')
         .select('id')
+        .eq('tenant_id', tenantId)
         .gte('order_date', ago90)
         .in('status', ['confirmed', 'picking', 'delivering', 'completed']),
     ])
@@ -192,6 +201,7 @@ export default function WarehouseOverviewPage() {
       const { data: itemsRaw } = await supabase
         .from('sales_order_items')
         .select('product_id, quantity')
+        .eq('tenant_id', tenantId)
         .in('order_id', orderIds)
         .limit(5000)
       for (const item of (itemsRaw ?? []) as { product_id: string; quantity: number }[]) {
@@ -315,8 +325,8 @@ export default function WarehouseOverviewPage() {
 
     // ── Phiếu nhập / xuất tháng hiện tại ─────────────────────────────────────
     const [{ count: receiptCount }, { count: issueCount }] = await Promise.all([
-      supabase.from('stock_receipts').select('id', { count: 'exact', head: true }).gte('receipt_date', monthStart),
-      supabase.from('stock_issues').select('id', { count: 'exact', head: true }).gte('issue_date', monthStart),
+      supabase.from('stock_receipts').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).gte('receipt_date', monthStart),
+      supabase.from('stock_issues').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).gte('issue_date', monthStart),
     ])
     setKpis(k => ({ ...k, receiptCount: receiptCount ?? 0, issueCount: issueCount ?? 0 }))
 
@@ -324,9 +334,11 @@ export default function WarehouseOverviewPage() {
     const [{ data: receipts }, { data: issues }] = await Promise.all([
       supabase.from('stock_receipts')
         .select('code, receipt_date, status, total_amount, warehouse:warehouses(name)')
+        .eq('tenant_id', tenantId)
         .order('receipt_date', { ascending: false }).limit(5),
       supabase.from('stock_issues')
         .select('code, issue_date, status, warehouse:warehouses(name)')
+        .eq('tenant_id', tenantId)
         .order('issue_date', { ascending: false }).limit(5),
     ])
 
@@ -451,7 +463,7 @@ export default function WarehouseOverviewPage() {
               </div>
             ))}
           </div>
-          <a href="/kho-hang/san-pham" className="text-xs text-[#0ea5e9] hover:underline shrink-0">Xem chi tiết →</a>
+          <a href="/kho-hang/san-pham" className="text-xs text-[var(--mia-primary)] hover:underline shrink-0">Xem chi tiết →</a>
         </div>
       )}
 
@@ -476,7 +488,7 @@ export default function WarehouseOverviewPage() {
                 {suggestedOrders.length} sản phẩm
               </span>
             </div>
-            <a href="/mua-hang/don-mua-hang" className="text-xs text-[#0ea5e9] hover:underline">
+            <a href="/mua-hang/don-mua-hang" className="text-xs text-[var(--mia-primary)] hover:underline">
               Tạo đơn mua hàng →
             </a>
           </div>
@@ -495,7 +507,7 @@ export default function WarehouseOverviewPage() {
                   const warn   = !urgent && (p.dos !== null && p.dos <= 14)
                   return (
                     <tr key={p.sku} className="border-b border-[#e5e7eb] last:border-0 hover:bg-gray-50">
-                      <td className="px-4 py-3 text-xs font-mono text-[#0ea5e9]">{p.sku}</td>
+                      <td className="px-4 py-3 text-xs font-mono text-[var(--mia-primary)]">{p.sku}</td>
                       <td className="px-4 py-3 text-xs font-medium text-[#1e2a3a] max-w-[200px] truncate">{p.name}</td>
                       <td className="px-4 py-3 text-xs font-semibold text-red-600">
                         {p.stock === 0 ? 'Hết hàng' : `${p.stock.toLocaleString('vi-VN')} ${p.unit}`}
@@ -560,7 +572,7 @@ export default function WarehouseOverviewPage() {
                         <td className="py-3 text-xs font-medium text-[#1e2a3a]">{w.name}</td>
                         <td className="py-3 text-xs text-gray-700">{w.skuCount.toLocaleString('vi-VN')}</td>
                         <td className="py-3 text-xs text-gray-700">{w.totalQty.toLocaleString('vi-VN')}</td>
-                        <td className="py-3 text-xs font-semibold text-[#0ea5e9]">{formatVND(w.totalValue)}</td>
+                        <td className="py-3 text-xs font-semibold text-[var(--mia-primary)]">{formatVND(w.totalValue)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -573,7 +585,7 @@ export default function WarehouseOverviewPage() {
           <div className="bg-white rounded-xl border border-[#e5e7eb]">
             <div className="flex items-center justify-between px-4 py-3 border-b border-[#e5e7eb]">
               <h2 className="text-sm font-semibold text-[#1e2a3a]">Giao dịch kho gần đây</h2>
-              <a href="/kho-hang/nhap-kho" className="text-xs text-[#0ea5e9] hover:underline">Xem tất cả →</a>
+              <a href="/kho-hang/nhap-kho" className="text-xs text-[var(--mia-primary)] hover:underline">Xem tất cả →</a>
             </div>
             {loading ? (
               <div className="p-4 space-y-3">
@@ -594,7 +606,7 @@ export default function WarehouseOverviewPage() {
                   <tbody>
                     {movements.map(m => (
                       <tr key={m.code + m.type} className="border-b border-[#e5e7eb] last:border-0 hover:bg-gray-50">
-                        <td className="px-4 py-3 text-xs font-medium text-[#0ea5e9]">{m.code}</td>
+                        <td className="px-4 py-3 text-xs font-medium text-[var(--mia-primary)]">{m.code}</td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center gap-1 text-xs font-medium ${m.type === 'in' ? 'text-green-600' : 'text-orange-600'}`}>
                             {m.type === 'in' ? <ArrowDownToLine size={11} /> : <ArrowUpFromLine size={11} />}
@@ -709,7 +721,7 @@ export default function WarehouseOverviewPage() {
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-xs font-semibold text-[#0ea5e9]">{formatVND(p.value)}</p>
+                      <p className="text-xs font-semibold text-[var(--mia-primary)]">{formatVND(p.value)}</p>
                       {p.qty === 0 && <p className="text-[9px] text-gray-400">giá nhập</p>}
                     </div>
                   </div>
@@ -776,7 +788,7 @@ export default function WarehouseOverviewPage() {
                 })}
                 {expiryProducts.length > 10 && (
                   <div className="px-4 py-2 text-center">
-                    <a href="/kho-hang/san-pham" className="text-[10px] text-[#0ea5e9] hover:underline">
+                    <a href="/kho-hang/san-pham" className="text-[10px] text-[var(--mia-primary)] hover:underline">
                       Xem thêm {expiryProducts.length - 10} sản phẩm →
                     </a>
                   </div>

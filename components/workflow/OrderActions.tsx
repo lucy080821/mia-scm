@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { getAvailableTransitions, type OrderStatus, type UserRole } from '@/lib/workflow/orderStateMachine'
 
 interface OrderActionsProps {
@@ -19,7 +19,7 @@ export default function OrderActions({
     <div className="flex flex-wrap gap-1.5">
       {transitions.map(t => {
         const colors = {
-          primary:   'bg-[#0ea5e9] text-white hover:bg-[#0284c7]',
+          primary:   'bg-[var(--mia-primary)] text-white hover:opacity-90',
           danger:    'bg-red-500 text-white hover:bg-red-600',
           secondary: 'bg-gray-100 text-gray-700 hover:bg-gray-200',
         }

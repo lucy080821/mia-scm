@@ -7,6 +7,7 @@ import { canAccess } from '@/lib/auth-client'
 import { useAuth } from '@/hooks/useAuth'
 import { TenantProvider } from '@/contexts/TenantContext'
 import TabSync from '@/components/layout/TabSync'
+import TenantManifestSync from '@/components/layout/TenantManifestSync'
 import { ShieldX } from 'lucide-react'
 import { useOrdersRealtime } from '@/hooks/useOrdersRealtime'
 import { pushNotification } from '@/lib/realtime-notifs'
@@ -85,6 +86,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <TenantProvider>
       <TabSync />
+      <TenantManifestSync />
       <div className="flex h-full bg-[#f0f2f5]">
         <Sidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
         <div className="flex flex-col flex-1 lg:ml-[200px] min-h-screen min-w-0">

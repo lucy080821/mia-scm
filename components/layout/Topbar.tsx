@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { Bell, Search, Menu, ChevronDown, LogOut, UserCircle, UserCog, KeyRound } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
@@ -87,7 +87,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
             onClick={() => setDropOpen(v => !v)}
             className="flex items-center gap-2 hover:bg-gray-50 rounded-lg px-2 py-1 transition-colors"
           >
-            <div className="w-7 h-7 rounded-full bg-[#0ea5e9] flex items-center justify-center text-white text-xs font-bold shrink-0 overflow-hidden">
+            <div className="w-7 h-7 rounded-full bg-[var(--mia-primary)] flex items-center justify-center text-white text-xs font-bold shrink-0 overflow-hidden">
               {user?.avatarUrl
                 ? <img src={user.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
                 : (user?.initials ?? <UserCircle size={14} />)}
@@ -107,7 +107,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
             <div className="absolute right-0 top-full mt-1 w-60 bg-white border border-[#e5e7eb] rounded-xl shadow-lg py-1 z-50">
               {/* User info header */}
               <div className="flex items-center gap-3 px-4 py-3 border-b border-[#e5e7eb]">
-                <div className="w-9 h-9 rounded-full bg-[#0ea5e9] flex items-center justify-center text-white text-sm font-bold shrink-0 overflow-hidden">
+                <div className="w-9 h-9 rounded-full bg-[var(--mia-primary)] flex items-center justify-center text-white text-sm font-bold shrink-0 overflow-hidden">
                   {user?.avatarUrl
                     ? <img src={user.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
                     : (user?.initials ?? '?')}
@@ -153,7 +153,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
         </div>
       </header>
 
-      {profileOpen && (
+      {profileOpen && user && (
         <ProfileModal
           user={user}
           initialTab={profileTab}
