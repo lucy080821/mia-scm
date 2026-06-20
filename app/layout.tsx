@@ -11,10 +11,6 @@ export const metadata: Metadata = {
     statusBarStyle: 'default',
     title: 'Mia SCM',
   },
-  icons: {
-    icon: '/api/favicon',
-    apple: '/api/logo',
-  },
 }
 
 export const viewport: Viewport = {
@@ -28,6 +24,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="vi" className="h-full">
       <head>
         <meta charSet="utf-8" />
+        {/* Inject trực tiếp — không dùng metadata.icons để Next.js không thêm type/sizes cứng */}
+        <link rel="icon" href="/api/favicon" />
+        <link rel="apple-touch-icon" href="/api/logo" />
       </head>
       <body className="h-full" suppressHydrationWarning>
         <ServiceWorkerRegistrar />
