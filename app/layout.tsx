@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     title: 'Mia SCM',
   },
   icons: {
-    icon: '/api/favicon',
+    icon: '/mia-logo.png',
     apple: '/mia-logo.png',
   },
 }
