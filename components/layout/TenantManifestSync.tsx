@@ -31,23 +31,25 @@ export default function TenantManifestSync() {
     titleMeta.content = tenant.name ?? 'Mia SCM'
 
     if (tenant.logoUrl) {
-      // favicon
+      // Dùng /api/logo (proxy cùng origin) thay vì link CDN ngoài
+      // — trình duyệt chặn cross-origin favicon/apple-touch-icon
+      const proxyUrl = '/api/logo'
+
       let favicon = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
       if (!favicon) {
         favicon = document.createElement('link')
         favicon.rel = 'icon'
         document.head.appendChild(favicon)
       }
-      favicon.href = tenant.logoUrl
+      favicon.href = proxyUrl
 
-      // apple-touch-icon
       let appleIcon = document.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]')
       if (!appleIcon) {
         appleIcon = document.createElement('link')
         appleIcon.rel = 'apple-touch-icon'
         document.head.appendChild(appleIcon)
       }
-      appleIcon.href = tenant.logoUrl
+      appleIcon.href = proxyUrl
     }
   }, [tenant.primaryColor, tenant.logoUrl, tenant.name])
 
