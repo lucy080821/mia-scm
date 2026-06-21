@@ -661,7 +661,7 @@ export default function DonMuaHangPage() {
                   <td className="px-4 py-3">
                     <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${s.className}`}>{s.label}</span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 whitespace-nowrap">
                     {p.status === 'draft' && (
                       <div className="flex items-center gap-1.5">
                         <button onClick={() => setEditTarget(p)}

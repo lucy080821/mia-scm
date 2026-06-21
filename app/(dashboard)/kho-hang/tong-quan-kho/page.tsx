@@ -1,6 +1,6 @@
 ﻿'use client'
 import { useState, useEffect } from 'react'
-import { Package, TrendingDown, AlertTriangle, ArrowDownToLine, ArrowUpFromLine, Warehouse, Calendar } from 'lucide-react'
+import { Package, TrendingDown, AlertTriangle, ArrowDownToLine, ArrowUpFromLine, Warehouse, Calendar, X, Trash2 } from 'lucide-react'
 import PageHeader from '@/components/layout/PageHeader'
 import KpiCard from '@/components/ui/KpiCard'
 import AiSuggestionBox from '@/components/ui/AiSuggestionBox'
@@ -104,6 +104,8 @@ export default function WarehouseOverviewPage() {
   const [suggestedOrders, setSuggestedOrders] = useState<SuggestedOrder[]>([])
   const [aiContent, setAiContent]         = useState('Đang phân tích dữ liệu tồn kho...')
   const [creatingPO, setCreatingPO]       = useState(false)
+  const [reviewItems, setReviewItems]     = useState<{ sku: string; name: string; unit: string; quantity: number; unit_price: number }[]>([])
+  const [showReview, setShowReview]       = useState(false)
 
   useEffect(() => {
     if (!tenantId) return
@@ -367,12 +369,24 @@ export default function WarehouseOverviewPage() {
     setLoading(false)
   }
 
-  async function handleCreatePO() {
-    if (creatingPO) return
-    const items = suggestedOrders.length > 0
-      ? suggestedOrders.map(s => ({ sku: s.sku, quantity: Math.max(Math.round(s.eoq), 1) }))
-      : alertItems.map(a => ({ sku: a.sku, quantity: Math.max(Math.round(a.eoq > 0 ? a.eoq : a.min_stock), 1) }))
-    if (!items.length) return
+  function handleOpenReview() {
+    const source = suggestedOrders.length > 0 ? suggestedOrders : alertItems.map(a => ({
+      sku: a.sku, name: a.name, unit: a.unit, stock: a.stock, rop: a.rop,
+      eoq: a.eoq > 0 ? a.eoq : a.min_stock, dos: null, product_id: '', purchase_price: 0,
+    }))
+    if (!source.length) return
+    setReviewItems(source.map(s => ({
+      sku: s.sku,
+      name: s.name,
+      unit: s.unit,
+      quantity: Math.max(Math.round(s.eoq), 1),
+      unit_price: s.purchase_price ?? 0,
+    })))
+    setShowReview(true)
+  }
+
+  async function handleCreatePO(items: { sku: string; quantity: number }[]) {
+    if (creatingPO || !items.length) return
     setCreatingPO(true)
     try {
       const res = await fetch('/api/purchase-orders/from-ai', {
@@ -419,7 +433,7 @@ export default function WarehouseOverviewPage() {
   }
 
   return (
-    <div>
+    <><div>
       <PageHeader title="Tổng quan kho" subtitle="Quản lý tồn kho toàn hệ thống" />
 
       {/* KPI — 2 rows × 4 */}
@@ -501,9 +515,9 @@ export default function WarehouseOverviewPage() {
         <AiSuggestionBox
           title="AI Phân tích tồn kho (ROP · EOQ · ABC)"
           content={aiContent}
-          actionLabel={creatingPO ? 'Đang tạo đơn...' : 'Tạo đơn đặt hàng'}
+          actionLabel="Xem & chỉnh sửa đơn"
           actionDisabled={creatingPO || (suggestedOrders.length === 0 && alertItems.length === 0)}
-          onAction={handleCreatePO}
+          onAction={handleOpenReview}
         />
       </div>
 
@@ -829,5 +843,81 @@ export default function WarehouseOverviewPage() {
         </div>
       </div>
     </div>
+
+    {/* Review & edit modal for AI-suggested order */}
+    {showReview && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-[#e5e7eb]">
+            <div>
+              <h2 className="text-base font-bold text-[#1e2a3a]">Xem lại đơn đặt hàng gợi ý</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Chỉnh sửa số lượng trước khi tạo đơn bản nháp</p>
+            </div>
+            <button onClick={() => setShowReview(false)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={16} /></button>
+          </div>
+
+          <div className="overflow-y-auto flex-1 p-6">
+            <div className="space-y-2">
+              <div className="grid grid-cols-12 gap-2 px-2 mb-1">
+                <span className="col-span-1 text-xs text-gray-400">SKU</span>
+                <span className="col-span-4 text-xs text-gray-400">Tên sản phẩm</span>
+                <span className="col-span-2 text-xs text-gray-400 text-center">ĐVT</span>
+                <span className="col-span-2 text-xs text-gray-400 text-center">Số lượng</span>
+                <span className="col-span-2 text-xs text-gray-400 text-right">Đơn giá</span>
+                <span className="col-span-1"></span>
+              </div>
+              {reviewItems.map((it, i) => (
+                <div key={i} className="grid grid-cols-12 gap-2 items-center bg-gray-50 rounded-lg px-2 py-2">
+                  <span className="col-span-1 text-[10px] text-gray-400 truncate">{it.sku}</span>
+                  <span className="col-span-4 text-xs font-medium text-[#1e2a3a] truncate">{it.name}</span>
+                  <span className="col-span-2 text-xs text-gray-500 text-center">{it.unit}</span>
+                  <input
+                    type="number" min={1} value={it.quantity}
+                    onChange={e => setReviewItems(prev => prev.map((r, idx) => idx === i ? { ...r, quantity: Math.max(1, +e.target.value) } : r))}
+                    className="col-span-2 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg bg-white text-center outline-none focus:border-[var(--mia-primary)]"
+                  />
+                  <span className="col-span-2 text-xs text-gray-400 text-right">
+                    {it.unit_price > 0 ? formatVND(it.unit_price) : '—'}
+                  </span>
+                  <button onClick={() => setReviewItems(prev => prev.filter((_, idx) => idx !== i))}
+                    className="col-span-1 flex justify-center text-gray-300 hover:text-red-400 transition-colors">
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              ))}
+              {reviewItems.length === 0 && (
+                <p className="text-sm text-gray-400 text-center py-6">Không còn sản phẩm nào</p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between px-6 py-4 border-t border-[#e5e7eb] bg-gray-50 rounded-b-2xl">
+            <div>
+              <span className="text-xs text-gray-400">Tổng cộng</span>
+              <p className="text-base font-bold text-[var(--mia-primary)]">
+                {formatVND(reviewItems.reduce((s, it) => s + it.quantity * it.unit_price, 0))}
+              </p>
+              <p className="text-xs text-gray-400">{reviewItems.length} sản phẩm</p>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setShowReview(false)}
+                className="px-4 py-2 text-sm border border-[#e5e7eb] text-gray-600 rounded-lg hover:bg-gray-100 transition-colors font-medium">
+                Huỷ
+              </button>
+              <button
+                disabled={creatingPO || reviewItems.length === 0}
+                onClick={async () => {
+                  setShowReview(false)
+                  await handleCreatePO(reviewItems.map(it => ({ sku: it.sku, quantity: it.quantity })))
+                }}
+                className="px-4 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-95">
+                {creatingPO ? 'Đang tạo...' : 'Tạo đơn bản nháp'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }
