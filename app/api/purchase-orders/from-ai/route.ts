@@ -48,22 +48,27 @@ export async function POST(req: NextRequest) {
       const code = `${prefix}-${String((count ?? 0) + createdOrders.length + 1).padStart(3, '0')}`
       const total_amount = group.rows.reduce((s, r) => s + r.quantity * r.unit_price, 0)
 
+      const insertPayload: Record<string, unknown> = {
+        code,
+        order_date: today,
+        expected_date: expectedDate,
+        total_amount,
+        status: 'draft',
+        note: 'Tự động tạo bởi AI phân tích tồn kho — cần xem xét và duyệt',
+        tenant_id: tenantId,
+      }
+      if (group.supplier_id) insertPayload.supplier_id = group.supplier_id
+
       const { data: po, error: poErr } = await supabaseAdmin
         .from('purchase_orders')
-        .insert({
-          code,
-          supplier_id: group.supplier_id,
-          order_date: today,
-          expected_date: expectedDate,
-          total_amount,
-          status: 'draft',
-          note: 'Tự động tạo bởi AI phân tích tồn kho — cần xem xét và duyệt',
-          tenant_id: tenantId,
-        })
+        .insert(insertPayload)
         .select('id, code')
         .single()
 
-      if (poErr || !po) continue
+      if (poErr || !po) {
+        console.error('[from-ai] PO insert error:', poErr?.message)
+        continue
+      }
 
       await supabaseAdmin.from('purchase_order_items').insert(
         group.rows.map(r => ({
@@ -79,7 +84,11 @@ export async function POST(req: NextRequest) {
     }
 
     if (!createdOrders.length) {
-      return NextResponse.json({ error: 'Không tạo được đơn. Kiểm tra lại sản phẩm và nhà cung cấp.' }, { status: 400 })
+      const hasNoSupplier = Object.values(groups).every(g => !g.supplier_id)
+      const msg = hasNoSupplier
+        ? 'Sản phẩm chưa được gán nhà cung cấp. Vui lòng chạy migration supabase/make-po-supplier-optional.sql trong Supabase Dashboard rồi thử lại.'
+        : 'Không tạo được đơn — lỗi database. Kiểm tra Supabase logs.'
+      return NextResponse.json({ error: msg }, { status: 400 })
     }
 
     return NextResponse.json({ orders: createdOrders })
