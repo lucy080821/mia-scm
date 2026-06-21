@@ -99,9 +99,9 @@ export async function POST(
 
   // ── CUSTOMERS ─────────────────────────────────────────────────────────────
   } else if (type === 'customers') {
-    const { count: existing } = await supabaseAdmin
+    const { count: custCount } = await supabaseAdmin
       .from('customers').select('*', { count: 'exact', head: true }).eq('tenant_id', caller.tenant_id)
-    let seq = (existing ?? 0) + 1
+    let seq = (custCount ?? 0) + 1
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i]
@@ -119,10 +119,10 @@ export async function POST(
           status:         row.status?.trim() || 'active',
         }
         // Upsert: cập nhật nếu code đã tồn tại trong tenant, insert nếu chưa có
-        const { data: existing } = await supabaseAdmin
+        const { data: existingCust } = await supabaseAdmin
           .from('customers').select('id').eq('code', code).eq('tenant_id', caller.tenant_id).maybeSingle()
-        if (existing) {
-          const { error } = await supabaseAdmin.from('customers').update(payload).eq('id', existing.id)
+        if (existingCust) {
+          const { error } = await supabaseAdmin.from('customers').update(payload).eq('id', existingCust.id)
           if (error) throw new Error(error.message)
         } else {
           const { error } = await supabaseAdmin.from('customers').insert({ code, ...payload, tenant_id: caller.tenant_id })
