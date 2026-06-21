@@ -83,6 +83,8 @@ interface SuggestedOrder {
   rop: number
   eoq: number
   dos: number | null
+  product_id: string
+  purchase_price: number
 }
 
 export default function WarehouseOverviewPage() {
@@ -101,6 +103,7 @@ export default function WarehouseOverviewPage() {
   const [totalProductCount, setTotalProductCount] = useState(0)
   const [suggestedOrders, setSuggestedOrders] = useState<SuggestedOrder[]>([])
   const [aiContent, setAiContent]         = useState('Đang phân tích dữ liệu tồn kho...')
+  const [creatingPO, setCreatingPO]       = useState(false)
 
   useEffect(() => {
     if (!tenantId) return
@@ -174,7 +177,7 @@ export default function WarehouseOverviewPage() {
     ] = await Promise.all([
       supabase
         .from('products')
-        .select('id, sku, name, unit, purchase_price, min_stock')
+        .select('id, sku, name, unit, purchase_price, min_stock, supplier_id')
         .eq('tenant_id', tenantId)
         .eq('status', 'active'),
       supabase
@@ -212,7 +215,7 @@ export default function WarehouseOverviewPage() {
       }
     }
 
-    type ProdRow = { id: string; sku: string; name: string; unit: string; purchase_price: number; min_stock: number }
+    type ProdRow = { id: string; sku: string; name: string; unit: string; purchase_price: number; min_stock: number; supplier_id: string | null }
     type InvRow  = { product_id: string; warehouse_id: string; quantity: number }
     type WhRow   = { id: string; name: string }
 
@@ -314,7 +317,7 @@ export default function WarehouseOverviewPage() {
         const rop   = calcROP(avg)
         const eoq   = calcEOQ(avg, p.purchase_price)
         const dos   = avg > 0 ? Math.floor(stock / avg) : null
-        return { sku: p.sku, name: p.name, unit: p.unit, stock, rop, eoq, dos }
+        return { sku: p.sku, name: p.name, unit: p.unit, stock, rop, eoq, dos, product_id: p.id, purchase_price: p.purchase_price }
       })
       .filter(p => p.eoq > 0 && (p.stock <= p.rop || (p.dos !== null && p.dos <= 30)))
       .sort((a, b) => (a.dos ?? 9999) - (b.dos ?? 9999))
@@ -358,6 +361,26 @@ export default function WarehouseOverviewPage() {
     setMovements(movList)
 
     setLoading(false)
+  }
+
+  async function handleCreatePO() {
+    if (!suggestedOrders.length || creatingPO) return
+    setCreatingPO(true)
+    try {
+      const res = await fetch('/api/purchase-orders/from-ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: suggestedOrders.map(s => ({ sku: s.sku, quantity: Math.max(Math.round(s.eoq), 1) }))
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Lỗi tạo đơn')
+      window.location.href = '/mua-hang/don-mua-hang'
+    } catch (e: unknown) {
+      setCreatingPO(false)
+      setAiContent(`❌ ${e instanceof Error ? e.message : 'Lỗi tạo đơn đặt hàng. Thử lại sau.'}`)
+    }
   }
 
   async function fetchAiSuggestion(alerts: AlertItem[]) {
@@ -472,8 +495,9 @@ export default function WarehouseOverviewPage() {
         <AiSuggestionBox
           title="AI Phân tích tồn kho (ROP · EOQ · ABC)"
           content={aiContent}
-          actionLabel="Tạo đơn đặt hàng"
-          onAction={() => { window.location.href = '/mua-hang/don-mua-hang' }}
+          actionLabel={creatingPO ? 'Đang tạo đơn...' : 'Tạo đơn đặt hàng'}
+          actionDisabled={creatingPO || suggestedOrders.length === 0}
+          onAction={handleCreatePO}
         />
       </div>
 

@@ -6,10 +6,11 @@ interface AiSuggestionBoxProps {
   content: string
   actionLabel?: string
   onAction?: () => void
+  actionDisabled?: boolean
   loading?: boolean
 }
 
-export default function AiSuggestionBox({ title, content, actionLabel, onAction, loading }: AiSuggestionBoxProps) {
+export default function AiSuggestionBox({ title, content, actionLabel, onAction, actionDisabled, loading }: AiSuggestionBoxProps) {
   return (
     <div className="rounded-xl border border-sky-200 bg-gradient-to-br from-sky-50 to-blue-50 p-4">
       <div className="flex items-start gap-3">
@@ -22,7 +23,7 @@ export default function AiSuggestionBox({ title, content, actionLabel, onAction,
           />
           {actionLabel && onAction && (
             <div className="mt-3">
-              <Button size="sm" onClick={onAction} loading={loading}>
+              <Button size="sm" onClick={onAction} loading={loading} disabled={actionDisabled}>
                 {actionLabel}
               </Button>
             </div>
