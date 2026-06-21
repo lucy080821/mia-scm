@@ -1,6 +1,6 @@
 ﻿'use client'
 import { useState, useEffect } from 'react'
-import { Plus, Search, ClipboardList, Clock, CheckCircle, Send, X, Trash2, ChevronRight, Copy, Check } from 'lucide-react'
+import { Plus, Search, ClipboardList, Clock, CheckCircle, Send, X, Trash2, ChevronRight, Copy, Check, Pencil } from 'lucide-react'
 import PageHeader from '@/components/layout/PageHeader'
 import ExportButton from '@/components/ui/ExportButton'
 import { formatVND, formatDate } from '@/lib/utils'
@@ -156,6 +156,145 @@ function CreatePOModal({ onClose, onCreate }: {
             <button onClick={() => handleSubmit('pending')} disabled={!supplierId || items.every(it => !it.product_id)}
               className="px-4 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-40 transition-all hover:scale-[1.02] active:scale-95">
               <Send size={13} className="inline mr-1.5" />Gửi duyệt
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Edit PO Modal ────────────────────────────────────────────────────────────
+function EditPOModal({ po, onClose, onSave }: {
+  po: PurchaseOrder
+  onClose: () => void
+  onSave: (id: string, patch: { supplier_id: string; expected_date: string; note: string; items: POItem[] }) => Promise<void>
+}) {
+  const { id: tenantId } = useTenant()
+  const [supplierId, setSupplierId] = useState(po.supplier_id)
+  const [expectedDate, setExpectedDate] = useState(po.expected_date)
+  const [note, setNote] = useState(po.note)
+  const [items, setItems] = useState<POItem[]>(po.items.length ? po.items : [{ product_id: '', name: '', unit: '', quantity: 1, unit_price: 0 }])
+  const [dbSuppliers, setDbSuppliers] = useState<{ id: string; name: string }[]>([])
+  const [dbProducts, setDbProducts] = useState<{ id: string; name: string; unit: string; purchase_price: number }[]>([])
+  const [saving, setSaving] = useState(false)
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!tenantId) return
+    supabase.from('suppliers').select('id, name').eq('status', 'active').eq('tenant_id', tenantId).order('name').limit(200)
+      .then(({ data }) => setDbSuppliers(data ?? []))
+    supabase.from('products').select('id, name, unit, purchase_price').eq('status', 'active').eq('tenant_id', tenantId).order('name').limit(300)
+      .then(({ data }) => setDbProducts(data ?? []))
+  }, [tenantId])
+
+  const addItem = () => setItems(prev => [...prev, { product_id: '', name: '', unit: '', quantity: 1, unit_price: 0 }])
+  const removeItem = (i: number) => setItems(prev => prev.filter((_, idx) => idx !== i))
+  const updateItem = (i: number, field: string, val: string | number) => {
+    setItems(prev => {
+      const next = [...prev]
+      if (field === 'product_id') {
+        const p = dbProducts.find(p => p.id === val)
+        next[i] = { ...next[i], product_id: val as string, name: p?.name ?? next[i].name, unit: p?.unit ?? next[i].unit, unit_price: p?.purchase_price ?? next[i].unit_price }
+      } else {
+        next[i] = { ...next[i], [field]: val }
+      }
+      return next
+    })
+  }
+
+  const total = items.reduce((s, it) => s + it.quantity * it.unit_price, 0)
+
+  const handleSave = async () => {
+    setSaving(true)
+    await onSave(po.id, { supplier_id: supplierId, expected_date: expectedDate, note, items })
+    setSaving(false)
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#e5e7eb]">
+          <div>
+            <h2 className="text-base font-bold text-[#1e2a3a]">Chỉnh sửa đơn mua hàng</h2>
+            <p className="text-xs text-gray-400 mt-0.5">{po.code}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={16} /></button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 p-6 space-y-5">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1.5">Nhà cung cấp</label>
+              <select value={supplierId} onChange={e => setSupplierId(e.target.value)}
+                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]">
+                <option value="">-- Chọn NCC --</option>
+                {dbSuppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1.5">Ngày giao dự kiến</label>
+              <input type="date" value={expectedDate} onChange={e => setExpectedDate(e.target.value)}
+                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-semibold text-gray-500">Danh sách sản phẩm</label>
+              <button onClick={addItem} className="flex items-center gap-1 text-xs text-[var(--mia-primary)] font-medium hover:text-[#0284c7] transition-colors">
+                <Plus size={12} /> Thêm dòng
+              </button>
+            </div>
+            <div className="space-y-2">
+              <div className="grid grid-cols-12 gap-2 px-2">
+                <span className="col-span-5 text-xs text-gray-400">Sản phẩm</span>
+                <span className="col-span-2 text-xs text-gray-400 text-center">Số lượng</span>
+                <span className="col-span-3 text-xs text-gray-400 text-right">Đơn giá</span>
+                <span className="col-span-2 text-xs text-gray-400 text-right">Thành tiền</span>
+              </div>
+              {items.map((it, i) => (
+                <div key={i} className="grid grid-cols-12 gap-2 items-center bg-gray-50 rounded-lg px-2 py-2">
+                  <select value={it.product_id} onChange={e => updateItem(i, 'product_id', e.target.value)}
+                    className="col-span-5 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg bg-white outline-none focus:border-[var(--mia-primary)]">
+                    <option value="">-- Chọn SP --</option>
+                    {dbProducts.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                  <input type="number" min={1} value={it.quantity} onChange={e => updateItem(i, 'quantity', +e.target.value)}
+                    className="col-span-2 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg bg-white text-center outline-none focus:border-[var(--mia-primary)]" />
+                  <input type="number" value={it.unit_price} onChange={e => updateItem(i, 'unit_price', +e.target.value)}
+                    className="col-span-3 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg bg-white text-right outline-none focus:border-[var(--mia-primary)]" />
+                  <div className="col-span-1 text-right text-xs font-semibold text-[#1e2a3a]">
+                    {it.quantity * it.unit_price > 0 ? (it.quantity * it.unit_price / 1000000).toFixed(1) + 'M' : '—'}
+                  </div>
+                  <button onClick={() => removeItem(i)} className="col-span-1 flex justify-center text-gray-300 hover:text-red-400 transition-colors">
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Ghi chú</label>
+            <textarea value={note} onChange={e => setNote(e.target.value)} rows={2}
+              className="w-full px-3 py-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] resize-none" />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between px-6 py-4 border-t border-[#e5e7eb] bg-gray-50 rounded-b-2xl">
+          <div>
+            <span className="text-xs text-gray-400">Tổng cộng</span>
+            <p className="text-lg font-bold text-[var(--mia-primary)]">{formatVND(total)}</p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={onClose} className="px-4 py-2 text-sm border border-[#e5e7eb] text-gray-600 rounded-lg hover:bg-gray-100 transition-colors font-medium">
+              Huỷ
+            </button>
+            <button onClick={handleSave} disabled={saving}
+              className="px-4 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-95">
+              {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
             </button>
           </div>
         </div>
@@ -336,6 +475,7 @@ export default function DonMuaHangPage() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [showCreate, setShowCreate] = useState(false)
   const [detail, setDetail] = useState<PurchaseOrder | null>(null)
+  const [editTarget, setEditTarget] = useState<PurchaseOrder | null>(null)
   const [sendTarget, setSendTarget] = useState<PurchaseOrder | null>(null)
   const [approveTarget, setApproveTarget] = useState<PurchaseOrder | null>(null)
   const [toast, setToast] = useState('')
@@ -405,6 +545,28 @@ export default function DonMuaHangPage() {
       }
     } catch (e) {
       showToast('Lỗi kết nối — không thể lưu đơn mua hàng')
+    }
+  }
+
+  const handleEdit = async (id: string, patch: { supplier_id: string; expected_date: string; note: string; items: POItem[] }) => {
+    const res = await fetch(`/api/purchase-orders/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        supplier_id: patch.supplier_id || null,
+        expected_date: patch.expected_date || null,
+        note: patch.note || null,
+        items: patch.items.filter(it => it.product_id).map(it => ({
+          product_id: it.product_id, quantity: it.quantity, unit_price: it.unit_price,
+        })),
+      }),
+    })
+    if (res.ok) {
+      showToast('Đã lưu thay đổi')
+      await loadPOs()
+    } else {
+      const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }))
+      showToast(`Lỗi: ${err.error}`)
     }
   }
 
@@ -501,10 +663,16 @@ export default function DonMuaHangPage() {
                   </td>
                   <td className="px-4 py-3">
                     {p.status === 'draft' && (
-                      <button onClick={() => handleSubmitForApproval(p.id)}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-[var(--mia-primary)] text-white text-xs font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all">
-                        <Send size={11} />Gửi duyệt
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <button onClick={() => setEditTarget(p)}
+                          className="flex items-center gap-1 px-2.5 py-1.5 border border-[#e5e7eb] text-gray-600 text-xs font-medium rounded-lg hover:bg-gray-100 transition-all">
+                          <Pencil size={11} />Sửa
+                        </button>
+                        <button onClick={() => handleSubmitForApproval(p.id)}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-[var(--mia-primary)] text-white text-xs font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all">
+                          <Send size={11} />Gửi duyệt
+                        </button>
+                      </div>
                     )}
                     {p.status === 'pending' && isAdmin && (
                       <button onClick={() => setApproveTarget(p)}
@@ -545,6 +713,14 @@ export default function DonMuaHangPage() {
       )}
 
       {showCreate && <CreatePOModal onClose={() => setShowCreate(false)} onCreate={handleCreate} />}
+
+      {editTarget && (
+        <EditPOModal
+          po={editTarget}
+          onClose={() => setEditTarget(null)}
+          onSave={handleEdit}
+        />
+      )}
 
       {approveTarget && (
         <ApprovalModal
