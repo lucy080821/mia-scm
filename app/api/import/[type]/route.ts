@@ -100,15 +100,14 @@ export async function POST(
   // ── CUSTOMERS ─────────────────────────────────────────────────────────────
   } else if (type === 'customers') {
     const { count: existing } = await supabaseAdmin
-      .from('customers').select('*', { count: 'exact', head: true })
+      .from('customers').select('*', { count: 'exact', head: true }).eq('tenant_id', caller.tenant_id)
     let seq = (existing ?? 0) + 1
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i]
       try {
         const code = row.code?.trim() || `CUS${String(seq++).padStart(4, '0')}`
-        const { error } = await supabaseAdmin.from('customers').insert({
-          code,
+        const payload = {
           name:           row.name?.trim(),
           short_name:     row.short_name?.trim() || null,
           type:           row.type?.trim() || 'company',
@@ -118,9 +117,17 @@ export async function POST(
           credit_limit:   toNum(row.credit_limit) ?? 0,
           payment_term:   toNum(row.payment_term) ?? 30,
           status:         row.status?.trim() || 'active',
-          tenant_id:      caller.tenant_id,
-        })
-        if (error) throw new Error(error.message)
+        }
+        // Upsert: cập nhật nếu code đã tồn tại trong tenant, insert nếu chưa có
+        const { data: existing } = await supabaseAdmin
+          .from('customers').select('id').eq('code', code).eq('tenant_id', caller.tenant_id).maybeSingle()
+        if (existing) {
+          const { error } = await supabaseAdmin.from('customers').update(payload).eq('id', existing.id)
+          if (error) throw new Error(error.message)
+        } else {
+          const { error } = await supabaseAdmin.from('customers').insert({ code, ...payload, tenant_id: caller.tenant_id })
+          if (error) throw new Error(error.message)
+        }
         inserted++
       } catch (e: unknown) {
         errors.push({ line: i + 2, message: e instanceof Error ? e.message : String(e) })
@@ -129,16 +136,15 @@ export async function POST(
 
   // ── SUPPLIERS ─────────────────────────────────────────────────────────────
   } else if (type === 'suppliers') {
-    const { count: existing } = await supabaseAdmin
-      .from('suppliers').select('*', { count: 'exact', head: true })
-    let seq = (existing ?? 0) + 1
+    const { count: existingCount } = await supabaseAdmin
+      .from('suppliers').select('*', { count: 'exact', head: true }).eq('tenant_id', caller.tenant_id)
+    let seq = (existingCount ?? 0) + 1
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i]
       try {
         const code = row.code?.trim() || `NCC${String(seq++).padStart(4, '0')}`
-        const { error } = await supabaseAdmin.from('suppliers').insert({
-          code,
+        const payload = {
           name:           row.name?.trim(),
           type:           row.type?.trim() || 'manufacturer',
           tax_code:       row.tax_code?.trim() || null,
@@ -148,10 +154,17 @@ export async function POST(
           payment_term:   toNum(row.payment_term) ?? 30,
           delivery_days:  toNum(row.delivery_days) ?? 3,
           rating:         toNum(row.rating),
-          status:         'active',
-          tenant_id:      caller.tenant_id,
-        })
-        if (error) throw new Error(error.message)
+          status:         'active' as const,
+        }
+        const { data: existingSup } = await supabaseAdmin
+          .from('suppliers').select('id').eq('code', code).eq('tenant_id', caller.tenant_id).maybeSingle()
+        if (existingSup) {
+          const { error } = await supabaseAdmin.from('suppliers').update(payload).eq('id', existingSup.id)
+          if (error) throw new Error(error.message)
+        } else {
+          const { error } = await supabaseAdmin.from('suppliers').insert({ code, ...payload, tenant_id: caller.tenant_id })
+          if (error) throw new Error(error.message)
+        }
         inserted++
       } catch (e: unknown) {
         errors.push({ line: i + 2, message: e instanceof Error ? e.message : String(e) })
