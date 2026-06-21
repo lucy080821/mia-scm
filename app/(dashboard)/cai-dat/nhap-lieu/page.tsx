@@ -164,6 +164,25 @@ const CONFIGS: ImportConfig[] = [
 
 async function downloadXLSXTemplate(config: ImportConfig) {
   const XLSX = await import('xlsx')
+
+  if (config.id === 'inventory') {
+    const { supabase } = await import('@/lib/supabase')
+    const { data: whs } = await supabase
+      .from('warehouses').select('code').eq('status', 'active').order('code')
+    const whCodes: string[] = whs?.map((w: { code: string }) => w.code) ?? ['KHO-HCM', 'KHO-HN', 'KHO-DN']
+    const header = ['SKU sản phẩm', 'Số lô', 'Ngày hết hạn', ...whCodes]
+    const sample = [
+      ['CMK0001', 'LOT-2026-001', '30/06/2026', ...whCodes.map((_, i) => i === 0 ? '500' : i === 1 ? '300' : '')],
+      ['CMK0002', 'LOT-2026-002', '30/06/2026', ...whCodes.map((_, i) => i === 0 ? '800' : '')],
+      ['CMK0003', '',             '',           ...whCodes.map((_, i) => i === 0 ? '150' : i === 1 ? '100' : '')],
+    ]
+    const ws = XLSX.utils.aoa_to_sheet([header, ...sample])
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Template')
+    XLSX.writeFile(wb, 'template_inventory.xlsx')
+    return
+  }
+
   const header = config.fields.map(f => f.label)
   const ws = XLSX.utils.aoa_to_sheet([header, ...config.sampleRows])
   const wb = XLSX.utils.book_new()
@@ -185,6 +204,34 @@ function parseCSV(text: string): string[][] {
     result.push(current.trim())
     return result
   })
+}
+
+// Chuyển wide-format (mỗi kho = 1 cột) → narrow (1 dòng per kho)
+function normalizeInventoryTable(table: string[][]): string[][] {
+  if (table.length < 2) return table
+  const STD = new Set(['sku', 'sku sản phẩm', 'warehouse_code', 'mã kho', 'lot_number', 'số lô', 'quantity', 'số lượng', 'expiry_date', 'ngày hết hạn'])
+  const raw = table[0].map(h => String(h).toLowerCase().trim())
+  const skuIdx    = raw.findIndex(h => h === 'sku' || h === 'sku sản phẩm')
+  const lotIdx    = raw.findIndex(h => h === 'lot_number' || h === 'số lô')
+  const expiryIdx = raw.findIndex(h => h === 'expiry_date' || h === 'ngày hết hạn')
+  const whCols    = raw
+    .map((h, i) => ({ h, i }))
+    .filter(({ h }) => !STD.has(h) && String(table[0][raw.indexOf(h)]).trim())
+
+  if (whCols.length === 0) return table // đã là narrow format
+
+  const out: string[][] = [['sku', 'warehouse_code', 'lot_number', 'quantity', 'expiry_date']]
+  for (let ri = 1; ri < table.length; ri++) {
+    const row = table[ri]
+    const sku    = skuIdx    >= 0 ? String(row[skuIdx]    ?? '').trim() : ''
+    const lot    = lotIdx    >= 0 ? String(row[lotIdx]    ?? '').trim() : ''
+    const expiry = expiryIdx >= 0 ? String(row[expiryIdx] ?? '').trim() : ''
+    for (const { i } of whCols) {
+      const qty = String(row[i] ?? '').trim()
+      if (qty) out.push([sku, String(table[0][i]).trim(), lot, qty, expiry])
+    }
+  }
+  return out
 }
 
 function validateRow(row: Record<string, string>, fields: FieldDef[], lineNum: number): ParsedRow {
@@ -274,7 +321,8 @@ function ImportPanel({ config }: { config: ImportConfig }) {
   }
 
   const applyTable = useCallback((table: string[][], name: string) => {
-    const parsed = processTable(table, config.fields)
+    const normalized = config.id === 'inventory' ? normalizeInventoryTable(table) : table
+    const parsed = processTable(normalized, config.fields)
     if (parsed.length === 0) return
     setFileName(name)
     setRows(parsed)
@@ -375,30 +423,60 @@ function ImportPanel({ config }: { config: ImportConfig }) {
           </button>
         </div>
 
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-[#e5e7eb]">
-                <th className="text-left py-1.5 pr-4 text-gray-400 font-semibold uppercase text-[10px]">Cột</th>
-                <th className="text-left py-1.5 pr-4 text-gray-400 font-semibold uppercase text-[10px]">Tên hiển thị</th>
-                <th className="text-left py-1.5 pr-4 text-gray-400 font-semibold uppercase text-[10px]">Bắt buộc</th>
-                <th className="text-left py-1.5 text-gray-400 font-semibold uppercase text-[10px]">Ghi chú</th>
-              </tr>
-            </thead>
-            <tbody>
-              {config.fields.map(f => (
-                <tr key={f.key} className="border-b border-[#f0f2f5]">
-                  <td className="py-1.5 pr-4 font-mono text-[var(--mia-primary)]">{f.key}</td>
-                  <td className="py-1.5 pr-4 font-medium text-[#1e2a3a]">{f.label}</td>
-                  <td className="py-1.5 pr-4">
-                    {f.required ? <span className="text-red-500 font-semibold">Có</span> : <span className="text-gray-300">Không</span>}
-                  </td>
-                  <td className="py-1.5 text-gray-400">{f.hint ?? (f.enum ? f.enum.join(' / ') : '—')}</td>
+        {config.id === 'inventory' ? (
+          <div className="mt-4 bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-2">
+            <p className="text-xs font-semibold text-blue-700">Định dạng template tồn kho (wide format):</p>
+            <div className="overflow-x-auto rounded-lg border border-blue-200 bg-white">
+              <table className="text-xs">
+                <thead>
+                  <tr className="border-b border-blue-100 bg-blue-50">
+                    {['SKU sản phẩm', 'Số lô', 'Ngày hết hạn', 'KHO-HCM', 'KHO-HN', '...'].map(h => (
+                      <th key={h} className="px-3 py-1.5 text-left text-[10px] font-semibold text-blue-600 whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-gray-100">
+                    {['CMK0001', 'LOT-001', '30/06/2026', '500', '300', ''].map((v, i) => (
+                      <td key={i} className="px-3 py-1.5 text-gray-600">{v || <span className="text-gray-300">—</span>}</td>
+                    ))}
+                  </tr>
+                  <tr>
+                    {['CMK0002', '', '', '800', '', '200'].map((v, i) => (
+                      <td key={i} className="px-3 py-1.5 text-gray-600">{v || <span className="text-gray-300">—</span>}</td>
+                    ))}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p className="text-xs text-blue-600">Mỗi cột sau "Ngày hết hạn" là <strong>mã kho</strong>. Điền số lượng tồn tại kho đó — bỏ trống nếu kho đó không có hàng. Hệ thống tự tạo từng dòng tồn kho riêng khi import.</p>
+          </div>
+        ) : (
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-[#e5e7eb]">
+                  <th className="text-left py-1.5 pr-4 text-gray-400 font-semibold uppercase text-[10px]">Cột</th>
+                  <th className="text-left py-1.5 pr-4 text-gray-400 font-semibold uppercase text-[10px]">Tên hiển thị</th>
+                  <th className="text-left py-1.5 pr-4 text-gray-400 font-semibold uppercase text-[10px]">Bắt buộc</th>
+                  <th className="text-left py-1.5 text-gray-400 font-semibold uppercase text-[10px]">Ghi chú</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {config.fields.map(f => (
+                  <tr key={f.key} className="border-b border-[#f0f2f5]">
+                    <td className="py-1.5 pr-4 font-mono text-[var(--mia-primary)]">{f.key}</td>
+                    <td className="py-1.5 pr-4 font-medium text-[#1e2a3a]">{f.label}</td>
+                    <td className="py-1.5 pr-4">
+                      {f.required ? <span className="text-red-500 font-semibold">Có</span> : <span className="text-gray-300">Không</span>}
+                    </td>
+                    <td className="py-1.5 text-gray-400">{f.hint ?? (f.enum ? f.enum.join(' / ') : '—')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Step 2 */}
