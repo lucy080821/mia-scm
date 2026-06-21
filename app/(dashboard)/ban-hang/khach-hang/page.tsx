@@ -146,7 +146,7 @@ export default function CustomersPage() {
         revenue: 0,
         orders: 0,
         created_at: (c.created_at ?? '').slice(0, 10),
-      })))
+      }))))
       .catch(() => {})
   }, [])
 
