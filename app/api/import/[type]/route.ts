@@ -107,7 +107,8 @@ export async function POST(
       const row = rows[i]
       try {
         const code = row.code?.trim() || `CUS${String(seq++).padStart(4, '0')}`
-        const payload = {
+        const { error } = await supabaseAdmin.from('customers').upsert({
+          code,
           name:           row.name?.trim(),
           short_name:     row.short_name?.trim() || null,
           type:           row.type?.trim() || 'company',
@@ -117,17 +118,9 @@ export async function POST(
           credit_limit:   toNum(row.credit_limit) ?? 0,
           payment_term:   toNum(row.payment_term) ?? 30,
           status:         row.status?.trim() || 'active',
-        }
-        // Upsert: cập nhật nếu code đã tồn tại trong tenant, insert nếu chưa có
-        const { data: existingCust } = await supabaseAdmin
-          .from('customers').select('id').eq('code', code).eq('tenant_id', caller.tenant_id).maybeSingle()
-        if (existingCust) {
-          const { error } = await supabaseAdmin.from('customers').update(payload).eq('id', existingCust.id)
-          if (error) throw new Error(error.message)
-        } else {
-          const { error } = await supabaseAdmin.from('customers').insert({ code, ...payload, tenant_id: caller.tenant_id })
-          if (error) throw new Error(error.message)
-        }
+          tenant_id:      caller.tenant_id,
+        }, { onConflict: 'code,tenant_id' })
+        if (error) throw new Error(error.message)
         inserted++
       } catch (e: unknown) {
         errors.push({ line: i + 2, message: e instanceof Error ? e.message : String(e) })
@@ -156,15 +149,11 @@ export async function POST(
           rating:         toNum(row.rating),
           status:         'active' as const,
         }
-        const { data: existingSup } = await supabaseAdmin
-          .from('suppliers').select('id').eq('code', code).eq('tenant_id', caller.tenant_id).maybeSingle()
-        if (existingSup) {
-          const { error } = await supabaseAdmin.from('suppliers').update(payload).eq('id', existingSup.id)
-          if (error) throw new Error(error.message)
-        } else {
-          const { error } = await supabaseAdmin.from('suppliers').insert({ code, ...payload, tenant_id: caller.tenant_id })
-          if (error) throw new Error(error.message)
-        }
+        const { error } = await supabaseAdmin.from('suppliers').upsert(
+          { code, ...payload, tenant_id: caller.tenant_id },
+          { onConflict: 'code,tenant_id' }
+        )
+        if (error) throw new Error(error.message)
         inserted++
       } catch (e: unknown) {
         errors.push({ line: i + 2, message: e instanceof Error ? e.message : String(e) })
