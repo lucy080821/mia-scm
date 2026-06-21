@@ -171,7 +171,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
+      <nav className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5" suppressHydrationWarning>
         {filteredNav.map((group, gi) => (
           <div key={gi}>
             {group.section && (

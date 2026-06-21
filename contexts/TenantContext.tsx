@@ -91,8 +91,13 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const stored = loadTenantFromStorage()
     if (stored) {
-      setTenantState(stored)
-      applyTheme(stored)
+      // Merge enabledModules with DEFAULT_TENANT so newly added modules are never missing from cache
+      const merged = {
+        ...stored,
+        enabledModules: Array.from(new Set([...DEFAULT_TENANT.enabledModules, ...stored.enabledModules])),
+      }
+      setTenantState(merged)
+      applyTheme(merged)
     }
 
     fetchAndApplyTenant()
