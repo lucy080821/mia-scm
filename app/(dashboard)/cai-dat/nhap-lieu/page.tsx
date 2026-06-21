@@ -162,19 +162,13 @@ const CONFIGS: ImportConfig[] = [
 
 // ─── CSV / XLSX helpers ───────────────────────────────────────────────────────
 
-function generateCSV(config: ImportConfig): string {
-  const header = config.fields.map(f => f.key).join(',')
-  const sample = config.sampleRows.map(r => r.map(v => v.includes(',') ? `"${v}"` : v).join(',')).join('\n')
-  return `${header}\n${sample}`
-}
-
-function downloadCSV(filename: string, content: string) {
-  const bom = '﻿'
-  const blob = new Blob([bom + content], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url; a.download = filename; a.click()
-  URL.revokeObjectURL(url)
+async function downloadXLSXTemplate(config: ImportConfig) {
+  const XLSX = await import('xlsx')
+  const header = config.fields.map(f => f.label)
+  const ws = XLSX.utils.aoa_to_sheet([header, ...config.sampleRows])
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Template')
+  XLSX.writeFile(wb, `template_${config.id}.xlsx`)
 }
 
 function parseCSV(text: string): string[][] {
@@ -220,7 +214,15 @@ function validateRow(row: Record<string, string>, fields: FieldDef[], lineNum: n
 
 function processTable(table: string[][], fields: FieldDef[]): ParsedRow[] {
   if (table.length < 2) return []
-  const headers = table[0].map(h => String(h).toLowerCase().trim())
+  const labelToKey: Record<string, string> = {}
+  for (const f of fields) {
+    labelToKey[f.key.toLowerCase()] = f.key
+    labelToKey[f.label.toLowerCase()] = f.key
+  }
+  const headers = table[0].map(h => {
+    const raw = String(h).toLowerCase().trim()
+    return labelToKey[raw] ?? raw
+  })
   return table.slice(1)
     .filter(r => r.some(c => String(c).trim()))
     .map((r, i) => {
@@ -266,8 +268,8 @@ function ImportPanel({ config }: { config: ImportConfig }) {
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const handleDownload = () => {
-    downloadCSV(`template_${config.id}.csv`, generateCSV(config))
+  const handleDownload = async () => {
+    await downloadXLSXTemplate(config)
     setStep(s => Math.max(s, 2))
   }
 
@@ -365,11 +367,11 @@ function ImportPanel({ config }: { config: ImportConfig }) {
               <span className="w-5 h-5 rounded-full bg-[var(--mia-primary)] text-white text-xs flex items-center justify-center font-bold">1</span>
               <h3 className="text-sm font-bold text-[#1e2a3a]">Tải file template</h3>
             </div>
-            <p className="text-xs text-gray-500 ml-7">File CSV mẫu đã có header và dữ liệu ví dụ. Mở bằng Excel, điền dữ liệu thực, lưu lại.</p>
+            <p className="text-xs text-gray-500 ml-7">File Excel mẫu đã có tiêu đề cột và dữ liệu ví dụ. Điền dữ liệu thực vào file, lưu lại rồi upload ở bước 2.</p>
           </div>
           <button onClick={handleDownload}
             className="flex items-center gap-2 px-4 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all shrink-0">
-            <Download size={14} /> Tải template .csv
+            <Download size={14} /> Tải template .xlsx
           </button>
         </div>
 
