@@ -2,9 +2,22 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { getServerTenantId } from '@/lib/server-auth'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const tenantId = await getServerTenantId()
   if (!tenantId) return NextResponse.json([])
+
+  const { searchParams } = new URL(req.url)
+  const full = searchParams.get('full')
+
+  if (full) {
+    const { data, error } = await supabaseAdmin
+      .from('customers')
+      .select('id, code, name, short_name, type, phone, email, address, credit_limit, payment_term, status, created_at')
+      .eq('tenant_id', tenantId)
+      .order('created_at', { ascending: false })
+    if (error) return NextResponse.json([], { status: 200 })
+    return NextResponse.json(data ?? [])
+  }
 
   const { data, error } = await supabaseAdmin
     .from('customers')

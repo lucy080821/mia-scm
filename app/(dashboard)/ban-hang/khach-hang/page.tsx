@@ -6,7 +6,6 @@ import ExportButton from '@/components/ui/ExportButton'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import { formatVND, formatDate } from '@/lib/utils'
-import { supabase } from '@/lib/supabase'
 import { useTenant } from '@/contexts/TenantContext'
 
 type Customer = {
@@ -125,19 +124,16 @@ function CustomerFormModal({ onClose, onCreate }: {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function CustomersPage() {
-  const { id: tenantId } = useTenant()
+  useTenant()
   const [customers, setCustomers] = useState<Customer[]>(INITIAL_CUSTOMERS)
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (!tenantId) return
-    async function load() {
-      const { data } = await supabase.from('customers').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false })
-      if (!data) return
+    fetch('/api/customers?full=1')
+      .then(r => r.ok ? r.json() : [])
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setCustomers(data.map((c: any) => ({
+      .then((data: any[]) => setCustomers(data.map(c => ({
         id: c.id,
-        code: c.code,
+        code: c.code ?? '',
         name: c.name,
         short_name: c.short_name ?? '',
         type: c.type ?? 'company',
@@ -151,9 +147,8 @@ export default function CustomersPage() {
         orders: 0,
         created_at: (c.created_at ?? '').slice(0, 10),
       })))
-    }
-    load()
-  }, [tenantId])
+      .catch(() => {})
+  }, [])
 
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
