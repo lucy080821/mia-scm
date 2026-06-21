@@ -478,12 +478,12 @@ export default function KiemKePage() {
         </button>
       </PageHeader>
 
-      <div className="grid grid-cols-4 gap-4 mb-5">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
         {[
-          { label: 'Tổng phiếu',    value: stats.total,    icon: <ClipboardCheck size={20} className="text-sky-500" />,    bg: 'bg-sky-50' },
-          { label: 'Đang kiểm kê',  value: stats.open,     icon: <ClipboardCheck size={20} className="text-blue-500" />,   bg: 'bg-blue-50' },
-          { label: 'Chờ duyệt',     value: stats.pending,  icon: <AlertTriangle size={20} className="text-yellow-500" />,  bg: 'bg-yellow-50' },
-          { label: 'Đã duyệt',      value: stats.approved, icon: <CheckCircle size={20} className="text-green-500" />,     bg: 'bg-green-50' },
+          { label: 'Tổng phiếu',    value: stats.total,    icon: <ClipboardCheck size={18} className="text-sky-500" />,    bg: 'bg-sky-50' },
+          { label: 'Đang kiểm kê',  value: stats.open,     icon: <ClipboardCheck size={18} className="text-blue-500" />,   bg: 'bg-blue-50' },
+          { label: 'Chờ duyệt',     value: stats.pending,  icon: <AlertTriangle size={18} className="text-yellow-500" />,  bg: 'bg-yellow-50' },
+          { label: 'Đã duyệt',      value: stats.approved, icon: <CheckCircle size={18} className="text-green-500" />,     bg: 'bg-green-50' },
         ].map(k => (
           <div key={k.label} className="bg-white rounded-xl border border-[#e5e7eb] p-4 flex items-center gap-3">
             <div className={`w-10 h-10 rounded-xl ${k.bg} flex items-center justify-center shrink-0`}>{k.icon}</div>

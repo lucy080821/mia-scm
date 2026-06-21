@@ -85,14 +85,14 @@ export default function TongQuanTaiChinhPage() {
         <p className="text-sm text-gray-500 mt-0.5">Kỳ báo cáo: {curMonth} — dữ liệu thực từ hệ thống</p>
       </div>
 
-      <div className="grid grid-cols-4 gap-4 mb-5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
         {kpis.map(k => (
-          <div key={k.label} className="bg-white rounded-xl border border-[#e5e7eb] p-4 shadow-sm">
-            <div className="flex items-start justify-between mb-3">
+          <div key={k.label} className="bg-white rounded-xl border border-[#e5e7eb] p-3 sm:p-4 shadow-sm">
+            <div className="flex items-start justify-between mb-2 sm:mb-3">
               <span className="text-xs font-semibold text-gray-500 uppercase leading-tight">{k.label}</span>
-              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${k.bg}`}>{k.icon}</div>
+              <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center shrink-0 ${k.bg}`}>{k.icon}</div>
             </div>
-            <div className="text-2xl font-bold text-[#1e2a3a]">{k.value}</div>
+            <div className="text-lg sm:text-2xl font-bold text-[#1e2a3a] truncate">{k.value}</div>
             <div className={`flex items-center gap-1 mt-1 text-xs font-medium ${k.up ? 'text-green-600' : 'text-red-500'}`}>
               {k.up ? <ArrowUpRight size={13}/> : <ArrowDownRight size={13}/>}
               {k.sub}

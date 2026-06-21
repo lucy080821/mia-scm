@@ -141,7 +141,7 @@ export default function CongNoPage() {
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-3 gap-4 mb-5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
         {[
           { label: 'Tổng đơn hàng',   val: totalOrder, color: 'text-gray-700',  bg: 'bg-white border-gray-200' },
           { label: 'Đã thanh toán',   val: totalPaid,  color: 'text-green-700', bg: 'bg-green-50 border-green-100' },
@@ -149,7 +149,7 @@ export default function CongNoPage() {
         ].map(c => (
           <div key={c.label} className={`rounded-xl border p-4 ${c.bg}`}>
             <div className="text-xs font-semibold text-gray-500 uppercase mb-1">{c.label}</div>
-            <div className={`text-xl font-bold ${c.color}`}>{loading ? '—' : fmtVND(c.val)}</div>
+            <div className={`text-lg sm:text-xl font-bold truncate ${c.color}`}>{loading ? '—' : fmtVND(c.val)}</div>
             <div className="text-xs text-gray-400 mt-0.5">{filteredData.length} đối tác</div>
           </div>
         ))}
@@ -191,6 +191,7 @@ export default function CongNoPage() {
         ) : filteredData.length === 0 ? (
           <div className="text-center py-16 text-sm text-gray-400">Không có công nợ nào</div>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
@@ -226,6 +227,7 @@ export default function CongNoPage() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 

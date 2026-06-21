@@ -64,18 +64,18 @@ export default function DoanhThuPage() {
 
   return (
     <div className="p-5 bg-[#f0f2f5] min-h-screen">
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
-          <h1 className="text-xl font-bold text-[#1e2a3a]">Doanh thu</h1>
+          <h1 className="text-lg sm:text-xl font-bold text-[#1e2a3a]">Doanh thu</h1>
           <p className="text-sm text-gray-500 mt-0.5">Tổng hợp từ đơn hàng bán trong hệ thống</p>
         </div>
         <button onClick={exportExcel}
-          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors">
+          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors self-start sm:self-auto shrink-0">
           <Download size={16}/> Xuất Excel
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
         {[
           { label: 'Tổng doanh thu', val: totalRev,  color: 'text-[#1e2a3a]', bg: 'bg-sky-50 border-sky-100' },
           { label: 'Đã thu',        val: totalPaid, color: 'text-green-700', bg: 'bg-green-50 border-green-100' },
@@ -83,14 +83,14 @@ export default function DoanhThuPage() {
         ].map(c => (
           <div key={c.label} className={`rounded-xl border p-4 ${c.bg}`}>
             <div className="text-xs font-semibold text-gray-500 uppercase mb-1">{c.label}</div>
-            <div className={`text-xl font-bold ${c.color}`}>{loading ? '—' : fmtVND(c.val)}</div>
+            <div className={`text-lg sm:text-xl font-bold truncate ${c.color}`}>{loading ? '—' : fmtVND(c.val)}</div>
             <div className="text-xs text-gray-400 mt-0.5">{filtered.length} đơn hàng</div>
           </div>
         ))}
       </div>
 
       <div className="bg-white rounded-xl border border-[#e5e7eb] p-4 shadow-sm mb-4">
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
             <input value={search} onChange={e => setSearch(e.target.value)}

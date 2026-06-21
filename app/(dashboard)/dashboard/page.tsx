@@ -231,20 +231,20 @@ function AdminKpiSection() {
       </div>
 
       {/* Summary KPIs */}
-      <div className="grid grid-cols-3 divide-x divide-[#e5e7eb] border-b border-[#e5e7eb]">
-        <div className="px-5 py-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-[#e5e7eb] border-b border-[#e5e7eb]">
+        <div className="px-4 sm:px-5 py-3 sm:py-4">
           <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Tổng quỹ lương</p>
-          <p className="text-lg font-bold text-[#1e2a3a]">{formatVND(totalPayroll)}</p>
+          <p className="text-base sm:text-lg font-bold text-[#1e2a3a] truncate">{formatVND(totalPayroll)}</p>
           <p className="text-[10px] text-gray-400 mt-0.5">{SALES_TEAM.length} nhân viên</p>
         </div>
-        <div className="px-5 py-4">
+        <div className="px-4 sm:px-5 py-3 sm:py-4">
           <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Hoàn thành KPI TB</p>
-          <p className={`text-lg font-bold ${pctColor(avgAchievement)}`}>{Math.round(avgAchievement * 100)}%</p>
+          <p className={`text-base sm:text-lg font-bold ${pctColor(avgAchievement)}`}>{Math.round(avgAchievement * 100)}%</p>
           <p className="text-[10px] text-gray-400 mt-0.5">Toàn đội sales</p>
         </div>
-        <div className="px-5 py-4">
+        <div className="px-4 sm:px-5 py-3 sm:py-4">
           <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Đạt KPI ≥ 80%</p>
-          <p className="text-lg font-bold text-green-600">{meetingTarget}/{SALES_TEAM.length} NV</p>
+          <p className="text-base sm:text-lg font-bold text-green-600">{meetingTarget}/{SALES_TEAM.length} NV</p>
           <p className="text-[10px] text-gray-400 mt-0.5">Đủ điều kiện thưởng</p>
         </div>
       </div>

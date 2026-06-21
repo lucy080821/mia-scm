@@ -695,7 +695,7 @@ export default function BaoGiaPage() {
             <div className={`w-10 h-10 rounded-xl ${k.bg} flex items-center justify-center shrink-0`}>{k.icon}</div>
             <div>
               <p className="text-xs text-gray-500">{k.label}</p>
-              <p className="text-xl font-bold text-[#1e2a3a] whitespace-nowrap">{k.value}</p>
+              <p className="text-base sm:text-xl font-bold text-[#1e2a3a] truncate">{k.value}</p>
               <p className="text-xs text-gray-400">{k.sub}</p>
             </div>
           </div>

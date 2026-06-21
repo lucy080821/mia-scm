@@ -435,18 +435,18 @@ export default function TraHangPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-4 gap-4 mb-5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
         {[
-          { label: 'Tổng phiếu trả',  value: returns.length,                                      sub: 'Tất cả',   icon: <RotateCcw size={20} className="text-red-500" />,     bg: 'bg-red-50' },
-          { label: 'Chờ duyệt',       value: returns.filter(r => r.status === 'pending').length,   sub: 'Cần xử lý', icon: <AlertTriangle size={20} className="text-yellow-500" />, bg: 'bg-yellow-50' },
-          { label: 'Hoàn thành',      value: returns.filter(r => r.status === 'completed').length, sub: 'Đã xử lý', icon: <CheckCircle size={20} className="text-green-500" />,   bg: 'bg-green-50' },
-          { label: 'Tổng hoàn tiền',  value: formatVND(totalRefund),                               sub: 'Đã hoàn',  icon: <RotateCcw size={20} className="text-purple-500" />,   bg: 'bg-purple-50' },
+          { label: 'Tổng phiếu trả',  value: returns.length,                                      sub: 'Tất cả',   icon: <RotateCcw size={18} className="text-red-500" />,     bg: 'bg-red-50' },
+          { label: 'Chờ duyệt',       value: returns.filter(r => r.status === 'pending').length,   sub: 'Cần xử lý', icon: <AlertTriangle size={18} className="text-yellow-500" />, bg: 'bg-yellow-50' },
+          { label: 'Hoàn thành',      value: returns.filter(r => r.status === 'completed').length, sub: 'Đã xử lý', icon: <CheckCircle size={18} className="text-green-500" />,   bg: 'bg-green-50' },
+          { label: 'Tổng hoàn tiền',  value: formatVND(totalRefund),                               sub: 'Đã hoàn',  icon: <RotateCcw size={18} className="text-purple-500" />,   bg: 'bg-purple-50' },
         ].map(k => (
-          <div key={k.label} className="bg-white rounded-xl border border-[#e5e7eb] p-4 flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl ${k.bg} flex items-center justify-center shrink-0`}>{k.icon}</div>
-            <div>
-              <p className="text-xs text-gray-500">{k.label}</p>
-              <p className="text-base font-bold text-[#1e2a3a] whitespace-nowrap">{loading ? '—' : k.value}</p>
+          <div key={k.label} className="bg-white rounded-xl border border-[#e5e7eb] p-3 sm:p-4 flex items-center gap-3">
+            <div className={`w-9 h-9 rounded-xl ${k.bg} flex items-center justify-center shrink-0`}>{k.icon}</div>
+            <div className="min-w-0">
+              <p className="text-xs text-gray-500 truncate">{k.label}</p>
+              <p className="text-sm sm:text-base font-bold text-[#1e2a3a] truncate">{loading ? '—' : k.value}</p>
               <p className="text-xs text-gray-400">{k.sub}</p>
             </div>
           </div>

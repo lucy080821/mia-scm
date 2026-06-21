@@ -71,7 +71,7 @@ export default function ChiPhiPage() {
       </div>
 
       {cur && (
-        <div className="grid grid-cols-4 gap-4 mb-5">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
           {[
             { label: 'Tổng chi phí', val: totalCost,    color: 'text-red-600',    bg: 'bg-red-50 border-red-100' },
             { label: 'Giá vốn COGS', val: cur.cogs,     color: 'text-orange-700', bg: 'bg-orange-50 border-orange-100' },
@@ -80,7 +80,7 @@ export default function ChiPhiPage() {
           ].map(c => (
             <div key={c.label} className={`rounded-xl border p-4 ${c.bg}`}>
               <div className="text-xs font-semibold text-gray-500 uppercase mb-1">{c.label}</div>
-              <div className={`text-xl font-bold ${c.color}`}>{fmtVND(c.val)}</div>
+              <div className={`text-base sm:text-xl font-bold truncate ${c.color}`}>{fmtVND(c.val)}</div>
               <div className="text-xs text-gray-400 mt-0.5">{curMonth}</div>
             </div>
           ))}

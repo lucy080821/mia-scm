@@ -67,12 +67,12 @@ export default function LoiNhuanPage() {
 
   return (
     <div className="p-5 bg-[#f0f2f5] min-h-screen">
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
-          <h1 className="text-xl font-bold text-[#1e2a3a]">Báo cáo Lợi nhuận</h1>
+          <h1 className="text-lg sm:text-xl font-bold text-[#1e2a3a]">Báo cáo Lợi nhuận</h1>
           <p className="text-sm text-gray-500 mt-0.5">Phân tích P&L từ dữ liệu thực</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <select value={period} onChange={e => setPeriod(e.target.value)}
             className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-sky-400 bg-white">
             {monthly.map(m => <option key={m.key} value={m.key}>{m.month}</option>)}
@@ -85,7 +85,7 @@ export default function LoiNhuanPage() {
       </div>
 
       {cur && (
-        <div className="grid grid-cols-4 gap-4 mb-5">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
           {[
             { label: 'Doanh thu', val: cur.revenue, prev: prev?.revenue ?? 0, color: 'text-sky-700', bg: 'bg-sky-50 border-sky-100' },
             { label: 'LN gộp',   val: gross(cur),  prev: prev ? gross(prev) : 0, color: 'text-green-700', bg: 'bg-green-50 border-green-100' },
@@ -96,7 +96,7 @@ export default function LoiNhuanPage() {
             return (
               <div key={c.label} className={`rounded-xl border p-4 ${c.bg}`}>
                 <div className="text-xs font-semibold text-gray-500 uppercase mb-1">{c.label}</div>
-                <div className={`text-xl font-bold ${c.color}`}>{c.pct ?? fmtVND(c.val ?? 0)}</div>
+                <div className={`text-base sm:text-xl font-bold truncate ${c.color}`}>{c.pct ?? fmtVND(c.val ?? 0)}</div>
                 {chg !== null && (
                   <div className={`flex items-center gap-1 mt-1 text-xs font-medium ${chg >= 0 ? 'text-green-600' : 'text-red-500'}`}>
                     {chg >= 0 ? <ArrowUpRight size={12}/> : <ArrowDownRight size={12}/>}

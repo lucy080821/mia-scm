@@ -2,7 +2,7 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import {
   TenantConfig, DEFAULT_TENANT,
-  loadTenantFromStorage, saveTenantToStorage, clearTenantFromStorage,
+  loadTenantFromStorage, saveTenantToStorage,
 } from '@/lib/tenant'
 
 const TenantContext = createContext<{
@@ -70,6 +70,24 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
   // Bước 1: Optimistic load từ localStorage (fast initial render)
   // Bước 2: Validate với server — /api/my-tenant dùng supabaseAdmin, luôn trả về đúng tenant
+  const fetchAndApplyTenant = () => {
+    fetch('/api/my-tenant', { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : null)
+      .then((data: TenantConfig | null) => {
+        if (!data) {
+          // Không xóa localStorage khi fetch thất bại (session tạm thời hết hạn, iOS Safari ITP...)
+          // Chỉ reset về default nếu không có gì trong localStorage
+          if (!loadTenantFromStorage()) {
+            setTenantState(DEFAULT_TENANT)
+            applyTheme(DEFAULT_TENANT)
+          }
+          return
+        }
+        applyTenant(data)
+      })
+      .catch(() => {})
+  }
+
   useEffect(() => {
     const stored = loadTenantFromStorage()
     if (stored) {
@@ -77,18 +95,14 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       applyTheme(stored)
     }
 
-    fetch('/api/my-tenant', { cache: 'no-store' })
-      .then(r => r.ok ? r.json() : null)
-      .then((data: TenantConfig | null) => {
-        if (!data) {
-          clearTenantFromStorage()
-          setTenantState(DEFAULT_TENANT)
-          applyTheme(DEFAULT_TENANT)
-          return
-        }
-        applyTenant(data)
-      })
-      .catch(() => {})
+    fetchAndApplyTenant()
+  }, [])
+
+  // Refetch khi tab được focus lại — đảm bảo các device khác thấy thay đổi màu/logo mới nhất
+  useEffect(() => {
+    const onFocus = () => fetchAndApplyTenant()
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
   }, [])
 
   // Sync khi useAuth hoặc settings cập nhật tenant

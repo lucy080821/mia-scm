@@ -521,10 +521,10 @@ export default function ChuyenKhoPage() {
         </button>
       </PageHeader>
 
-      <div className="grid grid-cols-4 gap-4 mb-5">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
         {[
-          { label: 'Tổng phiếu',       value: transfers.length,                                        icon: <ArrowLeftRight size={20} className="text-sky-500" />,  bg: 'bg-sky-50' },
-          { label: 'Đang vận chuyển',  value: transfers.filter(t => t.status === 'in_transit').length, icon: <ArrowLeftRight size={20} className="text-blue-500" />, bg: 'bg-blue-50' },
+          { label: 'Tổng phiếu',       value: transfers.length,                                        icon: <ArrowLeftRight size={18} className="text-sky-500" />,  bg: 'bg-sky-50' },
+          { label: 'Đang vận chuyển',  value: transfers.filter(t => t.status === 'in_transit').length, icon: <ArrowLeftRight size={18} className="text-blue-500" />, bg: 'bg-blue-50' },
           { label: 'Hoàn thành',       value: transfers.filter(t => t.status === 'completed').length,  icon: <CheckCircle size={20} className="text-green-500" />,   bg: 'bg-green-50' },
           { label: 'Chờ duyệt',        value: transfers.filter(t => t.status === 'pending').length,    icon: <AlertTriangle size={20} className="text-yellow-500" />, bg: 'bg-yellow-50' },
         ].map(k => (
