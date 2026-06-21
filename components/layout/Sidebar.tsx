@@ -8,7 +8,7 @@ import {
   UserCheck, PieChart, Settings, Wrench,
   X, ChevronDown, ChevronRight, LogOut,
   DollarSign, TrendingUp, TrendingDown, BarChart2, CreditCard, UserCog,
-  FileSpreadsheet, Briefcase,
+  FileSpreadsheet, Briefcase, Building2, ClipboardList,
 } from 'lucide-react'
 import { useState } from 'react'
 import { canAccess } from '@/lib/auth-client'
@@ -42,6 +42,13 @@ const navConfig = [
       { label: 'Chuyển kho',    href: '/kho-hang/chuyen-kho',    icon: ArrowLeftRight },
       { label: 'Kiểm kê',       href: '/kho-hang/kiem-ke',       icon: ClipboardCheck },
       { label: 'Sản phẩm',      href: '/kho-hang/san-pham',      icon: Package },
+    ],
+  },
+  {
+    section: 'MUA HÀNG',
+    items: [
+      { label: 'Đơn mua hàng',  href: '/mua-hang/don-mua-hang', icon: ClipboardList },
+      { label: 'Nhà cung cấp',  href: '/mua-hang/nha-cung-cap', icon: Building2 },
     ],
   },
   {
@@ -88,6 +95,7 @@ interface SidebarProps {
 const SECTION_MODULE: Record<string, string> = {
   'BÁN HÀNG': 'ban-hang',
   'KHO HÀNG': 'kho-hang',
+  'MUA HÀNG': 'mua-hang',
   'LOGISTICS': 'logistics',
   'TÀI CHÍNH': 'tai-chinh',
   'BÁO CÁO & CÀI ĐẶT': 'bao-cao',
