@@ -1,6 +1,6 @@
 ﻿'use client'
 import { useState, useEffect } from 'react'
-import { Plus, Search, ClipboardList, Clock, CheckCircle, Send, X, Trash2, ChevronRight, Copy, Check, Pencil } from 'lucide-react'
+import { Plus, Search, ClipboardList, Clock, CheckCircle, Send, X, Trash2, ChevronRight, Copy, Check, Pencil, PackageCheck, AlertCircle } from 'lucide-react'
 import PageHeader from '@/components/layout/PageHeader'
 import ExportButton from '@/components/ui/ExportButton'
 import { formatVND, formatDate } from '@/lib/utils'
@@ -156,6 +156,176 @@ function CreatePOModal({ onClose, onCreate }: {
             <button onClick={() => handleSubmit('pending')} disabled={!supplierId || items.every(it => !it.product_id)}
               className="px-4 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-40 transition-all hover:scale-[1.02] active:scale-95">
               <Send size={13} className="inline mr-1.5" />Gửi duyệt
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Goods Receipt Modal ─────────────────────────────────────────────────────
+function GoodsReceiptModal({ po, onClose, onDone }: {
+  po: PurchaseOrder
+  onClose: () => void
+  onDone: (msg: string) => void
+}) {
+  const { id: tenantId } = useTenant()
+  const [warehouseId, setWarehouseId] = useState('')
+  const [receiptDate, setReceiptDate] = useState(new Date().toISOString().slice(0, 10))
+  const [note, setNote] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [warehouses, setWarehouses] = useState<{ id: string; name: string; code: string }[]>([])
+  const [lines, setLines] = useState(po.items.map(it => ({
+    product_id: it.product_id,
+    name: it.name,
+    unit: it.unit,
+    ordered_qty: it.quantity,
+    received_qty: it.quantity,
+    unit_price: it.unit_price,
+    lot_number: '',
+    expiry_date: '',
+  })))
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!tenantId) return
+    supabase.from('warehouses').select('id, name, code').eq('status', 'active').eq('tenant_id', tenantId).order('name')
+      .then(({ data }) => {
+        const whs = data ?? []
+        setWarehouses(whs)
+        if (whs.length === 1) setWarehouseId(whs[0].id)
+      })
+  }, [tenantId])
+
+  const updateLine = (i: number, field: string, val: string | number) =>
+    setLines(prev => prev.map((l, idx) => idx === i ? { ...l, [field]: val } : l))
+
+  const totalReceived = lines.reduce((s, l) => s + l.received_qty * l.unit_price, 0)
+  const isPartial = lines.some(l => l.received_qty < l.ordered_qty)
+  const hasAny = lines.some(l => l.received_qty > 0)
+
+  const handleSubmit = async () => {
+    if (!warehouseId) return
+    setSubmitting(true)
+    try {
+      const res = await fetch(`/api/purchase-orders/${po.id}/receive`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ warehouse_id: warehouseId, receipt_date: receiptDate, note, items: lines }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Lỗi nhận hàng')
+      onDone(data.message ?? 'Đã nhập kho thành công')
+      onClose()
+    } catch (e: unknown) {
+      onDone(`❌ ${e instanceof Error ? e.message : 'Lỗi nhận hàng'}`)
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#e5e7eb]">
+          <div>
+            <h2 className="text-base font-bold text-[#1e2a3a]">Nhận hàng — {po.code}</h2>
+            <p className="text-xs text-gray-400 mt-0.5">NCC: {po.supplier} · Chỉnh sửa số lượng nếu NCC giao thiếu</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={16} /></button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 p-6 space-y-4">
+          {/* Warehouse + date */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1.5">Nhập vào kho *</label>
+              <select value={warehouseId} onChange={e => setWarehouseId(e.target.value)}
+                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]">
+                <option value="">-- Chọn kho --</option>
+                {warehouses.map(w => <option key={w.id} value={w.id}>{w.name} ({w.code})</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1.5">Ngày nhận hàng</label>
+              <input type="date" value={receiptDate} onChange={e => setReceiptDate(e.target.value)}
+                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
+            </div>
+          </div>
+
+          {/* Items table */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold text-gray-500 uppercase">Chi tiết hàng nhận</p>
+              {isPartial && hasAny && (
+                <span className="flex items-center gap-1 text-xs text-amber-600 font-medium">
+                  <AlertCircle size={12} /> Giao thiếu — đơn sẽ chuyển sang Đang giao
+                </span>
+              )}
+            </div>
+            <div className="rounded-xl border border-[#e5e7eb] overflow-hidden">
+              <div className="grid grid-cols-12 gap-2 px-4 py-2 bg-gray-50 border-b border-[#e5e7eb]">
+                <span className="col-span-3 text-xs font-semibold text-gray-500">Sản phẩm</span>
+                <span className="col-span-1 text-xs font-semibold text-gray-500 text-center">ĐVT</span>
+                <span className="col-span-1 text-xs font-semibold text-gray-500 text-center">Đặt</span>
+                <span className="col-span-2 text-xs font-semibold text-gray-500 text-center">Nhận thực tế</span>
+                <span className="col-span-2 text-xs font-semibold text-gray-500 text-right">Đơn giá</span>
+                <span className="col-span-2 text-xs font-semibold text-gray-500">Số lô</span>
+                <span className="col-span-1 text-xs font-semibold text-gray-500">HSD</span>
+              </div>
+              {lines.map((l, i) => (
+                <div key={i} className={`grid grid-cols-12 gap-2 items-center px-4 py-2.5 border-b border-[#f0f2f5] last:border-0 ${l.received_qty < l.ordered_qty ? 'bg-amber-50/40' : ''}`}>
+                  <div className="col-span-3">
+                    <p className="text-xs font-medium text-[#1e2a3a] leading-tight">{l.name}</p>
+                  </div>
+                  <span className="col-span-1 text-xs text-gray-400 text-center">{l.unit}</span>
+                  <span className="col-span-1 text-xs text-gray-400 text-center">{l.ordered_qty}</span>
+                  <div className="col-span-2 flex items-center gap-1">
+                    <input
+                      type="number" min={0} max={l.ordered_qty}
+                      value={l.received_qty}
+                      onChange={e => updateLine(i, 'received_qty', Math.max(0, +e.target.value))}
+                      className={`w-full h-8 px-2 text-xs border rounded-lg text-center outline-none focus:border-[var(--mia-primary)] ${l.received_qty < l.ordered_qty ? 'border-amber-300 bg-amber-50' : 'border-[#e5e7eb] bg-white'}`}
+                    />
+                  </div>
+                  <div className="col-span-2 text-xs text-gray-500 text-right">
+                    {formatVND(l.unit_price)}
+                  </div>
+                  <input
+                    type="text" placeholder="Số lô" value={l.lot_number}
+                    onChange={e => updateLine(i, 'lot_number', e.target.value)}
+                    className="col-span-2 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]"
+                  />
+                  <input
+                    type="date" value={l.expiry_date}
+                    onChange={e => updateLine(i, 'expiry_date', e.target.value)}
+                    className="col-span-1 h-8 px-1 text-[10px] border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Ghi chú</label>
+            <textarea value={note} onChange={e => setNote(e.target.value)} rows={2} placeholder="VD: NCC thiếu 10 thùng, hẹn giao bổ sung 05/07..."
+              className="w-full px-3 py-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] resize-none" />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between px-6 py-4 border-t border-[#e5e7eb] bg-gray-50 rounded-b-2xl">
+          <div>
+            <span className="text-xs text-gray-400">Tổng giá trị nhận</span>
+            <p className="text-base font-bold text-[var(--mia-primary)]">{formatVND(totalReceived)}</p>
+            {isPartial && hasAny && (
+              <p className="text-[10px] text-amber-600">Giao thiếu — có thể nhận bổ sung sau</p>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <button onClick={onClose} className="px-4 py-2 text-sm border border-[#e5e7eb] text-gray-600 rounded-lg hover:bg-gray-100 transition-colors font-medium">Huỷ</button>
+            <button onClick={handleSubmit} disabled={submitting || !warehouseId || !hasAny}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-95">
+              <PackageCheck size={15} />{submitting ? 'Đang xử lý...' : 'Xác nhận nhận hàng'}
             </button>
           </div>
         </div>
@@ -476,6 +646,7 @@ export default function DonMuaHangPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [detail, setDetail] = useState<PurchaseOrder | null>(null)
   const [editTarget, setEditTarget] = useState<PurchaseOrder | null>(null)
+  const [receiveTarget, setReceiveTarget] = useState<PurchaseOrder | null>(null)
   const [sendTarget, setSendTarget] = useState<PurchaseOrder | null>(null)
   const [approveTarget, setApproveTarget] = useState<PurchaseOrder | null>(null)
   const [toast, setToast] = useState('')
@@ -680,6 +851,12 @@ export default function DonMuaHangPage() {
                         <CheckCircle size={11} />Duyệt
                       </button>
                     )}
+                    {(p.status === 'sent' || p.status === 'delivering') && (
+                      <button onClick={() => setReceiveTarget(p)}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-700 hover:scale-[1.02] active:scale-95 transition-all">
+                        <PackageCheck size={11} />Nhận hàng
+                      </button>
+                    )}
                   </td>
                 </tr>
               )
@@ -719,6 +896,17 @@ export default function DonMuaHangPage() {
           po={editTarget}
           onClose={() => setEditTarget(null)}
           onSave={handleEdit}
+        />
+      )}
+
+      {receiveTarget && (
+        <GoodsReceiptModal
+          po={receiveTarget}
+          onClose={() => setReceiveTarget(null)}
+          onDone={async (msg) => {
+            showToast(msg)
+            await loadPOs()
+          }}
         />
       )}
 
