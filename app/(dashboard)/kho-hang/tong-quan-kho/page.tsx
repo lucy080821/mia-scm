@@ -309,7 +309,7 @@ export default function WarehouseOverviewPage() {
 
     setKpis(k => ({ ...k, totalSKUs, totalValue, criticalCount, warningCount, outOfStock, avgDOS, belowROPCount }))
 
-    // ── Đề xuất đặt hàng: sản phẩm có EOQ > 0 và DOS ≤ 30 ngày hoặc dưới ROP ──
+    // ── Đề xuất đặt hàng: sản phẩm cần nhập (dưới ROP / hết hàng / DOS ≤ 30) ──
     const suggested: SuggestedOrder[] = prods
       .map(p => {
         const stock = stockByProduct[p.id] ?? 0
@@ -317,11 +317,15 @@ export default function WarehouseOverviewPage() {
         const rop   = calcROP(avg)
         const eoq   = calcEOQ(avg, p.purchase_price)
         const dos   = avg > 0 ? Math.floor(stock / avg) : null
-        return { sku: p.sku, name: p.name, unit: p.unit, stock, rop, eoq, dos, product_id: p.id, purchase_price: p.purchase_price }
+        // Nếu không có lịch sử bán, dùng min_stock làm số lượng đề xuất
+        const orderQty = eoq > 0 ? eoq : (p.min_stock > 0 ? p.min_stock : 0)
+        const needsOrder = stock === 0 || stock <= rop || (dos !== null && dos <= 30) || stock <= p.min_stock
+        return { sku: p.sku, name: p.name, unit: p.unit, stock, rop, eoq: orderQty, dos, product_id: p.id, purchase_price: p.purchase_price, needsOrder }
       })
-      .filter(p => p.eoq > 0 && (p.stock <= p.rop || (p.dos !== null && p.dos <= 30)))
-      .sort((a, b) => (a.dos ?? 9999) - (b.dos ?? 9999))
-      .slice(0, 10)
+      .filter(p => p.needsOrder && p.eoq > 0)
+      .sort((a, b) => (a.stock === 0 ? -1 : b.stock === 0 ? 1 : (a.dos ?? 9999) - (b.dos ?? 9999)))
+      .slice(0, 20)
+      .map(({ needsOrder: _, ...rest }) => rest)
     setSuggestedOrders(suggested)
 
     fetchAiSuggestion(alerts)
@@ -364,15 +368,17 @@ export default function WarehouseOverviewPage() {
   }
 
   async function handleCreatePO() {
-    if (!suggestedOrders.length || creatingPO) return
+    if (creatingPO) return
+    const items = suggestedOrders.length > 0
+      ? suggestedOrders.map(s => ({ sku: s.sku, quantity: Math.max(Math.round(s.eoq), 1) }))
+      : alertItems.map(a => ({ sku: a.sku, quantity: Math.max(Math.round(a.eoq > 0 ? a.eoq : a.min_stock), 1) }))
+    if (!items.length) return
     setCreatingPO(true)
     try {
       const res = await fetch('/api/purchase-orders/from-ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          items: suggestedOrders.map(s => ({ sku: s.sku, quantity: Math.max(Math.round(s.eoq), 1) }))
-        }),
+        body: JSON.stringify({ items }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Lỗi tạo đơn')
@@ -496,7 +502,7 @@ export default function WarehouseOverviewPage() {
           title="AI Phân tích tồn kho (ROP · EOQ · ABC)"
           content={aiContent}
           actionLabel={creatingPO ? 'Đang tạo đơn...' : 'Tạo đơn đặt hàng'}
-          actionDisabled={creatingPO || suggestedOrders.length === 0}
+          actionDisabled={creatingPO || (suggestedOrders.length === 0 && alertItems.length === 0)}
           onAction={handleCreatePO}
         />
       </div>
