@@ -39,18 +39,13 @@ export default function TenantManifestSync() {
     }
     themeMeta.content = tenant.primaryColor ?? '#1e2a3a'
 
-    // Dùng /api/favicon (server proxy) thay vì logoUrl trực tiếp vì:
-    // 1. Supabase storage URL có thể bị CORS khi dùng làm favicon
-    // 2. /api/favicon đọc JWT cookie → fetch logo từ DB → trả về đúng Content-Type
-    // Cache-buster buộc browser refetch ngay thay vì dùng favicon cache cũ
-    const existing = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
-    const url = `/api/favicon?_t=${Date.now()}`
-    if (existing) {
-      existing.href = url
-    } else {
+    if (tenant.logoUrl) {
+      // Remove + re-add là cách duy nhất buộc browser refetch favicon (không dùng cache)
+      // Dùng logoUrl trực tiếp thay vì /api/favicon vì cùng URL sidebar đang render thành công
+      document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"]').forEach(el => el.remove())
       const link = document.createElement('link')
       link.rel = 'icon'
-      link.href = url
+      link.href = tenant.logoUrl
       document.head.appendChild(link)
     }
   }, [tenant.name, tenant.primaryColor, tenant.logoUrl, tenant.id])
