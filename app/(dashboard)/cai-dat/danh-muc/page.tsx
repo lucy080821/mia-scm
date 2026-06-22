@@ -1,14 +1,15 @@
 ﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Edit2, Trash2, Package, Users, Tag, X, Loader2 } from 'lucide-react'
+import { Plus, Edit2, Trash2, Package, Users, Tag, X, Loader2, Warehouse, ToggleLeft, ToggleRight } from 'lucide-react'
 import PageHeader from '@/components/layout/PageHeader'
 import { supabase } from '@/lib/supabase'
 import { useTenant } from '@/contexts/TenantContext'
 
 const TABS = [
-  { id: 'category', label: 'Danh mục sản phẩm', icon: Package },
-  { id: 'group',    label: 'Nhóm khách hàng',   icon: Users },
-  { id: 'unit',     label: 'Đơn vị tính',       icon: Tag },
+  { id: 'category',  label: 'Danh mục sản phẩm', icon: Package },
+  { id: 'group',     label: 'Nhóm khách hàng',   icon: Users },
+  { id: 'unit',      label: 'Đơn vị tính',       icon: Tag },
+  { id: 'warehouse', label: 'Kho hàng',           icon: Warehouse },
 ]
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -459,6 +460,173 @@ function UnitsTab() {
   )
 }
 
+// ─── Warehouses tab ───────────────────────────────────────────────────────────
+
+interface WarehouseItem { id: string; name: string; code: string; status: string }
+
+function WarehousesTab() {
+  const [items, setItems]         = useState<WarehouseItem[]>([])
+  const [loading, setLoading]     = useState(true)
+  const [showAdd, setShowAdd]     = useState(false)
+  const [addName, setAddName]     = useState('')
+  const [addCode, setAddCode]     = useState('')
+  const [saving, setSaving]       = useState(false)
+  const [toggling, setToggling]   = useState<string | null>(null)
+  const [errorMsg, setErrorMsg]   = useState('')
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    const res = await fetch('/api/warehouses')
+    const data = await res.json()
+    setItems(Array.isArray(data) ? data : [])
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  async function handleAdd() {
+    if (!addName.trim() || !addCode.trim()) return
+    setSaving(true)
+    const res = await fetch('/api/warehouses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: addName.trim(), code: addCode.trim() }),
+    })
+    const data = await res.json()
+    if (!res.ok) { setErrorMsg(data.error ?? 'Lỗi tạo kho'); setSaving(false); return }
+    setSaving(false)
+    setShowAdd(false)
+    setAddName('')
+    setAddCode('')
+    load()
+  }
+
+  async function handleToggle(w: WarehouseItem) {
+    setToggling(w.id)
+    const newStatus = w.status === 'active' ? 'inactive' : 'active'
+    await fetch(`/api/warehouses/${w.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus }),
+    })
+    setToggling(null)
+    load()
+  }
+
+  return (
+    <>
+      <div className="bg-white rounded-xl border border-[#e5e7eb]">
+        <div className="p-4 border-b border-[#e5e7eb] flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-[#1e2a3a]">
+            Kho hàng {!loading && `(${items.filter(w => w.status === 'active').length} đang hoạt động)`}
+          </h3>
+          <button
+            onClick={() => setShowAdd(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--mia-primary)] text-white text-xs font-semibold rounded-lg hover:opacity-90 transition-colors"
+          >
+            <Plus size={13} /> Thêm kho
+          </button>
+        </div>
+        {loading ? (
+          <div className="flex items-center justify-center py-16 text-gray-400">
+            <Loader2 size={20} className="animate-spin" />
+          </div>
+        ) : items.length === 0 ? (
+          <div className="py-12 text-center">
+            <p className="text-xs text-gray-400 mb-2">Chưa có kho nào — thêm kho để bắt đầu nhập/xuất hàng</p>
+          </div>
+        ) : (
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-[#e5e7eb] bg-gray-50">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Tên kho</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Mã kho</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Trạng thái</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Hành động</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map(w => (
+                <tr key={w.id} className={`border-b border-[#f0f2f5] hover:bg-gray-50/50 transition-colors ${w.status !== 'active' ? 'opacity-50' : ''}`}>
+                  <td className="px-4 py-3 text-sm font-medium text-[#1e2a3a]">{w.name}</td>
+                  <td className="px-4 py-3">
+                    <span className="text-xs font-mono bg-gray-100 px-2 py-0.5 rounded text-gray-600">{w.code}</span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${w.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {w.status === 'active' ? 'Hoạt động' : 'Tạm dừng'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-center">
+                      <button
+                        onClick={() => handleToggle(w)}
+                        disabled={toggling === w.id}
+                        title={w.status === 'active' ? 'Tạm dừng kho' : 'Kích hoạt kho'}
+                        className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-[var(--mia-primary)] transition-colors disabled:opacity-40"
+                      >
+                        {toggling === w.id
+                          ? <Loader2 size={15} className="animate-spin" />
+                          : w.status === 'active' ? <ToggleRight size={18} className="text-green-500" /> : <ToggleLeft size={18} />
+                        }
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {showAdd && (
+        <Modal title="Thêm kho hàng" onClose={() => setShowAdd(false)}>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Tên kho *</label>
+              <input
+                autoFocus
+                value={addName}
+                onChange={e => setAddName(e.target.value)}
+                className="w-full border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--mia-primary)]"
+                placeholder="VD: Kho Hồ Chí Minh"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Mã kho *</label>
+              <input
+                value={addCode}
+                onChange={e => setAddCode(e.target.value.toUpperCase())}
+                onKeyDown={e => e.key === 'Enter' && handleAdd()}
+                className="w-full border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[var(--mia-primary)]"
+                placeholder="VD: KHO-HCM"
+              />
+              <p className="text-[10px] text-gray-400 mt-1">Mã kho phải duy nhất, chỉ dùng chữ hoa và dấu gạch ngang</p>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={handleAdd}
+                disabled={saving || !addName.trim() || !addCode.trim()}
+                className="flex-1 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 transition-colors"
+              >
+                {saving ? <Loader2 size={14} className="animate-spin mx-auto" /> : 'Thêm kho'}
+              </button>
+              <button onClick={() => setShowAdd(false)} className="flex-1 py-2 border border-[#e5e7eb] text-sm text-gray-500 rounded-lg hover:bg-gray-50 transition-colors">Huỷ</button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {errorMsg && (
+        <Modal title="Lỗi" onClose={() => setErrorMsg('')}>
+          <p className="text-sm text-gray-600 mb-4">{errorMsg}</p>
+          <button onClick={() => setErrorMsg('')} className="w-full py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 transition-colors">Đóng</button>
+        </Modal>
+      )}
+    </>
+  )
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function DanhMucPage() {
@@ -466,7 +634,7 @@ export default function DanhMucPage() {
 
   return (
     <div>
-      <PageHeader title="Danh mục" subtitle="Quản lý danh mục sản phẩm, nhóm khách hàng" />
+      <PageHeader title="Danh mục" subtitle="Quản lý danh mục sản phẩm, nhóm khách hàng và kho hàng" />
 
       <div className="flex gap-1 bg-white border border-[#e5e7eb] rounded-xl p-1 mb-5 w-fit">
         {TABS.map(t => {
@@ -486,9 +654,10 @@ export default function DanhMucPage() {
         })}
       </div>
 
-      {tab === 'category' && <CategoriesTab />}
-      {tab === 'group'    && <GroupsTab />}
-      {tab === 'unit'     && <UnitsTab />}
+      {tab === 'category'  && <CategoriesTab />}
+      {tab === 'group'     && <GroupsTab />}
+      {tab === 'unit'      && <UnitsTab />}
+      {tab === 'warehouse' && <WarehousesTab />}
     </div>
   )
 }

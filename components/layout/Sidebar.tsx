@@ -10,10 +10,11 @@ import {
   DollarSign, TrendingUp, TrendingDown, BarChart2, CreditCard, UserCog,
   FileSpreadsheet, Briefcase, Building2, ClipboardList,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { canAccess } from '@/lib/auth-client'
 import { useAuth } from '@/hooks/useAuth'
 import { useTenant } from '@/contexts/TenantContext'
+import { DEFAULT_TENANT } from '@/lib/tenant'
 import { useBadgeCounts } from '@/hooks/useBadgeCounts'
 
 const navConfig = [
@@ -104,9 +105,17 @@ const SECTION_MODULE: Record<string, string> = {
 export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+  const [mounted, setMounted] = useState(false)
   const { user, signOut } = useAuth()
   const tenant = useTenant()
   const badgeCounts = useBadgeCounts()
+
+  useEffect(() => { setMounted(true) }, [])
+
+  // Use DEFAULT_TENANT + null user on first render to match server HTML exactly.
+  // After mount, switch to real tenant/user — no hydration mismatch.
+  const effectiveTenant = mounted ? tenant : DEFAULT_TENANT
+  const effectiveUser = mounted ? user : null
 
   const toggleSection = (section: string) => {
     setCollapsed(prev => ({ ...prev, [section]: !prev[section] }))
@@ -123,18 +132,18 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const filteredNav = navConfig.map(group => ({
     ...group,
     items: group.items.filter(item =>
-      (!user || canAccess(user.role, item.href))
+      (!effectiveUser || canAccess(effectiveUser.role, item.href))
     ),
   })).filter(group => {
     if (group.items.length === 0) return false
     if (!group.section) return true
     const mod = SECTION_MODULE[group.section]
     if (!mod) return true
-    return tenant.enabledModules.includes(mod)
+    return effectiveTenant.enabledModules.includes(mod)
   })
 
-  const sidebarBg   = tenant.themeConfig?.sidebarBg   ?? '#1e2a3a'
-  const sidebarText = tenant.themeConfig?.sidebarText ?? '#ffffff'
+  const sidebarBg   = effectiveTenant.themeConfig?.sidebarBg   ?? '#1e2a3a'
+  const sidebarText = effectiveTenant.themeConfig?.sidebarText ?? '#ffffff'
 
   // hex + opacity → rgba string
   const c = (hex: string, a: number) => {
@@ -149,17 +158,17 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-4 py-4"
         style={{ borderBottom: `1px solid ${c(sidebarText, 0.1)}` }}>
-        {tenant.logoUrl
-          ? <img src={tenant.logoUrl} alt={tenant.name} className="w-8 h-8 rounded-lg shrink-0 object-cover" />
+        {effectiveTenant.logoUrl
+          ? <img src={effectiveTenant.logoUrl} alt={effectiveTenant.name} className="w-8 h-8 rounded-lg shrink-0 object-cover" />
           : (
             <div className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center font-bold text-sm"
-              style={{ backgroundColor: tenant.primaryColor, color: '#ffffff' }}>
-              {tenant.name.charAt(0)}
+              style={{ backgroundColor: effectiveTenant.primaryColor, color: '#ffffff' }}>
+              {effectiveTenant.name.charAt(0)}
             </div>
           )
         }
         <div className="min-w-0">
-          <p className="font-bold text-sm leading-none truncate" style={{ color: sidebarText }}>{tenant.name}</p>
+          <p className="font-bold text-sm leading-none truncate" style={{ color: sidebarText }}>{effectiveTenant.name}</p>
           <p className="text-[10px] leading-tight mt-0.5" style={{ color: c(sidebarText, 0.5) }}>Supply Chain</p>
         </div>
         {mobileOpen && (
@@ -195,7 +204,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                   className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-150
                     ${active ? 'font-medium' : 'hover:bg-white/10'}`}
                   style={active
-                    ? { backgroundColor: tenant.primaryColor, color: '#ffffff' }
+                    ? { backgroundColor: effectiveTenant.primaryColor, color: '#ffffff' }
                     : { color: c(sidebarText, 0.75) }}
                 >
                   <Icon size={15} style={{ color: active ? '#ffffff' : c(sidebarText, 0.65) }} />

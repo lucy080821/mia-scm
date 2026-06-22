@@ -20,7 +20,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       .single()
 
     if (!existing) return NextResponse.json({ error: 'Không tìm thấy đơn' }, { status: 404 })
-    if (existing.status !== 'draft') return NextResponse.json({ error: 'Chỉ chỉnh sửa được đơn ở trạng thái Bản nháp' }, { status: 400 })
+
+    const hasDataChanges = supplier_id !== undefined || expected_date !== undefined || note !== undefined || Array.isArray(items)
+    if (hasDataChanges && existing.status !== 'draft') {
+      return NextResponse.json({ error: 'Chỉ chỉnh sửa được đơn ở trạng thái Bản nháp' }, { status: 400 })
+    }
+    if (status !== undefined && status !== existing.status) {
+      const allowed: Record<string, string[]> = { draft: ['pending'], pending: ['sent', 'draft'] }
+      if (!(allowed[existing.status] ?? []).includes(status)) {
+        return NextResponse.json({ error: `Không thể chuyển trạng thái từ ${existing.status} sang ${status}` }, { status: 400 })
+      }
+    }
 
     const total_amount = Array.isArray(items)
       ? items.reduce((s: number, it: { quantity: number; unit_price: number }) => s + it.quantity * it.unit_price, 0)
@@ -58,6 +68,33 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
 
     return NextResponse.json({ id })
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 })
+  }
+}
+
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params
+    const tenantId = await getServerTenantId()
+    if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const { data: existing } = await supabaseAdmin
+      .from('purchase_orders')
+      .select('id, status')
+      .eq('id', id)
+      .eq('tenant_id', tenantId)
+      .single()
+
+    if (!existing) return NextResponse.json({ error: 'Không tìm thấy đơn' }, { status: 404 })
+    if (existing.status !== 'draft') {
+      return NextResponse.json({ error: 'Chỉ xóa được đơn ở trạng thái Bản nháp' }, { status: 400 })
+    }
+
+    await supabaseAdmin.from('purchase_order_items').delete().eq('order_id', id)
+    await supabaseAdmin.from('purchase_orders').delete().eq('id', id)
+
+    return NextResponse.json({ success: true })
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 })
   }

@@ -253,25 +253,39 @@ export default function WarehouseOverviewPage() {
       ? Math.round(dosValues.reduce((s, d) => s + d, 0) / dosValues.length)
       : null
 
-    // ── Alert items ──────────────────────────────────────────────────────────
+    // ── Alert items (per-warehouse) ──────────────────────────────────────────
     const alerts: AlertItem[] = []
     for (const p of prods) {
-      const stock        = stockByProduct[p.id] ?? 0
+      const totalStock   = stockByProduct[p.id] ?? 0
       const avg          = avgSalesMap[p.id] ?? 0
       const rop          = calcROP(avg)
       const safety_stock = calcSafetyStock(avg)
       const eoq          = calcEOQ(avg, p.purchase_price)
-      const belowMin     = stock <= (p.min_stock ?? 0)
-      const belowROP     = rop > 0 && stock <= rop
+      const belowMin     = totalStock <= (p.min_stock ?? 0)
+      const belowROP     = rop > 0 && totalStock <= rop
 
       if (belowMin || belowROP) {
-        const isCritical = stock === 0 || (safety_stock > 0 && stock <= safety_stock)
-        alerts.push({
-          sku: p.sku, name: p.name, unit: p.unit, stock,
-          min_stock: p.min_stock, warehouse: '—',
-          level: isCritical ? 'critical' : 'warning',
-          rop, safety_stock, eoq, avg_daily_sales: avg,
-        })
+        const isCritical = totalStock === 0 || (safety_stock > 0 && totalStock <= safety_stock)
+        const productInv = invs.filter(inv => inv.product_id === p.id && inv.quantity > 0)
+
+        if (productInv.length > 0) {
+          for (const inv of productInv) {
+            const wh = whMap[inv.warehouse_id]
+            alerts.push({
+              sku: p.sku, name: p.name, unit: p.unit, stock: inv.quantity,
+              min_stock: p.min_stock, warehouse: wh?.name ?? 'Kho không xác định',
+              level: isCritical ? 'critical' : 'warning',
+              rop, safety_stock, eoq, avg_daily_sales: avg,
+            })
+          }
+        } else {
+          alerts.push({
+            sku: p.sku, name: p.name, unit: p.unit, stock: 0,
+            min_stock: p.min_stock, warehouse: 'Chưa nhập kho',
+            level: 'critical',
+            rop, safety_stock, eoq, avg_daily_sales: avg,
+          })
+        }
       }
     }
     alerts.sort((a, b) => (a.level === b.level ? 0 : a.level === 'critical' ? -1 : 1))

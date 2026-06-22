@@ -93,7 +93,6 @@ export async function POST(
         purchase_order_id: poId,
         warehouse_id,
         receipt_date,
-        po_ref: po.code,
         note: note || null,
         total_amount,
         status: 'completed',

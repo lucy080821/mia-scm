@@ -170,12 +170,11 @@ function GoodsReceiptModal({ po, onClose, onDone }: {
   onClose: () => void
   onDone: (msg: string) => void
 }) {
-  const { id: tenantId } = useTenant()
   const [warehouseId, setWarehouseId] = useState('')
   const [receiptDate, setReceiptDate] = useState(new Date().toISOString().slice(0, 10))
   const [note, setNote] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [warehouses, setWarehouses] = useState<{ id: string; name: string; code: string }[]>([])
+  const [warehouses, setWarehouses] = useState<{ id: string; name: string; code: string; status: string }[]>([])
   const [lines, setLines] = useState(po.items.map(it => ({
     product_id: it.product_id,
     name: it.name,
@@ -187,16 +186,17 @@ function GoodsReceiptModal({ po, onClose, onDone }: {
     expiry_date: '',
   })))
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (!tenantId) return
-    supabase.from('warehouses').select('id, name, code').eq('status', 'active').eq('tenant_id', tenantId).order('name')
-      .then(({ data }) => {
-        const whs = data ?? []
+    fetch('/api/warehouses')
+      .then(r => r.json())
+      .then((all: { id: string; name: string; code: string; status: string }[]) => {
+        if (!Array.isArray(all)) return
+        const whs = all.filter(w => w.status === 'active')
         setWarehouses(whs)
         if (whs.length === 1) setWarehouseId(whs[0].id)
       })
-  }, [tenantId])
+      .catch(() => {})
+  }, [])
 
   const updateLine = (i: number, field: string, val: string | number) =>
     setLines(prev => prev.map((l, idx) => idx === i ? { ...l, [field]: val } : l))
@@ -226,7 +226,7 @@ function GoodsReceiptModal({ po, onClose, onDone }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#e5e7eb]">
           <div>
             <h2 className="text-base font-bold text-[#1e2a3a]">Nhận hàng — {po.code}</h2>
@@ -245,6 +245,11 @@ function GoodsReceiptModal({ po, onClose, onDone }: {
                 <option value="">-- Chọn kho --</option>
                 {warehouses.map(w => <option key={w.id} value={w.id}>{w.name} ({w.code})</option>)}
               </select>
+              {warehouses.length === 0 && (
+                <p className="text-[10px] text-amber-600 mt-1">
+                  Chưa có kho nào — <a href="/cai-dat/danh-muc" className="underline hover:text-amber-700">Tạo kho tại Cài đặt → Danh mục → Kho hàng</a>
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1.5">Ngày nhận hàng</label>
@@ -268,10 +273,10 @@ function GoodsReceiptModal({ po, onClose, onDone }: {
                 <span className="col-span-3 text-xs font-semibold text-gray-500">Sản phẩm</span>
                 <span className="col-span-1 text-xs font-semibold text-gray-500 text-center">ĐVT</span>
                 <span className="col-span-1 text-xs font-semibold text-gray-500 text-center">Đặt</span>
-                <span className="col-span-2 text-xs font-semibold text-gray-500 text-center">Nhận thực tế</span>
+                <span className="col-span-1 text-xs font-semibold text-gray-500 text-center">Nhận</span>
                 <span className="col-span-2 text-xs font-semibold text-gray-500 text-right">Đơn giá</span>
                 <span className="col-span-2 text-xs font-semibold text-gray-500">Số lô</span>
-                <span className="col-span-1 text-xs font-semibold text-gray-500">HSD</span>
+                <span className="col-span-2 text-xs font-semibold text-gray-500">HSD</span>
               </div>
               {lines.map((l, i) => (
                 <div key={i} className={`grid grid-cols-12 gap-2 items-center px-4 py-2.5 border-b border-[#f0f2f5] last:border-0 ${l.received_qty < l.ordered_qty ? 'bg-amber-50/40' : ''}`}>
@@ -280,12 +285,12 @@ function GoodsReceiptModal({ po, onClose, onDone }: {
                   </div>
                   <span className="col-span-1 text-xs text-gray-400 text-center">{l.unit}</span>
                   <span className="col-span-1 text-xs text-gray-400 text-center">{l.ordered_qty}</span>
-                  <div className="col-span-2 flex items-center gap-1">
+                  <div className="col-span-1">
                     <input
                       type="number" min={0} max={l.ordered_qty}
                       value={l.received_qty}
                       onChange={e => updateLine(i, 'received_qty', Math.max(0, +e.target.value))}
-                      className={`w-full h-8 px-2 text-xs border rounded-lg text-center outline-none focus:border-[var(--mia-primary)] ${l.received_qty < l.ordered_qty ? 'border-amber-300 bg-amber-50' : 'border-[#e5e7eb] bg-white'}`}
+                      className={`w-full h-8 px-1 text-xs border rounded-lg text-center outline-none focus:border-[var(--mia-primary)] ${l.received_qty < l.ordered_qty ? 'border-amber-300 bg-amber-50' : 'border-[#e5e7eb] bg-white'}`}
                     />
                   </div>
                   <div className="col-span-2 text-xs text-gray-500 text-right">
@@ -299,7 +304,7 @@ function GoodsReceiptModal({ po, onClose, onDone }: {
                   <input
                     type="date" value={l.expiry_date}
                     onChange={e => updateLine(i, 'expiry_date', e.target.value)}
-                    className="col-span-1 h-8 px-1 text-[10px] border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]"
+                    className="col-span-2 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]"
                   />
                 </div>
               ))}
@@ -477,8 +482,8 @@ function EditPOModal({ po, onClose, onSave }: {
 function ApprovalModal({ po, onClose, onApprove, onReject }: {
   po: PurchaseOrder
   onClose: () => void
-  onApprove: (id: string, note: string) => void
-  onReject: (id: string, reason: string) => void
+  onApprove: (id: string, note: string) => Promise<void>
+  onReject: (id: string, reason: string) => Promise<void>
 }) {
   const [note, setNote] = useState('')
   const [mode, setMode] = useState<'view' | 'reject'>('view')
@@ -576,7 +581,7 @@ function buildPreviewText(po: PurchaseOrder): string {
 }
 
 function SendPreviewModal({ po, onClose, onConfirm }: {
-  po: PurchaseOrder; onClose: () => void; onConfirm: () => void
+  po: PurchaseOrder; onClose: () => void; onConfirm: () => Promise<void>
 }) {
   const [copied, setCopied] = useState(false)
   const text = buildPreviewText(po)
@@ -649,6 +654,7 @@ export default function DonMuaHangPage() {
   const [receiveTarget, setReceiveTarget] = useState<PurchaseOrder | null>(null)
   const [sendTarget, setSendTarget] = useState<PurchaseOrder | null>(null)
   const [approveTarget, setApproveTarget] = useState<PurchaseOrder | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<PurchaseOrder | null>(null)
   const [toast, setToast] = useState('')
   const [page, setPage] = useState(1)
 
@@ -741,24 +747,58 @@ export default function DonMuaHangPage() {
     }
   }
 
-  const handleSubmitForApproval = (id: string) => {
-    setPos(prev => prev.map(p => p.id === id ? { ...p, status: 'pending' } : p))
-    showToast('Đã gửi đơn chờ duyệt')
+  const patchStatus = async (id: string, status: string) => {
+    const res = await fetch(`/api/purchase-orders/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Lỗi kết nối' }))
+      showToast(`Lỗi: ${err.error}`)
+      return false
+    }
+    return true
   }
 
-  const handleSend = (id: string) => {
-    setPos(prev => prev.map(p => p.id === id ? { ...p, status: 'sent' } : p))
-    showToast('Đã gửi đơn cho nhà cung cấp')
+  const handleSubmitForApproval = async (id: string) => {
+    if (await patchStatus(id, 'pending')) {
+      setPos(prev => prev.map(p => p.id === id ? { ...p, status: 'pending' } : p))
+      showToast('Đã gửi đơn chờ duyệt')
+    }
   }
 
-  const handleApprove = (id: string, note: string) => {
-    setPos(prev => prev.map(p => p.id === id ? { ...p, status: 'sent', note: note || p.note } : p))
-    showToast('Đã duyệt đơn mua hàng — chuyển sang Đã gửi NCC')
+  const handleSend = async (id: string) => {
+    if (await patchStatus(id, 'sent')) {
+      setPos(prev => prev.map(p => p.id === id ? { ...p, status: 'sent' } : p))
+      showToast('Đã gửi đơn cho nhà cung cấp')
+    }
   }
 
-  const handleRejectPO = (id: string, reason: string) => {
-    setPos(prev => prev.map(p => p.id === id ? { ...p, status: 'draft', note: reason || p.note } : p))
-    showToast('Đã từ chối — đơn trả về Bản nháp')
+  const handleApprove = async (id: string, note: string) => {
+    if (await patchStatus(id, 'sent')) {
+      setPos(prev => prev.map(p => p.id === id ? { ...p, status: 'sent', note: note || p.note } : p))
+      showToast('Đã duyệt đơn mua hàng — chuyển sang Đã gửi NCC')
+    }
+  }
+
+  const handleRejectPO = async (id: string, reason: string) => {
+    if (await patchStatus(id, 'draft')) {
+      setPos(prev => prev.map(p => p.id === id ? { ...p, status: 'draft', note: reason || p.note } : p))
+      showToast('Đã từ chối — đơn trả về Bản nháp')
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    const res = await fetch(`/api/purchase-orders/${id}`, { method: 'DELETE' })
+    if (res.ok) {
+      setPos(prev => prev.filter(p => p.id !== id))
+      showToast('Đã xóa đơn mua hàng')
+    } else {
+      const err = await res.json().catch(() => ({ error: 'Lỗi kết nối' }))
+      showToast(`Lỗi: ${err.error}`)
+    }
+    setDeleteTarget(null)
   }
 
   return (
@@ -835,6 +875,10 @@ export default function DonMuaHangPage() {
                   <td className="px-4 py-3 whitespace-nowrap">
                     {p.status === 'draft' && (
                       <div className="flex items-center gap-1.5">
+                        <button onClick={() => setDeleteTarget(p)}
+                          className="flex items-center gap-1 px-2.5 py-1.5 border border-red-200 text-red-500 text-xs font-medium rounded-lg hover:bg-red-50 transition-all">
+                          <Trash2 size={11} />Xóa
+                        </button>
                         <button onClick={() => setEditTarget(p)}
                           className="flex items-center gap-1 px-2.5 py-1.5 border border-[#e5e7eb] text-gray-600 text-xs font-medium rounded-lg hover:bg-gray-100 transition-all">
                           <Pencil size={11} />Sửa
@@ -886,6 +930,33 @@ export default function DonMuaHangPage() {
       {toast && (
         <div className="fixed bottom-6 right-6 z-50 bg-[#1e2a3a] text-white text-sm px-4 py-3 rounded-xl shadow-xl">
           {toast}
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
+                <Trash2 size={18} className="text-red-500" />
+              </div>
+              <div>
+                <h2 className="text-sm font-bold text-[#1e2a3a]">Xóa đơn mua hàng?</h2>
+                <p className="text-xs text-gray-400 mt-0.5">{deleteTarget.code} · {deleteTarget.supplier}</p>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 mb-5">Thao tác này không thể hoàn tác. Đơn và toàn bộ sản phẩm trong đơn sẽ bị xóa vĩnh viễn.</p>
+            <div className="flex gap-2">
+              <button onClick={() => setDeleteTarget(null)}
+                className="flex-1 py-2 border border-[#e5e7eb] text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors">
+                Hủy
+              </button>
+              <button onClick={() => handleDelete(deleteTarget.id)}
+                className="flex-1 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-all">
+                Xóa đơn
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

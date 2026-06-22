@@ -83,7 +83,13 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
           }
           return
         }
-        applyTenant(data)
+        // Merge enabledModules với DEFAULT_TENANT để các module mặc định không bị mất
+        // khi DB chưa cập nhật enabled_modules (backward-compat với tenants cũ)
+        const merged: TenantConfig = {
+          ...data,
+          enabledModules: Array.from(new Set([...DEFAULT_TENANT.enabledModules, ...(data.enabledModules ?? [])])),
+        }
+        applyTenant(merged)
       })
       .catch(() => {})
   }
