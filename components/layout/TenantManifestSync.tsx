@@ -5,7 +5,7 @@ import { useTenant } from '@/contexts/TenantContext'
 export default function TenantManifestSync() {
   const tenant = useTenant()
 
-  // Title: dùng MutationObserver vì Next.js App Router reset <title> bất đồng bộ sau mỗi navigation
+  // Title: MutationObserver để re-apply sau mỗi navigation (Next.js reset <title> bất đồng bộ)
   useEffect(() => {
     if (!tenant?.name || tenant.id === 'default') return
 
@@ -19,7 +19,7 @@ export default function TenantManifestSync() {
     return () => observer.disconnect()
   }, [tenant.name, tenant.id])
 
-  // Theme-color, apple title, favicon — chỉ cần set 1 lần khi tenant load, không bị Next.js reset
+  // Meta tags (apple title, theme-color)
   useEffect(() => {
     if (!tenant?.name || tenant.id === 'default') return
 
@@ -38,17 +38,30 @@ export default function TenantManifestSync() {
       document.head.appendChild(themeMeta)
     }
     themeMeta.content = tenant.primaryColor ?? '#1e2a3a'
+  }, [tenant.name, tenant.primaryColor, tenant.id])
 
-    if (tenant.logoUrl) {
-      // Remove + re-add là cách duy nhất buộc browser refetch favicon (không dùng cache)
-      // Dùng logoUrl trực tiếp thay vì /api/favicon vì cùng URL sidebar đang render thành công
-      document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"]').forEach(el => el.remove())
-      const link = document.createElement('link')
-      link.rel = 'icon'
-      link.href = tenant.logoUrl
-      document.head.appendChild(link)
-    }
-  }, [tenant.name, tenant.primaryColor, tenant.logoUrl, tenant.id])
+  // Favicon: fetch /api/favicon → blob URL
+  // Blob URL là unique mỗi lần → browser không cache theo URL → favicon luôn cập nhật
+  // /api/favicon là same-origin proxy, không bị CORS
+  useEffect(() => {
+    if (!tenant?.name || tenant.id === 'default') return
+
+    let blobUrl: string | null = null
+
+    fetch('/api/favicon')
+      .then(r => r.ok ? r.blob() : Promise.reject())
+      .then(blob => {
+        blobUrl = URL.createObjectURL(blob)
+        document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"]').forEach(el => el.remove())
+        const link = document.createElement('link')
+        link.rel = 'icon'
+        link.href = blobUrl
+        document.head.appendChild(link)
+      })
+      .catch(() => {})
+
+    return () => { if (blobUrl) URL.revokeObjectURL(blobUrl) }
+  }, [tenant.id])
 
   return null
 }
