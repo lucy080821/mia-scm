@@ -32,9 +32,19 @@ type FormData = {
 }
 
 const EMPTY_FORM: FormData = {
-  name: '', type: 'Nhà phân phối', tax_code: '', phone: '',
+  name: '', type: 'distributor_l1', tax_code: '', phone: '',
   email: '', address: '', payment_term: '30',
   delivery_days: '3', status: 'active', products: '', notes: '',
+}
+
+const TYPE_OPTIONS = [
+  { value: 'distributor_l1', label: 'Nhà phân phối' },
+  { value: 'manufacturer',   label: 'Nhà sản xuất'  },
+]
+
+const TYPE_LABEL: Record<string, string> = {
+  distributor_l1: 'Nhà phân phối',
+  manufacturer:   'Nhà sản xuất',
 }
 
 function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
@@ -118,8 +128,7 @@ function SupplierFormModal({ initial, existingCodes, onSave, onClose }: {
           <div className="grid grid-cols-2 gap-4">
             <Field label="Loại nhà cung cấp">
               <select value={form.type} onChange={e => set('type', e.target.value)} className={inputCls()}>
-                <option>Nhà phân phối</option>
-                <option>Nhà sản xuất</option>
+                {TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </Field>
             <Field label="Trạng thái">
@@ -225,7 +234,7 @@ function SupplierDetailDrawer({ supplier, onClose, onEdit }: {
           <div className="bg-gray-50 rounded-xl p-4 space-y-2.5">
             {[
               ['Mã NCC', supplier.code],
-              ['Loại', supplier.type],
+              ['Loại', TYPE_LABEL[supplier.type] ?? supplier.type],
               ['MST', supplier.tax_code],
               ['Thời hạn TT', `${supplier.payment_term} ngày`],
               ['Thời gian giao', `${supplier.delivery_days} ngày`],
@@ -329,6 +338,12 @@ export default function NhaCungCapPage() {
   const [selected, setSelected] = useState<Supplier | null>(null)
   const [formTarget, setFormTarget] = useState<Supplier | 'new' | null>(null)
   const [page, setPage] = useState(1)
+  const [toast, setToast] = useState<{ msg: string; type: 'error' | 'success' } | null>(null)
+
+  function showToast(msg: string, type: 'error' | 'success' = 'error') {
+    setToast({ msg, type })
+    setTimeout(() => setToast(null), 4000)
+  }
 
   const filtered = suppliers.filter(s => {
     const matchSearch = s.name.toLowerCase().includes(search.toLowerCase()) || s.code.includes(search)
@@ -368,10 +383,10 @@ export default function NhaCungCapPage() {
           setSuppliers(prev => [...prev, newSupplier])
         } else {
           const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }))
-          alert(`Lỗi lưu nhà cung cấp: ${err.error}`)
+          showToast(`Lỗi lưu nhà cung cấp: ${err.error}`)
         }
-      } catch (e) {
-        alert('Lỗi kết nối — không thể lưu nhà cung cấp')
+      } catch {
+        showToast('Lỗi kết nối — không thể lưu nhà cung cấp')
       }
     } else if (formTarget) {
       setSuppliers(prev => prev.map(s =>
@@ -528,6 +543,15 @@ export default function NhaCungCapPage() {
           onSave={handleSave}
           onClose={() => setFormTarget(null)}
         />
+      )}
+
+      {toast && (
+        <div className={`fixed bottom-5 right-5 z-[100] flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium max-w-sm transition-all ${toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-green-600 text-white'}`}>
+          <span className="flex-1">{toast.msg}</span>
+          <button onClick={() => setToast(null)} className="shrink-0 opacity-70 hover:opacity-100">
+            <X size={14} />
+          </button>
+        </div>
       )}
     </div>
   )
