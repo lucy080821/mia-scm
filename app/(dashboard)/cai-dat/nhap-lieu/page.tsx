@@ -1,5 +1,5 @@
 ﻿'use client'
-import { useState, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   Download, CheckCircle2, XCircle, AlertTriangle,
   FileSpreadsheet, ChevronRight, RotateCcw, Package,
@@ -314,6 +314,17 @@ function ImportPanel({ config }: { config: ImportConfig }) {
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const [warehouseCodes, setWarehouseCodes] = useState<string[]>([])
+
+  useEffect(() => {
+    if (config.id !== 'inventory') return
+    import('@/lib/supabase').then(({ supabase }) => {
+      supabase.from('warehouses').select('code').eq('status', 'active').order('code')
+        .then(({ data }) => {
+          if (data?.length) setWarehouseCodes(data.map((w: { code: string }) => w.code))
+        })
+    })
+  }, [config.id])
 
   const handleDownload = async () => {
     await downloadXLSXTemplate(config)
@@ -430,19 +441,29 @@ function ImportPanel({ config }: { config: ImportConfig }) {
               <table className="text-xs">
                 <thead>
                   <tr className="border-b border-blue-100 bg-blue-50">
-                    {['SKU sản phẩm', 'Tên sản phẩm', 'Số lô', 'Ngày hết hạn', 'KHO-HCM', 'KHO-HN', '...'].map(h => (
+                    {['SKU sản phẩm', 'Tên sản phẩm', 'Số lô', 'Ngày hết hạn',
+                      ...(warehouseCodes.length > 0 ? warehouseCodes : ['KHO-???', '...'])
+                    ].map(h => (
                       <th key={h} className="px-3 py-1.5 text-left text-[10px] font-semibold text-blue-600 whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   <tr className="border-b border-gray-100">
-                    {['CMK0001', 'Dầu nhớt SN150 1L', 'LOT-001', '30/06/2026', '500', '300', ''].map((v, i) => (
+                    {['CMK0001', 'Tên sản phẩm 1', 'LOT-001', '30/06/2026',
+                      ...(warehouseCodes.length > 0
+                        ? warehouseCodes.map((_, i) => i === 0 ? '500' : i === 1 ? '300' : '')
+                        : ['500', ''])
+                    ].map((v, i) => (
                       <td key={i} className="px-3 py-1.5 text-gray-600">{v || <span className="text-gray-300">—</span>}</td>
                     ))}
                   </tr>
                   <tr>
-                    {['CMK0002', 'Phụ gia A', '', '', '800', '', '200'].map((v, i) => (
+                    {['CMK0002', 'Tên sản phẩm 2', '', '',
+                      ...(warehouseCodes.length > 0
+                        ? warehouseCodes.map((_, i) => i === 0 ? '800' : '')
+                        : ['800'])
+                    ].map((v, i) => (
                       <td key={i} className="px-3 py-1.5 text-gray-600">{v || <span className="text-gray-300">—</span>}</td>
                     ))}
                   </tr>
