@@ -1,22 +1,28 @@
 'use client'
 import { useEffect } from 'react'
-import { usePathname } from 'next/navigation'
 import { useTenant } from '@/contexts/TenantContext'
 
-// Cập nhật title, theme-color và favicon theo tenant mỗi khi tenant thay đổi
-// Cần usePathname trong deps vì Next.js App Router reset <title> từ metadata tĩnh sau mỗi navigation
 export default function TenantManifestSync() {
   const tenant = useTenant()
-  const pathname = usePathname()
 
+  // Title: dùng MutationObserver vì Next.js App Router reset <title> bất đồng bộ sau mỗi navigation
   useEffect(() => {
-    // tenant.id === 'default' là DEFAULT_TENANT (Mia platform), không phải tenant thật
     if (!tenant?.name || tenant.id === 'default') return
 
-    // Tab title
-    document.title = tenant.name
+    const name = tenant.name
+    const applyTitle = () => { if (document.title !== name) document.title = name }
 
-    // Apple web app title
+    applyTitle()
+
+    const observer = new MutationObserver(applyTitle)
+    observer.observe(document.head, { childList: true, subtree: true, characterData: true })
+    return () => observer.disconnect()
+  }, [tenant.name, tenant.id])
+
+  // Theme-color, apple title, favicon — chỉ cần set 1 lần khi tenant load, không bị Next.js reset
+  useEffect(() => {
+    if (!tenant?.name || tenant.id === 'default') return
+
     let titleMeta = document.querySelector<HTMLMetaElement>('meta[name="apple-mobile-web-app-title"]')
     if (!titleMeta) {
       titleMeta = document.createElement('meta')
@@ -25,7 +31,6 @@ export default function TenantManifestSync() {
     }
     titleMeta.content = tenant.name
 
-    // Theme color
     let themeMeta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')
     if (!themeMeta) {
       themeMeta = document.createElement('meta')
@@ -34,11 +39,8 @@ export default function TenantManifestSync() {
     }
     themeMeta.content = tenant.primaryColor ?? '#1e2a3a'
 
-    // Favicon — inject client-side once logo URL is known, overrides static /api/favicon
     if (tenant.logoUrl) {
-      // Remove old tenant favicon if exists
       document.querySelectorAll('link[data-tenant-favicon]').forEach(el => el.remove())
-
       const link = document.createElement('link')
       link.rel = 'icon'
       link.setAttribute('data-tenant-favicon', 'true')
@@ -46,8 +48,7 @@ export default function TenantManifestSync() {
       link.type = 'image/png'
       document.head.appendChild(link)
     }
-  // pathname trong deps đảm bảo re-apply sau mỗi navigation (Next.js reset title từ metadata tĩnh)
-  }, [tenant.name, tenant.primaryColor, tenant.logoUrl, tenant.id, pathname])
+  }, [tenant.name, tenant.primaryColor, tenant.logoUrl, tenant.id])
 
   return null
 }
