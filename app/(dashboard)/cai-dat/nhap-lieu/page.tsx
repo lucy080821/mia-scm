@@ -170,11 +170,11 @@ async function downloadXLSXTemplate(config: ImportConfig) {
     const { data: whs } = await supabase
       .from('warehouses').select('code').eq('status', 'active').order('code')
     const whCodes: string[] = whs?.map((w: { code: string }) => w.code) ?? ['KHO-HCM', 'KHO-HN', 'KHO-DN']
-    const header = ['SKU sản phẩm', 'Số lô', 'Ngày hết hạn', ...whCodes]
+    const header = ['SKU sản phẩm', 'Tên sản phẩm', 'Số lô', 'Ngày hết hạn', ...whCodes]
     const sample = [
-      ['CMK0001', 'LOT-2026-001', '30/06/2026', ...whCodes.map((_, i) => i === 0 ? '500' : i === 1 ? '300' : '')],
-      ['CMK0002', 'LOT-2026-002', '30/06/2026', ...whCodes.map((_, i) => i === 0 ? '800' : '')],
-      ['CMK0003', '',             '',           ...whCodes.map((_, i) => i === 0 ? '150' : i === 1 ? '100' : '')],
+      ['CMK0001', 'Dầu nhớt SN150 1L', 'LOT-2026-001', '30/06/2026', ...whCodes.map((_, i) => i === 0 ? '500' : i === 1 ? '300' : '')],
+      ['CMK0002', 'Phụ gia A', 'LOT-2026-002', '30/06/2026', ...whCodes.map((_, i) => i === 0 ? '800' : '')],
+      ['CMK0003', 'Dầu nhớt SN150 4L', '', '', ...whCodes.map((_, i) => i === 0 ? '150' : i === 1 ? '100' : '')],
     ]
     const ws = XLSX.utils.aoa_to_sheet([header, ...sample])
     const wb = XLSX.utils.book_new()
@@ -209,7 +209,7 @@ function parseCSV(text: string): string[][] {
 // Chuyển wide-format (mỗi kho = 1 cột) → narrow (1 dòng per kho)
 function normalizeInventoryTable(table: string[][]): string[][] {
   if (table.length < 2) return table
-  const STD = new Set(['sku', 'sku sản phẩm', 'warehouse_code', 'mã kho', 'lot_number', 'số lô', 'quantity', 'số lượng', 'expiry_date', 'ngày hết hạn'])
+  const STD = new Set(['sku', 'sku sản phẩm', 'tên sản phẩm', 'name', 'product_name', 'warehouse_code', 'mã kho', 'lot_number', 'số lô', 'quantity', 'số lượng', 'expiry_date', 'ngày hết hạn'])
   const raw = table[0].map(h => String(h).toLowerCase().trim())
   const skuIdx    = raw.findIndex(h => h === 'sku' || h === 'sku sản phẩm')
   const lotIdx    = raw.findIndex(h => h === 'lot_number' || h === 'số lô')
@@ -430,19 +430,19 @@ function ImportPanel({ config }: { config: ImportConfig }) {
               <table className="text-xs">
                 <thead>
                   <tr className="border-b border-blue-100 bg-blue-50">
-                    {['SKU sản phẩm', 'Số lô', 'Ngày hết hạn', 'KHO-HCM', 'KHO-HN', '...'].map(h => (
+                    {['SKU sản phẩm', 'Tên sản phẩm', 'Số lô', 'Ngày hết hạn', 'KHO-HCM', 'KHO-HN', '...'].map(h => (
                       <th key={h} className="px-3 py-1.5 text-left text-[10px] font-semibold text-blue-600 whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   <tr className="border-b border-gray-100">
-                    {['CMK0001', 'LOT-001', '30/06/2026', '500', '300', ''].map((v, i) => (
+                    {['CMK0001', 'Dầu nhớt SN150 1L', 'LOT-001', '30/06/2026', '500', '300', ''].map((v, i) => (
                       <td key={i} className="px-3 py-1.5 text-gray-600">{v || <span className="text-gray-300">—</span>}</td>
                     ))}
                   </tr>
                   <tr>
-                    {['CMK0002', '', '', '800', '', '200'].map((v, i) => (
+                    {['CMK0002', 'Phụ gia A', '', '', '800', '', '200'].map((v, i) => (
                       <td key={i} className="px-3 py-1.5 text-gray-600">{v || <span className="text-gray-300">—</span>}</td>
                     ))}
                   </tr>
