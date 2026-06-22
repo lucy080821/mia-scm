@@ -206,11 +206,16 @@ Tất cả API đều yêu cầu `Authorization: Bearer <token>` trừ `/api/del
 - `/api/stocktakes/` — Kiểm kê
 - `/api/deliveries/` — Giao hàng
 - `/api/purchase-orders/` — Đơn mua hàng
+- `/api/purchase-orders/[id]/receive` — Nhận hàng từ PO (tạo phiếu nhập kho)
+- `/api/suppliers/` — Nhà cung cấp
+- `/api/warehouses/` — Kho hàng
+- `/api/warehouse-assignments/` — Gán kho cho nhân viên kho (GET/POST/DELETE)
 - `/api/finance/` `/api/expenses/` — Tài chính
 - `/api/reports/` `/api/export/` — Báo cáo & xuất dữ liệu
 - `/api/import/[type]/` — Nhập liệu (CSV/Excel)
-- `/api/ai/parse-order/` `/api/ai/inventory-suggest/` `/api/ai/delivery-route/` — AI
+- `/api/ai/parse-order/` `/api/ai/inventory-suggest/` `/api/ai/delivery-route/` `/api/ai/supplier-analysis/` — AI
 - `/api/owner/stats/` `/api/owner/activity/` — Owner dashboard
+- `/api/favicon` `/api/logo` `/api/manifest` — PWA & tenant branding
 
 ---
 
@@ -224,9 +229,45 @@ SUPABASE_SERVICE_ROLE_KEY          # server-only
 
 ---
 
+## Tính năng đã triển khai (ngoài CRUD cơ bản)
+
+### Module Mua hàng
+- **Goods receipt flow**: Modal nhận hàng từ PO — chọn kho, nhập số lượng thực nhận, số lô, HSD → tạo `stock_receipts` + cập nhật `inventory`. Nhận một phần → PO chuyển `delivering`; nhận đủ → `completed`.
+- **Delete draft PO**: Xóa PO ở trạng thái `draft` (cascade xóa items). Có confirmation modal.
+- **Nhà cung cấp**: type field dùng enum `'distributor_l1' | 'manufacturer'` (có CHECK constraint trong DB).
+- **AI phân tích NCC**: `/api/ai/supplier-analysis` — gửi data NCC thật + lịch sử PO 90 ngày cho Groq, trả về cảnh báo/đề xuất thực tế.
+
+### Module Kho hàng — Tổng quan kho
+- **Per-warehouse AI**: Khi có nhiều kho, mỗi kho có AI box riêng, bảng đề xuất đặt hàng riêng, nút tạo đơn riêng.
+- **Khi 1 kho**: giữ nguyên layout cũ (không chia theo kho).
+- **ROP/EOQ/ABC**: Tính tự động, hiển thị trên bảng đề xuất.
+- **Suggested orders**: Chỉ đề xuất khi stock < min_stock (không phải <=), số lượng = deficit (không phải toàn bộ min_stock).
+
+### Phân công kho cho nhân viên
+- **Bảng DB**: `employee_warehouses (id, profile_id, warehouse_id, tenant_id, UNIQUE(profile_id, warehouse_id))` — cần tạo thủ công trong Supabase với RLS enabled.
+- **API**: `/api/warehouse-assignments` GET/POST/DELETE — graceful nếu bảng chưa tồn tại (trả [] thay vì crash).
+- **UI**: Trang `cai-dat/nhan-vien` — cột "Kho phân công" trong bảng, checkbox chọn kho trong modal sửa nhân viên kho.
+- **Filter**: Nhân viên kho chỉ thấy kho được gán (nếu chưa gán → thấy tất cả).
+
+### Sidebar & Hydration
+- **mounted pattern**: Sidebar dùng `mounted` state — server + client render đầu tiên đều dùng `DEFAULT_TENANT` + `null user`, tránh hydration mismatch làm mất section MUA HÀNG.
+
+### Branding per tenant
+- **TenantManifestSync**: Cập nhật `document.title`, `theme-color`, favicon (`<link data-tenant-favicon>`) client-side sau khi tenant load. Guard: chỉ update khi `tenant.name` không phải "Mia SCM" / "Demo".
+- **Favicon**: `/api/favicon` proxy logo tenant qua server; client-side override bằng `logoUrl` trực tiếp khi đã có tenant.
+
+### Nhập liệu (Import)
+- **Inventory wide format**: Template tồn kho có cột "Tên sản phẩm" (tham khảo), mỗi kho = 1 cột riêng với mã kho thực tế từ DB.
+- **Preview**: Load real warehouse codes từ Supabase để hiển thị đúng cột kho của công ty.
+- **Parser**: `normalizeInventoryTable` bỏ qua cột "tên sản phẩm" khi detect warehouse columns.
+
+---
+
 ## Quy tắc phát triển
 
-- **Không dùng `alert/confirm/prompt`** — dùng custom React modal.
+- **Không dùng `alert/confirm/prompt`** — dùng custom React modal hoặc toast.
+- **Không định nghĩa component con bên trong component cha** — gây re-mount mỗi keystroke, làm mất focus input.
 - Trước khi viết code Next.js, đọc docs trong `node_modules/next/dist/docs/` vì Next.js 16 có breaking changes so với các phiên bản cũ.
 - Admin Supabase (`supabase-admin.ts`) chỉ dùng ở server-side (route handlers, server components), không bao giờ expose sang client.
 - Tất cả văn bản UI bằng tiếng Việt.
+- Supplier `type` field: chỉ nhận `'distributor_l1'` hoặc `'manufacturer'` (DB CHECK constraint `suppliers_type_check`).
