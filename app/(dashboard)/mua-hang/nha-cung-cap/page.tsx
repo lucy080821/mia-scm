@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { Plus, Search, Building2, Star, Phone, Mail, X, MapPin, Clock, TrendingUp } from 'lucide-react'
 import PageHeader from '@/components/layout/PageHeader'
 import ExportButton from '@/components/ui/ExportButton'
+import AiSuggestionBox from '@/components/ui/AiSuggestionBox'
 import { formatVND } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import { useTenant } from '@/contexts/TenantContext'
@@ -298,11 +299,11 @@ export default function NhaCungCapPage() {
       const { data } = await supabase.from('suppliers').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false })
       if (!data) return
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setSuppliers(data.map((s: any) => ({
+      const mapped = data.map((s: any) => ({
         id: s.id,
         code: s.code,
         name: s.name,
-        type: s.type ?? 'Nhà sản xuất',
+        type: s.type ?? 'distributor_l1',
         tax_code: s.tax_code ?? '',
         phone: s.phone ?? '',
         email: s.email ?? '',
@@ -315,7 +316,9 @@ export default function NhaCungCapPage() {
         status: (s.status ?? 'active') as Supplier['status'],
         products: [],
         notes: '',
-      })))
+      }))
+      setSuppliers(mapped)
+      fetchSupplierAi(mapped)
     }
     load()
   }, [tenantId])
@@ -326,10 +329,48 @@ export default function NhaCungCapPage() {
   const [formTarget, setFormTarget] = useState<Supplier | 'new' | null>(null)
   const [page, setPage] = useState(1)
   const [toast, setToast] = useState<{ msg: string; type: 'error' | 'success' } | null>(null)
+  const [aiContent, setAiContent] = useState('🤖 Đang phân tích nhà cung cấp...')
+  const [aiLoaded, setAiLoaded] = useState(false)
 
   function showToast(msg: string, type: 'error' | 'success' = 'error') {
     setToast({ msg, type })
     setTimeout(() => setToast(null), 4000)
+  }
+
+  async function fetchSupplierAi(supplierList: Supplier[]) {
+    if (!supplierList.length) {
+      setAiContent('Chưa có nhà cung cấp nào. Thêm NCC đầu tiên để AI bắt đầu phân tích.')
+      setAiLoaded(true)
+      return
+    }
+    setAiContent('🤖 Đang phân tích dữ liệu nhà cung cấp...')
+    try {
+      const res = await fetch('/api/ai/supplier-analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          suppliers: supplierList.map(s => ({
+            id: s.id, code: s.code, name: s.name, type: s.type,
+            status: s.status, rating: s.rating, payment_term: s.payment_term,
+            delivery_days: s.delivery_days, total_orders: s.total_orders, total_amount: s.total_amount,
+          })),
+        }),
+      })
+      const data = await res.json()
+      if (data.error) throw new Error(data.error)
+
+      const parts: string[] = []
+      if (data.summary) parts.push(data.summary)
+      if (data.alerts?.length) parts.push('<br/><strong>⚠️ Cảnh báo:</strong> ' + (data.alerts as string[]).join(' · '))
+      if (data.recommendations?.length) parts.push('<br/><strong>💡 Đề xuất:</strong> ' + (data.recommendations as string[]).join(' · '))
+      if (data.top_supplier) parts.push(`<br/>✅ NCC nổi bật: <strong>${data.top_supplier}</strong>`)
+      if (data.risk_supplier) parts.push(`<br/>⛔ Cần chú ý: <strong>${data.risk_supplier}</strong>`)
+
+      setAiContent(parts.join('') || 'Phân tích hoàn tất.')
+    } catch {
+      setAiContent(`Phân tích ${supplierList.length} nhà cung cấp: ${supplierList.filter(s => s.status === 'active').length} đang hợp tác, ${supplierList.filter(s => s.status === 'paused').length} tạm ngừng.`)
+    }
+    setAiLoaded(true)
   }
 
   const filtered = suppliers.filter(s => {
@@ -411,6 +452,13 @@ export default function NhaCungCapPage() {
             <div><p className="text-xs text-gray-500">{k.label}</p><p className="text-xl font-bold text-[#1e2a3a]">{k.value}</p></div>
           </div>
         ))}
+      </div>
+
+      <div className="mb-5">
+        <AiSuggestionBox
+          title="AI phân tích nhà cung cấp"
+          content={aiContent}
+        />
       </div>
 
       <div className="bg-white rounded-xl border border-[#e5e7eb]">
