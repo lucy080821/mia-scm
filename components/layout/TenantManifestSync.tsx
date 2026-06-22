@@ -41,26 +41,35 @@ export default function TenantManifestSync() {
   }, [tenant.name, tenant.primaryColor, tenant.id])
 
   // Favicon: fetch /api/favicon → blob URL
-  // Blob URL là unique mỗi lần → browser không cache theo URL → favicon luôn cập nhật
-  // /api/favicon là same-origin proxy, không bị CORS
+  // Blob URL là unique mỗi lần → browser không cache → favicon luôn cập nhật
+  // QUAN TRỌNG: chỉ xóa link[data-tenant-favicon] (do chúng ta inject),
+  // KHÔNG xóa link[rel="icon"] tĩnh của React — sẽ gây lỗi removeChild null
   useEffect(() => {
     if (!tenant?.name || tenant.id === 'default') return
 
     let blobUrl: string | null = null
+    let injectedLink: HTMLLinkElement | null = null
 
     fetch('/api/favicon')
       .then(r => r.ok ? r.blob() : Promise.reject())
       .then(blob => {
         blobUrl = URL.createObjectURL(blob)
-        document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"]').forEach(el => el.remove())
+        // Chỉ xóa link do chúng ta đã inject trước đó
+        document.querySelectorAll('link[data-tenant-favicon]').forEach(el => el.remove())
         const link = document.createElement('link')
         link.rel = 'icon'
+        link.setAttribute('data-tenant-favicon', 'true')
         link.href = blobUrl
         document.head.appendChild(link)
+        injectedLink = link
       })
       .catch(() => {})
 
-    return () => { if (blobUrl) URL.revokeObjectURL(blobUrl) }
+    return () => {
+      if (blobUrl) URL.revokeObjectURL(blobUrl)
+      // Safe remove: check parentNode trước để tránh removeChild null
+      if (injectedLink?.parentNode) injectedLink.parentNode.removeChild(injectedLink)
+    }
   }, [tenant.id])
 
   return null
