@@ -310,6 +310,7 @@ function SalesOrderAssignModal({ order, onClose, onDone }: {
       const code = `${prefix}-${String((dvCount ?? 0) + 1).padStart(3, '0')}`
       await supabase.from('deliveries').insert({
         code,
+        tenant_id: tenantId,
         sales_order_id: order.id,
         vehicle_id: vehicleId,
         driver_id: driverId,

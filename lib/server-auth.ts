@@ -7,7 +7,7 @@ export async function getServerTenantId(): Promise<string | null> {
     const cookieStore = await cookies()
     const client = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      (process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!,
       { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } }
     )
     const { data: { user } } = await client.auth.getUser()

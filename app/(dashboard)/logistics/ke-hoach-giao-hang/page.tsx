@@ -508,6 +508,14 @@ export default function KeHoachGiaoHangPage() {
   const handleDispatch = async (id: string) => {
     setRoutes(prev => prev.map(r => r.id === id ? { ...r, status: 'dispatched' } : r))
 
+    // Dùng API route (supabaseAdmin) để bypass RLS, tránh update fail thầm lặng
+    const res = await fetch(`/api/deliveries/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'delivering' }),
+    })
+    if (!res.ok) return
+
     const { data: delivery } = await supabase
       .from('deliveries')
       .select('vehicle_id, driver_id, sales_order_id')
@@ -516,9 +524,7 @@ export default function KeHoachGiaoHangPage() {
 
     if (!delivery) return
 
-    const tasks: PromiseLike<any>[] = [
-      supabase.from('deliveries').update({ status: 'delivering' }).eq('id', id),
-    ]
+    const tasks: PromiseLike<any>[] = []
     if (delivery.sales_order_id)
       tasks.push(supabase.from('sales_orders').update({ status: 'delivering' }).eq('id', delivery.sales_order_id))
     if (delivery.vehicle_id)
@@ -526,7 +532,7 @@ export default function KeHoachGiaoHangPage() {
     if (delivery.driver_id)
       tasks.push(supabase.from('drivers').update({ status: 'on_trip' }).eq('id', delivery.driver_id))
 
-    await Promise.all(tasks)
+    if (tasks.length) await Promise.all(tasks)
   }
 
   const fetchAiRoute = async (orders: UnassignedOrder[]) => {
