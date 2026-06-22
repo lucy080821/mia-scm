@@ -218,19 +218,6 @@ function SupplierDetailDrawer({ supplier, onClose, onEdit }: {
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
-          <div className="bg-gradient-to-r from-blue-50 to-sky-50 border border-blue-100 rounded-xl p-3 flex gap-2">
-            <span>🤖</span>
-            <div>
-              <p className="text-xs font-semibold text-blue-800">Gợi ý AI</p>
-              <p className="text-xs text-blue-600 mt-0.5">
-                {supplier.rating >= 4.5
-                  ? `NCC đáng tin cậy — ${supplier.total_orders} đơn, không có khiếu nại. Đề xuất tăng hạn mức tín dụng.`
-                  : `Rating ${supplier.rating}/5.0 — cần kiểm tra chất lượng chặt hơn khi nhập từ NCC này.`
-                }
-              </p>
-            </div>
-          </div>
-
           <div className="bg-gray-50 rounded-xl p-4 space-y-2.5">
             {[
               ['Mã NCC', supplier.code],
@@ -412,24 +399,12 @@ export default function NhaCungCapPage() {
         </button>
       </PageHeader>
 
-      {/* AI box */}
-      <div className="bg-gradient-to-r from-blue-50 to-sky-50 border border-blue-200 rounded-xl p-4 mb-5 flex items-start gap-3">
-        <span className="text-xl">🤖</span>
-        <div>
-          <p className="text-sm font-semibold text-blue-800">Đánh giá nhà cung cấp</p>
-          <p className="text-xs text-blue-600 mt-0.5">
-            <strong>NCC003 (Tập đoàn Hóa chất XYZ)</strong> đang tạm ngừng do khiếu nại chất lượng.
-            Đề xuất chuyển sang <strong>NCC002</strong> cho đơn Phụ gia tháng 7. <strong>NCC004</strong> có rating 4.8/5 — nên tăng tần suất đặt hàng.
-          </p>
-        </div>
-      </div>
-
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
         {[
-          { label: 'Đang hợp tác', value: suppliers.filter(s => s.status === 'active').length,    icon: <Building2 size={20} className="text-blue-500" />, bg: 'bg-blue-50' },
-          { label: 'Tổng đơn mua', value: suppliers.reduce((s, x) => s + x.total_orders, 0),     icon: <TrendingUp size={20} className="text-green-500" />, bg: 'bg-green-50' },
-          { label: 'Rating TB',    value: (suppliers.reduce((s, x) => s + x.rating, 0) / suppliers.length).toFixed(1) + ' ★', icon: <Star size={20} className="text-yellow-500" />, bg: 'bg-yellow-50' },
-          { label: 'Tạm ngừng',   value: suppliers.filter(s => s.status === 'paused').length,    icon: <Clock size={20} className="text-orange-500" />, bg: 'bg-orange-50' },
+          { label: 'Đang hợp tác', value: suppliers.filter(s => s.status === 'active').length,  icon: <Building2 size={20} className="text-blue-500" />,   bg: 'bg-blue-50' },
+          { label: 'Tổng NCC',     value: suppliers.length,                                      icon: <TrendingUp size={20} className="text-green-500" />,  bg: 'bg-green-50' },
+          { label: 'Rating TB',    value: suppliers.length > 0 ? (suppliers.reduce((s, x) => s + (x.rating ?? 0), 0) / suppliers.length).toFixed(1) + ' ★' : '—', icon: <Star size={20} className="text-yellow-500" />, bg: 'bg-yellow-50' },
+          { label: 'Tạm ngừng',   value: suppliers.filter(s => s.status === 'paused').length,   icon: <Clock size={20} className="text-orange-500" />,      bg: 'bg-orange-50' },
         ].map(k => (
           <div key={k.label} className="bg-white rounded-xl border border-[#e5e7eb] p-4 flex items-center gap-3">
             <div className={`w-10 h-10 rounded-xl ${k.bg} flex items-center justify-center shrink-0`}>{k.icon}</div>
@@ -482,7 +457,7 @@ export default function NhaCungCapPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-xs text-gray-500">{s.type}</td>
+                  <td className="px-4 py-3 text-xs text-gray-500">{TYPE_LABEL[s.type] ?? s.type}</td>
                   <td className="px-4 py-3">
                     <p className="text-xs text-[var(--mia-primary)]">{s.phone}</p>
                     <p className="text-[10px] text-gray-400 truncate max-w-[140px]">{s.email}</p>
