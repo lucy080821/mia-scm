@@ -1,13 +1,17 @@
 'use client'
 import { useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import { useTenant } from '@/contexts/TenantContext'
 
 // Cập nhật title, theme-color và favicon theo tenant mỗi khi tenant thay đổi
+// Cần usePathname trong deps vì Next.js App Router reset <title> từ metadata tĩnh sau mỗi navigation
 export default function TenantManifestSync() {
   const tenant = useTenant()
+  const pathname = usePathname()
 
   useEffect(() => {
-    if (!tenant?.name || tenant.name === 'Mia SCM' || tenant.name === 'Demo') return
+    // tenant.id === 'default' là DEFAULT_TENANT (Mia platform), không phải tenant thật
+    if (!tenant?.name || tenant.id === 'default') return
 
     // Tab title
     document.title = tenant.name
@@ -42,7 +46,8 @@ export default function TenantManifestSync() {
       link.type = 'image/png'
       document.head.appendChild(link)
     }
-  }, [tenant.name, tenant.primaryColor, tenant.logoUrl])
+  // pathname trong deps đảm bảo re-apply sau mỗi navigation (Next.js reset title từ metadata tĩnh)
+  }, [tenant.name, tenant.primaryColor, tenant.logoUrl, tenant.id, pathname])
 
   return null
 }
