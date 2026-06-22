@@ -1,6 +1,6 @@
 ﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { UserPlus, Pencil, Ban, CheckCircle, Search, X, Eye, EyeOff, AlertCircle, Check } from 'lucide-react'
+import { UserPlus, Pencil, Ban, CheckCircle, Search, X, Eye, EyeOff, AlertCircle, Check, Warehouse } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { ROLE_LABEL } from '@/lib/auth-client'
 
@@ -65,6 +65,9 @@ export default function NhanVienPage() {
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
   const [formSuccess, setFormSuccess] = useState('')
+  const [warehouseList, setWarehouseList] = useState<{ id: string; name: string }[]>([])
+  const [formWarehouses, setFormWarehouses] = useState<string[]>([])
+  const [employeeWarehousesMap, setEmployeeWarehousesMap] = useState<Record<string, string[]>>({})
 
   const loadEmployees = useCallback(async () => {
     setLoading(true)
@@ -73,7 +76,23 @@ export default function NhanVienPage() {
       const res = await fetch('/api/users', { headers })
       if (!res.ok) throw new Error(await res.text())
       const data: Employee[] = await res.json()
-      setEmployees(data.filter(u => u.role !== 'admin'))
+      const filtered = data.filter(u => u.role !== 'admin')
+      setEmployees(filtered)
+      // Load warehouse assignments for all warehouse employees
+      const whEmps = filtered.filter(e => e.role === 'warehouse')
+      if (whEmps.length > 0) {
+        const results = await Promise.allSettled(
+          whEmps.map(e => fetch(`/api/warehouse-assignments?profile_id=${e.id}`, { headers }).then(r => r.ok ? r.json() : []))
+        )
+        const map: Record<string, string[]> = {}
+        whEmps.forEach((e, i) => {
+          const result = results[i]
+          if (result.status === 'fulfilled' && Array.isArray(result.value)) {
+            map[e.id] = (result.value as { warehouse_id: string }[]).map(a => a.warehouse_id)
+          }
+        })
+        setEmployeeWarehousesMap(map)
+      }
     } catch {
       setEmployees([])
     } finally {
@@ -81,16 +100,22 @@ export default function NhanVienPage() {
     }
   }, [])
 
-  useEffect(() => { loadEmployees() }, [loadEmployees])
+  useEffect(() => {
+    loadEmployees()
+    supabase.from('warehouses').select('id, name').eq('status', 'active').then(({ data }) => {
+      if (data) setWarehouseList(data as { id: string; name: string }[])
+    })
+  }, [loadEmployees])
 
   const openAdd = () => {
     setFormName(''); setFormEmail(''); setFormPhone('')
     setFormRole('sales'); setFormCode(''); setFormPassword('')
     setFormError(''); setFormSuccess(''); setShowPassword(false)
+    setFormWarehouses([])
     setModal({ open: true, mode: 'add' })
   }
 
-  const openEdit = (emp: Employee) => {
+  const openEdit = async (emp: Employee) => {
     setFormName(emp.full_name ?? '')
     setFormEmail(emp.email ?? '')
     setFormPhone(emp.phone ?? '')
@@ -98,7 +123,21 @@ export default function NhanVienPage() {
     setFormCode(emp.employee_code ?? '')
     setFormPassword('')
     setFormError(''); setFormSuccess(''); setShowPassword(false)
+    setFormWarehouses(employeeWarehousesMap[emp.id] ?? [])
     setModal({ open: true, mode: 'edit', employee: emp })
+    // Load assignments fresh
+    if (emp.role === 'warehouse') {
+      try {
+        const headers = await getHeaders()
+        const res = await fetch(`/api/warehouse-assignments?profile_id=${emp.id}`, { headers })
+        if (res.ok) {
+          const data = await res.json()
+          const ids = (data as { warehouse_id: string }[]).map(a => a.warehouse_id)
+          setFormWarehouses(ids)
+          setEmployeeWarehousesMap(prev => ({ ...prev, [emp.id]: ids }))
+        }
+      } catch { /* graceful */ }
+    }
   }
 
   const closeModal = () => setModal({ open: false, mode: 'add' })
@@ -149,6 +188,18 @@ export default function NhanVienPage() {
           throw new Error(body.error ?? 'Lỗi cập nhật')
         }
         setFormSuccess('Đã cập nhật thành công!')
+        // Save warehouse assignments if role is warehouse
+        if (formRole === 'warehouse' && modal.employee) {
+          const empId = modal.employee.id
+          const prev = employeeWarehousesMap[empId] ?? []
+          const toAdd = formWarehouses.filter(id => !prev.includes(id))
+          const toDel = prev.filter(id => !formWarehouses.includes(id))
+          await Promise.all([
+            ...toAdd.map(wid => fetch('/api/warehouse-assignments', { method: 'POST', headers, body: JSON.stringify({ profile_id: empId, warehouse_id: wid }) })),
+            ...toDel.map(wid => fetch('/api/warehouse-assignments', { method: 'DELETE', headers, body: JSON.stringify({ profile_id: empId, warehouse_id: wid }) })),
+          ])
+          setEmployeeWarehousesMap(prev2 => ({ ...prev2, [empId]: formWarehouses }))
+        }
       }
       await loadEmployees()
       setTimeout(closeModal, 1500)
@@ -210,7 +261,7 @@ export default function NhanVienPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-[#e5e7eb] bg-gray-50">
-                {['Nhân viên', 'Mã NV', 'Email', 'Số điện thoại', 'Vai trò', 'Trạng thái', ''].map(h => (
+                {['Nhân viên', 'Mã NV', 'Email', 'Số điện thoại', 'Vai trò', 'Kho phân công', 'Trạng thái', ''].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -219,14 +270,14 @@ export default function NhanVienPage() {
               {loading ? (
                 Array.from({ length: 4 }).map((_, i) => (
                   <tr key={i}>
-                    {Array.from({ length: 7 }).map((_, j) => (
+                    {Array.from({ length: 8 }).map((_, j) => (
                       <td key={j} className="px-4 py-3"><div className="h-4 bg-gray-100 rounded animate-pulse w-24" /></td>
                     ))}
                   </tr>
                 ))
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-sm text-gray-400">
+                  <td colSpan={8} className="px-4 py-12 text-center text-sm text-gray-400">
                     {search ? 'Không tìm thấy nhân viên phù hợp.' : 'Chưa có nhân viên nào. Bấm "Thêm nhân viên" để bắt đầu.'}
                   </td>
                 </tr>
@@ -247,6 +298,26 @@ export default function NhanVienPage() {
                     <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${ROLE_BADGE[emp.role ?? ''] ?? 'bg-gray-100 text-gray-600'}`}>
                       {ROLE_LABEL[emp.role ?? ''] ?? emp.role ?? '—'}
                     </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    {emp.role === 'warehouse' ? (
+                      employeeWarehousesMap[emp.id]?.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {employeeWarehousesMap[emp.id].map(wid => {
+                            const wh = warehouseList.find(w => w.id === wid)
+                            return wh ? (
+                              <span key={wid} className="inline-flex items-center gap-1 text-[10px] bg-orange-50 text-orange-700 border border-orange-200 px-1.5 py-0.5 rounded">
+                                <Warehouse size={9} /> {wh.name}
+                              </span>
+                            ) : null
+                          })}
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-gray-400">Tất cả kho</span>
+                      )
+                    ) : (
+                      <span className="text-[10px] text-gray-300">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${emp.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
@@ -365,6 +436,32 @@ export default function NhanVienPage() {
                 </div>
                 {modal.mode === 'add' && <p className="text-[11px] text-gray-400 mt-1">Nhân viên có thể đổi mật khẩu sau khi đăng nhập.</p>}
               </div>
+
+              {(formRole === 'warehouse' || (modal.mode === 'edit' && modal.employee?.role === 'warehouse')) && warehouseList.length > 0 && modal.mode === 'edit' && (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-2 flex items-center gap-1.5">
+                    <Warehouse size={12} /> Kho được phân công
+                  </label>
+                  <p className="text-[11px] text-gray-400 mb-2">Nhân viên chỉ thấy kho được phân công. Nếu không chọn kho nào, họ sẽ thấy tất cả kho.</p>
+                  <div className="space-y-1.5 border border-[#e5e7eb] rounded-xl p-3 bg-gray-50">
+                    {warehouseList.map(wh => (
+                      <label key={wh.id} className="flex items-center gap-2.5 cursor-pointer hover:bg-white rounded-lg px-2 py-1.5 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={formWarehouses.includes(wh.id)}
+                          onChange={e => {
+                            if (e.target.checked) setFormWarehouses(prev => [...prev, wh.id])
+                            else setFormWarehouses(prev => prev.filter(id => id !== wh.id))
+                          }}
+                          className="rounded border-[#e5e7eb] text-[var(--mia-primary)] focus:ring-[var(--mia-primary)]"
+                        />
+                        <span className="text-sm text-[#1e2a3a]">{wh.name}</span>
+                        {formWarehouses.includes(wh.id) && <Check size={12} className="ml-auto text-green-500" />}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end gap-2 px-6 pb-5">
