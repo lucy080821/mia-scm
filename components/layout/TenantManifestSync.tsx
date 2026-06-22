@@ -40,13 +40,18 @@ export default function TenantManifestSync() {
     themeMeta.content = tenant.primaryColor ?? '#1e2a3a'
 
     if (tenant.logoUrl) {
-      document.querySelectorAll('link[data-tenant-favicon]').forEach(el => el.remove())
-      const link = document.createElement('link')
-      link.rel = 'icon'
-      link.setAttribute('data-tenant-favicon', 'true')
-      link.href = tenant.logoUrl
-      link.type = 'image/png'
-      document.head.appendChild(link)
+      // Cập nhật href của <link rel="icon"> tĩnh thay vì thêm link mới (tránh ambiguity)
+      // Cache-buster buộc browser refetch ngay, không dùng favicon cache cũ
+      const existing = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
+      const url = `${tenant.logoUrl}?_t=${Date.now()}`
+      if (existing) {
+        existing.href = url
+      } else {
+        const link = document.createElement('link')
+        link.rel = 'icon'
+        link.href = url
+        document.head.appendChild(link)
+      }
     }
   }, [tenant.name, tenant.primaryColor, tenant.logoUrl, tenant.id])
 
