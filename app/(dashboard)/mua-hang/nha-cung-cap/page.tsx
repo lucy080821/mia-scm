@@ -37,6 +37,20 @@ const EMPTY_FORM: FormData = {
   delivery_days: '3', status: 'active', products: '', notes: '',
 }
 
+function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+      {children}
+      {error && <p className="text-xs text-red-500 mt-0.5">{error}</p>}
+    </div>
+  )
+}
+
+function inputCls(err?: string) {
+  return `w-full px-3 py-2 text-sm border rounded-lg outline-none transition-colors focus:border-[var(--mia-primary)] focus:ring-1 focus:ring-[var(--mia-primary)]/20 ${err ? 'border-red-400' : 'border-[#e5e7eb]'}`
+}
+
 function SupplierFormModal({ initial, existingCodes, onSave, onClose }: {
   initial?: Supplier
   existingCodes: string[]
@@ -81,17 +95,6 @@ function SupplierFormModal({ initial, existingCodes, onSave, onClose }: {
     const next = nums.length ? Math.max(...nums) + 1 : 1
     return `NCC${String(next).padStart(3, '0')}`
   })()
-
-  const Field = ({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) => (
-    <div>
-      <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
-      {children}
-      {error && <p className="text-xs text-red-500 mt-0.5">{error}</p>}
-    </div>
-  )
-
-  const inputCls = (err?: string) =>
-    `w-full px-3 py-2 text-sm border rounded-lg outline-none transition-colors focus:border-[var(--mia-primary)] focus:ring-1 focus:ring-[var(--mia-primary)]/20 ${err ? 'border-red-400' : 'border-[#e5e7eb]'}`
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
