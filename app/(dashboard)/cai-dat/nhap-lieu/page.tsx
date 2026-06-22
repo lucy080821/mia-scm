@@ -313,8 +313,14 @@ function ImportPanel({ config }: { config: ImportConfig }) {
   const [fileName, setFileName] = useState('')
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
+  const [toast, setToast] = useState<{ type: 'error'; message: string } | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const [warehouseCodes, setWarehouseCodes] = useState<string[]>([])
+
+  const showError = (message: string) => {
+    setToast({ type: 'error', message })
+    setTimeout(() => setToast(null), 4000)
+  }
 
   useEffect(() => {
     if (config.id !== 'inventory') return
@@ -361,7 +367,7 @@ function ImportPanel({ config }: { config: ImportConfig }) {
       }
       reader.readAsText(file, 'UTF-8')
     } else {
-      alert('Vui lòng chọn file CSV hoặc Excel (.csv, .xlsx)')
+      showError('Vui lòng chọn file CSV hoặc Excel (.csv, .xlsx)')
     }
   }, [applyTable])
 
@@ -399,7 +405,7 @@ function ImportPanel({ config }: { config: ImportConfig }) {
       setImportResult(result)
       setStep(4)
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : 'Lỗi import')
+      showError(e instanceof Error ? e.message : 'Lỗi import')
     } finally {
       setImporting(false)
     }
@@ -416,6 +422,12 @@ function ImportPanel({ config }: { config: ImportConfig }) {
 
   return (
     <div className="space-y-5">
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 bg-red-600 text-white text-sm font-medium rounded-xl shadow-lg animate-in slide-in-from-bottom-2">
+          <XCircle size={16} />
+          {toast.message}
+        </div>
+      )}
       <Steps step={step} />
 
       {/* Step 1 */}
