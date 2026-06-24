@@ -5,6 +5,7 @@ import PageHeader from '@/components/layout/PageHeader'
 import { supabase } from '@/lib/supabase'
 import { useTenant } from '@/contexts/TenantContext'
 import { createDriverToken } from '@/lib/delivery-token'
+import { useAutoRefresh } from '@/hooks/useAutoRefresh'
 
 interface Driver {
   id: string; name: string; phone: string; license_type: string
@@ -43,7 +44,7 @@ async function loadAllDrivers(tenantId: string): Promise<Driver[]> {
   const drMap: Record<string, any> = {}
   ;(driverRecords ?? []).forEach((d: any) => { drMap[d.id] = d })
 
-  return driverUsers.map((u: { id: string; full_name: string | null; email: string; phone: string | null; status: string | null }) => {
+  let drivers = driverUsers.map((u: { id: string; full_name: string | null; email: string; phone: string | null; status: string | null }) => {
     const dr = drMap[u.id]
     const vehicleRaw = dr?.vehicle
     const plate = Array.isArray(vehicleRaw) ? vehicleRaw[0]?.plate : vehicleRaw?.plate
@@ -65,6 +66,24 @@ async function loadAllDrivers(tenantId: string): Promise<Driver[]> {
       warehouse_name: wh?.name ?? undefined,
     }
   })
+
+  // Self-heal: tài xế đang "on_trip" nhưng không còn đơn giao active → reset về "available"
+  const onTripIds = drivers.filter((d: Driver) => d.status === 'on_trip').map((d: Driver) => d.id)
+  if (onTripIds.length > 0) {
+    const { data: activeDeliveries } = await supabase
+      .from('deliveries')
+      .select('driver_id')
+      .in('driver_id', onTripIds)
+      .in('status', ['pending', 'assigned', 'delivering'])
+    const activeSet = new Set((activeDeliveries ?? []).map((d: any) => d.driver_id))
+    const staleIds = onTripIds.filter((id: string) => !activeSet.has(id))
+    if (staleIds.length > 0) {
+      await supabase.from('drivers').update({ status: 'available' }).in('id', staleIds)
+      drivers = drivers.map((d: Driver) => staleIds.includes(d.id) ? { ...d, status: 'available' as Driver['status'] } : d)
+    }
+  }
+
+  return drivers
 }
 
 // Upsert extra driver info using user UUID as drivers.id (implicit link, no schema change needed)
@@ -304,6 +323,7 @@ export default function TaiXePage() {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (!tenantId) return; reload() }, [tenantId])
+  useAutoRefresh(reload, 10_000)
 
   const filtered = drivers.filter(d => {
     const matchSearch = d.name.toLowerCase().includes(search.toLowerCase()) || d.phone.includes(search)

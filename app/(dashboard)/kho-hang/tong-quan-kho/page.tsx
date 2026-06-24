@@ -200,7 +200,9 @@ export default function WarehouseOverviewPage() {
       supabase.from('products').select('id, sku, name, unit, purchase_price, min_stock, supplier_id').eq('tenant_id', tenantId).eq('status', 'active'),
       supabase.from('inventory').select('product_id, warehouse_id, quantity').eq('tenant_id', tenantId),
       supabase.from('warehouses').select('id, name').eq('tenant_id', tenantId).eq('status', 'active'),
-      supabase.from('sales_orders').select('id').eq('tenant_id', tenantId).gte('order_date', ago90).in('status', ['confirmed', 'picking', 'delivering', 'completed']),
+      supabase.from('sales_orders').select('id').eq('tenant_id', tenantId)
+        .gte('created_at', new Date(now.getTime() - 90 * 86_400_000).toISOString())
+        .in('status', ['confirmed', 'picking', 'picked', 'pending_ship', 'delivering', 'completed']),
     ])
 
     // Avg daily sales map
@@ -208,7 +210,7 @@ export default function WarehouseOverviewPage() {
     if (recentOrders && recentOrders.length > 0) {
       const orderIds = (recentOrders as { id: string }[]).map(o => o.id)
       const { data: itemsRaw } = await supabase
-        .from('sales_order_items').select('product_id, quantity').eq('tenant_id', tenantId)
+        .from('sales_order_items').select('product_id, quantity')
         .in('order_id', orderIds).limit(5000)
       for (const item of (itemsRaw ?? []) as { product_id: string; quantity: number }[]) {
         avgSalesMap[item.product_id] = (avgSalesMap[item.product_id] ?? 0) + item.quantity

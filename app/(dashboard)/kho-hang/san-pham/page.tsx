@@ -1,7 +1,7 @@
-﻿'use client'
+'use client'
 import { useState, useEffect } from 'react'
 import * as XLSX from 'xlsx'
-import { Plus, Search, Package, X, Clock, AlertTriangle, TrendingDown } from 'lucide-react'
+import { Plus, Search, Package, X, Clock, AlertTriangle, TrendingDown, Warehouse } from 'lucide-react'
 import PageHeader from '@/components/layout/PageHeader'
 import ExportButton from '@/components/ui/ExportButton'
 import Badge from '@/components/ui/Badge'
@@ -26,11 +26,65 @@ type Product = {
   eoq: number
 }
 
+type InvRow = { product_id: string; warehouse_id: string; quantity: number }
+
 const BLANK_PRODUCT = (): Omit<Product, 'id' | 'stock' | 'created_at' | 'abc_class' | 'safety_stock' | 'rop' | 'eoq'> => ({
   sku: '', name: '', category: '', supplier: '', supplier_id: null, unit: 'L',
   purchase_price: 0, sale_price: 0, min_stock: 0, expiry_days: null, status: 'active',
   avg_daily_sales: 0, manufacture_date: null, lead_time_days: 7,
 })
+
+// ─── buildProducts — pure function, called on load + warehouse change ─────────
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function buildProducts(
+  prods: any[],
+  inv: InvRow[],
+  qtyMap: Record<string, number>,
+  revenueMap: Record<string, number>,
+  whId: string | null,
+): Product[] {
+  const filteredInv = whId ? inv.filter(r => r.warehouse_id === whId) : inv
+  const stockMap: Record<string, number> = {}
+  filteredInv.forEach(r => {
+    stockMap[r.product_id] = (stockMap[r.product_id] ?? 0) + r.quantity
+  })
+
+  const abcMap = classifyABC(
+    Object.entries(revenueMap).map(([id, revenue]) => ({ id, revenue }))
+  )
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return prods.map((p: any) => {
+    const lead_time_days  = p.supplier?.delivery_days ?? 7
+    const avg_daily_sales = qtyMap[p.id]
+      ? Math.round((qtyMap[p.id] / 90) * 10) / 10
+      : (p.avg_daily_sales ?? 0)
+    return {
+      id:             p.id,
+      sku:            p.sku,
+      name:           p.name,
+      category:       p.category?.name ?? '',
+      supplier:       p.supplier?.name ?? '',
+      supplier_id:    p.supplier_id ?? null,
+      unit:           p.unit,
+      purchase_price: p.purchase_price ?? 0,
+      sale_price:     p.sale_price ?? 0,
+      stock:          stockMap[p.id] ?? 0,
+      min_stock:      p.min_stock ?? 0,
+      expiry_days:    p.expiry_days ?? null,
+      status:         p.status ?? 'active',
+      created_at:     p.created_at ?? '',
+      avg_daily_sales,
+      manufacture_date: p.manufacture_date ?? null,
+      lead_time_days,
+      abc_class:    abcMap[p.id] ?? null,
+      safety_stock: calcSafetyStock(avg_daily_sales, lead_time_days),
+      rop:          calcROP(avg_daily_sales, lead_time_days),
+      eoq:          calcEOQ(avg_daily_sales, p.purchase_price ?? 0),
+    }
+  })
+}
 
 // ─── Helper renderers ─────────────────────────────────────────────────────────
 
@@ -55,9 +109,8 @@ function DaysOfStockBadge({ stock, avgDailySales }: { stock: number; avgDailySal
 }
 
 function DateElapsedBar({ manufactureDate, expiryDays }: { manufactureDate: string | null; expiryDays: number | null }) {
-  const pct = calcDateElapsedPct(manufactureDate, expiryDays) // % còn lại
+  const pct = calcDateElapsedPct(manufactureDate, expiryDays)
   if (pct === null) return <span className="text-[10px] text-gray-300">—</span>
-  // pct = % HSD còn lại: cao = xanh (tốt), thấp = đỏ (sắp hết hạn)
   const barColor = pct <= 10 ? 'bg-red-500' : pct <= 25 ? 'bg-orange-400' : pct <= 50 ? 'bg-yellow-400' : 'bg-green-400'
   const textColor = pct <= 10 ? 'text-red-600' : pct <= 25 ? 'text-orange-500' : pct <= 50 ? 'text-yellow-600' : 'text-green-600'
   return (
@@ -245,41 +298,46 @@ function ProductFormModal({ product, onClose, onSave }: {
 
 export default function ProductsPage() {
   const { id: tenantId } = useTenant()
-  const [products, setProducts] = useState<Product[]>([])
+  const [products, setProducts]         = useState<Product[]>([])
+  const [warehouses, setWarehouses]     = useState<{ id: string; name: string }[]>([])
+  const [selectedWhId, setSelectedWhId] = useState<string | null>(null)
+
+  // Raw data stored for recomputation when warehouse changes
+  const [rawProds, setRawProds]   = useState<any[]>([])  // eslint-disable-line @typescript-eslint/no-explicit-any
+  const [rawInv, setRawInv]       = useState<InvRow[]>([])
+  const [salesMaps, setSalesMaps] = useState<{ qtyMap: Record<string, number>; revenueMap: Record<string, number> }>({ qtyMap: {}, revenueMap: {} })
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!tenantId) return
     async function load() {
-      const [{ data: prods }, { data: inv }] = await Promise.all([
+      const ninetyDaysAgo = new Date(Date.now() - 90 * 86_400_000).toISOString()
+
+      const [{ data: prods }, { data: inv }, { data: whs }] = await Promise.all([
         supabase.from('products')
           .select('*, category:categories(name), supplier:suppliers(name, delivery_days)')
           .eq('tenant_id', tenantId)
           .order('created_at', { ascending: false }),
-        supabase.from('inventory').select('product_id, quantity').eq('tenant_id', tenantId),
+        supabase.from('inventory').select('product_id, warehouse_id, quantity').eq('tenant_id', tenantId),
+        supabase.from('warehouses').select('id, name').eq('tenant_id', tenantId).eq('status', 'active').order('name'),
       ])
       if (!prods) return
 
-      const stockMap: Record<string, number> = {}
-      ;(inv ?? []).forEach((r: { product_id: string; quantity: number }) => {
-        stockMap[r.product_id] = (stockMap[r.product_id] ?? 0) + r.quantity
-      })
+      setWarehouses(whs ?? [])
 
-      // ── Tính avg_daily_sales từ 90 ngày bán gần nhất ───────────────────────
-      const ninetyDaysAgo = new Date(Date.now() - 90 * 86_400_000).toISOString().slice(0, 10)
+      // Avg daily sales from 90-day sales history
       const { data: recentOrders } = await supabase
         .from('sales_orders')
         .select('id')
         .eq('tenant_id', tenantId)
-        .gte('order_date', ninetyDaysAgo)
-        .in('status', ['completed', 'delivering', 'confirmed'])
+        .gte('created_at', ninetyDaysAgo)
+        .in('status', ['completed', 'delivering', 'picked', 'pending_ship', 'picking', 'confirmed'])
 
       const orderIds = (recentOrders ?? []).map((o: { id: string }) => o.id)
       const { data: soItems } = orderIds.length > 0
         ? await supabase
             .from('sales_order_items')
             .select('product_id, quantity, subtotal')
-            .eq('tenant_id', tenantId)
             .in('order_id', orderIds)
         : { data: [] as { product_id: string; quantity: number; subtotal: number }[] }
 
@@ -290,44 +348,20 @@ export default function ProductsPage() {
         revenueMap[item.product_id] = (revenueMap[item.product_id] ?? 0) + (item.subtotal ?? 0)
       })
 
-      // ABC từ doanh thu 90 ngày
-      const abcMap = classifyABC(
-        Object.entries(revenueMap).map(([id, revenue]) => ({ id, revenue }))
-      )
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setProducts(prods.map((p: any) => {
-        const lead_time_days   = p.supplier?.delivery_days ?? 7
-        const avg_daily_sales  = qtyMap[p.id]
-          ? Math.round((qtyMap[p.id] / 90) * 10) / 10
-          : (p.avg_daily_sales ?? 0)
-        return {
-          id:             p.id,
-          sku:            p.sku,
-          name:           p.name,
-          category:       p.category?.name ?? '',
-          supplier:       p.supplier?.name ?? '',
-          supplier_id:    p.supplier_id ?? null,
-          unit:           p.unit,
-          purchase_price: p.purchase_price ?? 0,
-          sale_price:     p.sale_price ?? 0,
-          stock:          stockMap[p.id] ?? 0,
-          min_stock:      p.min_stock ?? 0,
-          expiry_days:    p.expiry_days ?? null,
-          status:         p.status ?? 'active',
-          created_at:     p.created_at ?? '',
-          avg_daily_sales,
-          manufacture_date: p.manufacture_date ?? null,
-          lead_time_days,
-          abc_class:    abcMap[p.id] ?? null,
-          safety_stock: calcSafetyStock(avg_daily_sales, lead_time_days),
-          rop:          calcROP(avg_daily_sales, lead_time_days),
-          eoq:          calcEOQ(avg_daily_sales, p.purchase_price ?? 0),
-        }
-      }))
+      const invData = (inv ?? []) as InvRow[]
+      setRawProds(prods)
+      setRawInv(invData)
+      setSalesMaps({ qtyMap, revenueMap })
+      setProducts(buildProducts(prods, invData, qtyMap, revenueMap, null))
     }
     load()
   }, [tenantId])
+
+  // Recompute products when warehouse selection changes
+  useEffect(() => {
+    if (!rawProds.length) return
+    setProducts(buildProducts(rawProds, rawInv, salesMaps.qtyMap, salesMaps.revenueMap, selectedWhId))
+  }, [selectedWhId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const [search, setSearch]       = useState('')
   const [category, setCategory]   = useState('all')
@@ -377,10 +411,10 @@ export default function ProductsPage() {
           setProducts(prev => [{ ...p, id: saved.id }, ...prev])
         } else {
           const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }))
-          alert(`Lỗi lưu sản phẩm: ${err.error}`)
+          console.error('Lỗi lưu sản phẩm:', err.error)
         }
       } catch {
-        alert('Lỗi kết nối — không thể lưu sản phẩm')
+        console.error('Lỗi kết nối — không thể lưu sản phẩm')
       }
     }
   }
@@ -388,6 +422,7 @@ export default function ProductsPage() {
   // ─── Export Excel ──────────────────────────────────────────────────────────
   const exportToExcel = () => {
     const STATUS_LABEL: Record<string, string> = { active: 'Hoạt động', inactive: 'Ngừng bán', pending: 'Chờ duyệt' }
+    const selectedWhName = warehouses.find(w => w.id === selectedWhId)?.name
     const rows = filtered.map(p => {
       const days = calcDaysOfStock(p.stock, p.avg_daily_sales)
       const pct  = calcDateElapsedPct(p.manufacture_date, p.expiry_days)
@@ -400,6 +435,7 @@ export default function ProductsPage() {
         'ĐVT':              p.unit,
         'Giá nhập (đ)':     p.purchase_price,
         'Giá bán (đ)':      p.sale_price,
+        'Kho':              selectedWhName ?? 'Tất cả kho',
         'Tồn kho':          p.stock,
         'Tồn tối thiểu':    p.min_stock,
         'Safety Stock':     p.safety_stock,
@@ -416,15 +452,16 @@ export default function ProductsPage() {
     const ws = XLSX.utils.json_to_sheet(rows)
     ws['!cols'] = [
       { wch: 5 }, { wch: 14 }, { wch: 28 }, { wch: 18 }, { wch: 20 }, { wch: 8 },
-      { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 10 },
-      { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 8 }, { wch: 12 },
+      { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 10 }, { wch: 12 }, { wch: 12 },
+      { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 10 }, { wch: 12 },
+      { wch: 8 }, { wch: 12 },
     ]
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'Sản phẩm')
     XLSX.writeFile(wb, `san-pham_${new Date().toISOString().slice(0, 10).replaceAll('-', '')}.xlsx`)
   }
 
-  // ─── KPI metrics ───────────────────────────────────────────────────────────
+  // ─── KPI metrics (reflect selected warehouse) ─────────────────────────────
   const totalValue = products.reduce((s, p) => s + p.purchase_price * p.stock, 0)
   const outOfStock = products.filter(p => p.stock === 0).length
   const belowROP   = products.filter(p => p.rop > 0 && p.stock > 0 && p.stock <= p.rop).length
@@ -433,7 +470,7 @@ export default function ProductsPage() {
     return p.stock > 0 && ((days !== null && days <= 7) || p.stock < p.min_stock)
   }).length
   const nearExpiry = products.filter(p => {
-    const pct = calcDateElapsedPct(p.manufacture_date, p.expiry_days) // % còn lại
+    const pct = calcDateElapsedPct(p.manufacture_date, p.expiry_days)
     return pct !== null && pct <= 25
   }).length
 
@@ -484,6 +521,8 @@ export default function ProductsPage() {
     )},
   ]
 
+  const selectedWhName = warehouses.find(w => w.id === selectedWhId)?.name
+
   return (
     <div>
       <PageHeader title="Sản phẩm" subtitle={`${products.length} sản phẩm trong danh mục`}>
@@ -497,7 +536,8 @@ export default function ProductsPage() {
       {/* KPI */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-5">
         <KpiCard icon={<Package size={18} className="text-blue-600" />} label="Tổng sản phẩm" value={products.length} iconBg="bg-blue-100" />
-        <KpiCard label="Giá trị tồn kho" value={formatVND(totalValue)} sub="Tổng giá trị" subColor="green" />
+        <KpiCard label="Giá trị tồn kho" value={formatVND(totalValue)}
+          sub={selectedWhName ? selectedWhName : 'Tổng giá trị'} subColor="green" />
         <KpiCard icon={<TrendingDown size={18} className="text-red-500" />} label="Dưới ROP" value={belowROP} sub="Cần đặt hàng ngay" subColor="red" iconBg="bg-red-100" />
         <KpiCard icon={<Clock size={18} className="text-orange-500" />} label="DOS ≤ 7 ngày" value={soonOut} sub="Sắp hết hàng" subColor="orange" iconBg="bg-orange-100" />
         <KpiCard icon={<AlertTriangle size={18} className="text-yellow-500" />} label="Sắp hết hạn" value={nearExpiry} sub="Còn ≤ 25% HSD" subColor="orange" iconBg="bg-yellow-100" />
@@ -506,6 +546,45 @@ export default function ProductsPage() {
 
       {/* Table */}
       <div className="bg-white rounded-xl border border-[#e5e7eb]">
+
+        {/* Warehouse toggle — only shown when multiple warehouses */}
+        {warehouses.length > 1 && (
+          <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[#e5e7eb] flex-wrap">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500">
+              <Warehouse size={13} />
+              <span>Kho:</span>
+            </div>
+            <button
+              onClick={() => { setSelectedWhId(null); setPage(1) }}
+              className={`px-3 h-7 text-xs font-medium rounded-lg transition-all border ${
+                selectedWhId === null
+                  ? 'bg-[var(--mia-primary)] text-white border-[var(--mia-primary)]'
+                  : 'border-[#e5e7eb] text-gray-500 hover:bg-gray-50'
+              }`}
+            >
+              Tất cả
+            </button>
+            {warehouses.map(w => (
+              <button
+                key={w.id}
+                onClick={() => { setSelectedWhId(w.id); setPage(1) }}
+                className={`px-3 h-7 text-xs font-medium rounded-lg transition-all border ${
+                  selectedWhId === w.id
+                    ? 'bg-[var(--mia-primary)] text-white border-[var(--mia-primary)]'
+                    : 'border-[#e5e7eb] text-gray-500 hover:bg-gray-50'
+                }`}
+              >
+                {w.name}
+              </button>
+            ))}
+            {selectedWhId && (
+              <span className="ml-1 text-[10px] text-gray-400">
+                — Tồn kho, ROP, DOS, EOQ tính riêng cho kho này
+              </span>
+            )}
+          </div>
+        )}
+
         <div className="flex items-center gap-3 px-4 py-3 border-b border-[#e5e7eb] flex-wrap">
           <div className="flex items-center gap-2 bg-gray-50 border border-[#e5e7eb] rounded-lg px-3 h-8 flex-1 min-w-[200px] max-w-sm">
             <Search size={13} className="text-gray-400 shrink-0" />
