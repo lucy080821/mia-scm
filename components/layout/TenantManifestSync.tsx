@@ -50,9 +50,11 @@ export default function TenantManifestSync() {
         if (!blob) return
         const reader = new FileReader()
         reader.onload = () => {
-          document.querySelectorAll<HTMLLinkElement>('link[rel~="icon"]').forEach(el => el.remove())
+          // Only remove our own injected favicon — not React-managed <link> nodes
+          document.querySelectorAll<HTMLLinkElement>('link[data-tenant-favicon]').forEach(el => el.remove())
           const link = document.createElement('link')
           link.rel = 'icon'
+          link.setAttribute('data-tenant-favicon', '1')
           link.href = reader.result as string
           document.head.appendChild(link)
         }

@@ -3,10 +3,11 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import { decodeDriverToken } from '@/lib/delivery-token'
 import type { StopConfirmation } from '@/app/api/delivery-confirm/route'
+import Link from 'next/link'
 import {
   MapPin, Package, Banknote, CheckCircle2, XCircle,
   ChevronDown, ChevronUp, Truck, Clock, AlertTriangle, RefreshCw,
-  Phone, Camera, X, ImageIcon,
+  Phone, Camera, X, ImageIcon, Home,
 } from 'lucide-react'
 
 const FAIL_REASONS = ['Khách vắng nhà', 'Khách từ chối nhận', 'Sai địa chỉ', 'Hàng bị hỏng', 'Khác']
@@ -500,6 +501,9 @@ export default function PermanentDriverPage() {
       <div className="bg-[#1e2a3a] text-white px-4 pt-10 pb-5">
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
+            <Link href="/giao-hang" className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/10 text-white/60 hover:bg-white/20 hover:text-white transition-colors mr-0.5">
+              <Home size={14} />
+            </Link>
             <Truck size={18} className="text-[#0ea5e9]" />
             <span className="text-xs text-white/60 font-medium">Kế hoạch giao hàng hôm nay</span>
           </div>
