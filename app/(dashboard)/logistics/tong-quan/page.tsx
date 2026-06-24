@@ -10,6 +10,8 @@ import DriverTrackingMap from '@/components/maps/DriverTrackingMap'
 import { formatVND, formatDate } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import { useTenant } from '@/contexts/TenantContext'
+import { useAutoRefresh } from '@/hooks/useAutoRefresh'
+import { useOrdersRealtime } from '@/hooks/useOrdersRealtime'
 
 interface RecentDelivery {
   code: string; customer: string; driver: string; vehicle: string
@@ -35,11 +37,9 @@ export default function LogisticsOverviewPage() {
   const [mapStops, setMapStops] = useState<MapStop[]>([])
   const [loading, setLoading] = useState(true)
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
+  const load = async () => {
     if (!tenantId) return
-    const load = async () => {
-      const now = new Date()
+    const now = new Date()
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
       const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate() + 1)
       const tomorrowStr = tomorrow.toISOString().slice(0, 10)
@@ -121,9 +121,12 @@ export default function LogisticsOverviewPage() {
       })))
 
       setLoading(false)
-    }
-    load()
-  }, [tenantId])
+  }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!tenantId) return; load() }, [tenantId])
+  useOrdersRealtime(load, ['deliveries', 'drivers', 'vehicles'])
+  useAutoRefresh(load, 15_000)
 
   return (
     <div>

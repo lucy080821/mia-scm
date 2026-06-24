@@ -9,9 +9,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ dri
       .from('drivers')
       .select('id, name, vehicle:vehicles(plate)')
       .eq('id', driverId)
-      .single()
-
-    if (!driver) return NextResponse.json({ error: 'Driver not found' }, { status: 404 })
+      .maybeSingle()
 
     const today = new Date()
     today.setHours(0, 0, 0, 0)
@@ -25,19 +23,33 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ dri
       )
     `
 
-    // Tìm TẤT CẢ driver IDs có cùng tên (tránh mismatch khi có 2 row cùng người)
-    const { data: sameNameDrivers } = await supabaseAdmin
-      .from('drivers')
-      .select('id')
-      .eq('name', driver.name)
-    const allDriverIds = [...new Set([driverId, ...(sameNameDrivers ?? []).map((d: any) => d.id)])]
+    // Nếu driver không có record trong bảng drivers, vẫn tìm deliveries theo driverId
+    const vehiclePlate = (driver?.vehicle as any)?.plate ?? ''
+
+    // Nếu không tìm thấy trong bảng drivers, lấy tên từ auth user
+    let driverName = driver?.name ?? null
+    if (!driverName) {
+      const { data: { user: authUser } } = await supabaseAdmin.auth.admin.getUserById(driverId)
+      driverName = authUser?.user_metadata?.full_name ?? authUser?.email ?? 'Tài xế'
+    }
+
+    // Tìm TẤT CẢ driver IDs có cùng tên — bắt cả trường hợp drivers.id ≠ auth UUID
+    const sameNameDriverIds: string[] = []
+    if (driverName && driverName !== 'Tài xế') {
+      const { data: sameNameDrivers } = await supabaseAdmin
+        .from('drivers')
+        .select('id')
+        .eq('name', driverName)
+      sameNameDriverIds.push(...(sameNameDrivers ?? []).map((d: any) => d.id))
+    }
+    const allDriverIds = [...new Set([driverId, ...sameNameDriverIds])]
 
     // Đơn đang active: không lọc theo ngày (tránh mất đơn tạo hôm qua chưa giao xong)
     const { data: activeDeliveries } = await supabaseAdmin
       .from('deliveries')
       .select(selectFields)
       .in('driver_id', allDriverIds)
-      .in('status', ['pending', 'assigned', 'delivering'])
+      .in('status', ['pending', 'assigned', 'picking', 'delivering'])
       .order('planned_date')
 
     // Đơn đã hoàn thành/thất bại: chỉ lấy của hôm nay
@@ -88,8 +100,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ dri
       .limit(5)
 
     return NextResponse.json({
-      driver: driver.name,
-      vehicle: (driver.vehicle as any)?.plate ?? '',
+      driver: driverName ?? 'Tài xế',
+      vehicle: vehiclePlate,
       stops,
       date: today.toISOString().slice(0, 10),
       _debug: {

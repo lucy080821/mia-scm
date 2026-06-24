@@ -308,16 +308,20 @@ function SalesOrderAssignModal({ order, onClose, onDone }: {
       const prefix = `DV-${today.getFullYear().toString().slice(2)}${String(today.getMonth()+1).padStart(2,'0')}${String(today.getDate()).padStart(2,'0')}`
       const { count: dvCount } = await supabase.from('deliveries').select('id', { count: 'exact', head: true }).like('code', `${prefix}-%`)
       const code = `${prefix}-${String((dvCount ?? 0) + 1).padStart(3, '0')}`
-      await supabase.from('deliveries').insert({
-        code,
-        tenant_id: tenantId,
-        sales_order_id: order.id,
-        vehicle_id: vehicleId,
-        driver_id: driverId,
-        planned_date: order.delivery_date ? new Date(order.delivery_date).toISOString() : new Date().toISOString(),
-        carrier_type: 'own',
-        status: 'pending',
-        warehouse_id: warehouseId,
+      // Dùng API route (supabaseAdmin) để bypass RLS khi INSERT
+      await fetch('/api/deliveries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code,
+          sales_order_id: order.id,
+          vehicle_id: vehicleId,
+          driver_id: driverId,
+          planned_date: order.delivery_date ? new Date(order.delivery_date).toISOString() : new Date().toISOString(),
+          carrier_type: 'own',
+          status: 'pending',
+          warehouse_id: warehouseId,
+        }),
       })
     }
 

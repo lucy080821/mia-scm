@@ -1,5 +1,6 @@
 'use client'
-import { useEffect, useState, use, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
+import { useParams } from 'next/navigation'
 import { decodeDriverToken } from '@/lib/delivery-token'
 import type { StopConfirmation } from '@/app/api/delivery-confirm/route'
 import {
@@ -406,8 +407,8 @@ function KetCaSummary({ confirmations, stops }: { confirmations: StopConfirmatio
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
-export default function PermanentDriverPage({ params }: { params: Promise<{ token: string }> }) {
-  const { token } = use(params)
+export default function PermanentDriverPage() {
+  const { token } = useParams<{ token: string }>()
   const [driverInfo, setDriverInfo] = useState<{ driver: string; vehicle: string; stops: StopData[] } | null>(null)
   const [invalid, setInvalid] = useState(false)
   const [confirmations, setConfirmations] = useState<StopConfirmation[]>([])
