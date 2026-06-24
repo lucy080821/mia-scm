@@ -8,6 +8,12 @@ import { useTenant } from '@/contexts/TenantContext'
 interface LineItem { id: number; name: string; unit: string; qty: number; price: number; discount: number }
 type Customer = { id: string; name: string; address: string; tax_code: string; phone: string }
 type Product  = { id: string; sku: string; name: string; unit: string; sale_price: number }
+type RecentInvoice = {
+  id: string; invoice_no: string; invoice_date: string | null
+  customer_name: string | null; customer_address: string | null
+  tax_code: string | null; order_ref: string | null; note: string | null
+  items: LineItem[]; vat_pct: number; subtotal: number; vat: number; total: number; status: string
+}
 type CompanyInfo = { name: string; address: string; tax_code: string; phone: string; email: string; logo: string }
 
 const DEFAULT_FORM = {
@@ -38,6 +44,8 @@ export default function InvoicePage() {
   const [nextId,  setNextId]  = useState(1)
   const [toast,   setToast]   = useState('')
   const [vatPct,  setVatPct]  = useState(10)
+  const [savedInvoiceId,  setSavedInvoiceId]  = useState<string | null>(null)
+  const [recentInvoices,  setRecentInvoices]  = useState<RecentInvoice[]>([])
 
   // Company info — khởi tạo từ tenant, cho phép chỉnh thêm (email, logo riêng)
   const [company,     setCompany]     = useState<CompanyInfo>(tenantCompany)
@@ -65,6 +73,8 @@ export default function InvoicePage() {
       .then(d => setCustomers(Array.isArray(d) ? d : (d?.data ?? []))).catch(() => {})
     fetch('/api/products').then(r => r.json())
       .then(d => setProducts(Array.isArray(d) ? d : (d?.data ?? []))).catch(() => {})
+    fetch('/api/invoices').then(r => r.json())
+      .then(d => setRecentInvoices(Array.isArray(d) ? d : [])).catch(() => {})
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenant.id])
 
@@ -75,9 +85,68 @@ export default function InvoicePage() {
   const vat      = Math.round(subtotal * vatPct / 100)
   const total    = subtotal + vat
 
+  const loadRecentInvoices = () => {
+    fetch('/api/invoices').then(r => r.json())
+      .then(d => setRecentInvoices(Array.isArray(d) ? d : [])).catch(() => {})
+  }
+
   const handleNew = () => {
     setForm({ ...DEFAULT_FORM, invoice_no: genNo(), invoice_date: new Date().toISOString().slice(0, 10) })
-    setItems([]); setNextId(1); showToast('Đã tạo hóa đơn mới')
+    setItems([]); setNextId(1); setSavedInvoiceId(null); showToast('Đã tạo hóa đơn mới')
+  }
+
+  const handleSaveDraft = async () => {
+    const no = form.invoice_no || genNo()
+    if (!form.invoice_no) setF('invoice_no', no)
+    const payload = {
+      invoice_no: no, invoice_date: form.invoice_date,
+      customer_name: form.customer, customer_address: form.address,
+      tax_code: form.tax_code, order_ref: form.order_ref,
+      note: form.note, items, subtotal, vat_pct: vatPct, vat, total, status: 'draft',
+    }
+    try {
+      if (savedInvoiceId) {
+        const res = await fetch(`/api/invoices/${savedInvoiceId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+        if (res.ok) { showToast('Đã cập nhật bản nháp'); loadRecentInvoices() }
+        else showToast('Lỗi cập nhật')
+      } else {
+        const res = await fetch('/api/invoices', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setSavedInvoiceId(data.id)
+          showToast('Đã lưu bản nháp')
+          loadRecentInvoices()
+        } else {
+          showToast('Lỗi lưu hóa đơn')
+        }
+      }
+    } catch {
+      showToast('Lỗi kết nối')
+    }
+  }
+
+  const loadInvoice = (inv: RecentInvoice) => {
+    setForm({
+      customer: inv.customer_name ?? '',
+      address: inv.customer_address ?? '',
+      tax_code: inv.tax_code ?? '',
+      order_ref: inv.order_ref ?? '',
+      invoice_date: inv.invoice_date ?? new Date().toISOString().slice(0, 10),
+      invoice_no: inv.invoice_no,
+      note: inv.note ?? '',
+    })
+    const loaded = (inv.items ?? []).map((it, i) => ({ ...it, id: i + 1 }))
+    setItems(loaded); setNextId(loaded.length + 1); setVatPct(inv.vat_pct ?? 10)
+    setSavedInvoiceId(inv.id)
+    showToast(`Đã tải ${inv.invoice_no}`)
   }
   const handleAddLine = () => { setItems(p => [...p, { id: nextId, name: '', unit: 'cái', qty: 1, price: 0, discount: 0 }]); setNextId(n => n+1) }
   const handleItemChange = (id: number, k: keyof LineItem, v: string | number) =>
@@ -561,9 +630,9 @@ export default function InvoicePage() {
             <textarea rows={3} value={form.note} onChange={e => setF('note', e.target.value)}
               className="w-full px-3 py-2 border border-[#e5e7eb] rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[var(--mia-primary)] resize-none" />
             <div className="flex justify-end gap-3 mt-4">
-              <button onClick={() => showToast('Đã lưu bản nháp')}
+              <button onClick={handleSaveDraft}
                 className="flex items-center gap-1.5 px-4 py-2 border border-[#e5e7eb] text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 hover:scale-[1.02] active:scale-95 transition-all">
-                Lưu nháp
+                {savedInvoiceId ? 'Cập nhật nháp' : 'Lưu nháp'}
               </button>
               <button onClick={handlePrint}
                 className="flex items-center gap-1.5 px-4 py-2 border border-[#e5e7eb] text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 hover:scale-[1.02] active:scale-95 transition-all">
@@ -580,7 +649,35 @@ export default function InvoicePage() {
         {/* Right */}
         <div className="space-y-4">
           <div className="bg-white rounded-xl border border-[#e5e7eb] p-5">
-            <h2 className="text-sm font-semibold text-[#1e2a3a] mb-4">Chứng từ liên quan</h2>
+            <h2 className="text-sm font-semibold text-[#1e2a3a] mb-3">Hóa đơn đã lưu</h2>
+            {recentInvoices.length === 0 ? (
+              <p className="text-xs text-gray-400 text-center py-3">Chưa có hóa đơn nào được lưu</p>
+            ) : (
+              <div className="space-y-1.5 max-h-60 overflow-y-auto pr-0.5">
+                {recentInvoices.map(inv => (
+                  <button key={inv.id} onClick={() => loadInvoice(inv)}
+                    className={`w-full text-left px-3 py-2 rounded-lg border transition-all ${
+                      savedInvoiceId === inv.id
+                        ? 'border-[var(--mia-primary)] bg-sky-50'
+                        : 'border-[#e5e7eb] hover:bg-gray-50'
+                    }`}>
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-xs font-semibold text-[#1e2a3a] truncate">{inv.invoice_no}</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded flex-shrink-0 ${
+                        inv.status === 'draft' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
+                      }`}>{inv.status === 'draft' ? 'nháp' : 'đã xuất'}</span>
+                    </div>
+                    <p className="text-[11px] text-gray-400 mt-0.5 truncate">
+                      {inv.customer_name || '—'} · {formatVND(inv.total)}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-xl border border-[#e5e7eb] p-5">
+            <h2 className="text-sm font-semibold text-[#1e2a3a] mb-4">Chứng từ hiện tại</h2>
             <div className="space-y-2">
               {[
                 ['Số hóa đơn', form.invoice_no],

@@ -64,13 +64,15 @@ export async function POST(req: NextRequest) {
     const systemPrompt = `Bạn là chuyên gia phân tích chuỗi cung ứng cho doanh nghiệp phân phối FMCG tại Việt Nam.
 Phân tích danh sách nhà cung cấp và đưa ra nhận xét thực tế, ngắn gọn.
 Chỉ nhận xét dựa trên DỮ LIỆU THỰC được cung cấp. Không bịa đặt.
+LUÔN dùng TÊN nhà cung cấp (name), KHÔNG dùng mã code.
+Nếu dữ liệu quá ít (< 2 NCC hoặc chưa có lịch sử đơn hàng) thì summary ngắn gọn, alerts và recommendations để mảng rỗng, top/risk để null.
 Trả về JSON hợp lệ (KHÔNG có markdown, KHÔNG có text ngoài JSON):
 {
   "summary": "1-2 câu tổng quan về tình trạng NCC",
-  "alerts": ["cảnh báo 1 (NCC cụ thể, vấn đề cụ thể)", "cảnh báo 2"],
-  "recommendations": ["đề xuất 1 có tên NCC", "đề xuất 2"],
-  "top_supplier": "mã NCC hoạt động tốt nhất nếu có, null nếu không đủ dữ liệu",
-  "risk_supplier": "mã NCC rủi ro nhất nếu có, null nếu không"
+  "alerts": ["cảnh báo ngắn dùng TÊN NCC, vấn đề cụ thể"],
+  "recommendations": ["đề xuất ngắn dùng TÊN NCC"],
+  "top_supplier": "TÊN NCC hoạt động tốt nhất nếu có đủ dữ liệu, null nếu không",
+  "risk_supplier": "TÊN NCC rủi ro nhất nếu có đủ dữ liệu, null nếu không"
 }`
 
     const res = await fetch(GROQ_API_URL, {

@@ -40,13 +40,25 @@ export default function TenantManifestSync() {
     themeMeta.content = tenant.primaryColor ?? '#1e2a3a'
   }, [tenant.name, tenant.primaryColor, tenant.id])
 
-  // Favicon: chỉ cập nhật href của link tĩnh, KHÔNG xóa node của React
-  // Timestamp buộc browser refetch thay vì dùng cache
+  // Favicon: dùng data URL để bypass browser favicon cache hoàn toàn
   useEffect(() => {
     if (!tenant?.name || tenant.id === 'default') return
 
-    const existing = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
-    if (existing) existing.href = `/api/favicon?_t=${Date.now()}`
+    fetch(`/api/favicon?_fv=${tenant.id}`)
+      .then(r => r.ok ? r.blob() : null)
+      .then(blob => {
+        if (!blob) return
+        const reader = new FileReader()
+        reader.onload = () => {
+          document.querySelectorAll<HTMLLinkElement>('link[rel~="icon"]').forEach(el => el.remove())
+          const link = document.createElement('link')
+          link.rel = 'icon'
+          link.href = reader.result as string
+          document.head.appendChild(link)
+        }
+        reader.readAsDataURL(blob)
+      })
+      .catch(() => {})
   }, [tenant.id])
 
   return null

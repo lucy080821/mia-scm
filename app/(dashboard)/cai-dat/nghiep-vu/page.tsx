@@ -8,7 +8,7 @@ import PageHeader from '@/components/layout/PageHeader'
 import { useAuth } from '@/hooks/useAuth'
 import { useTenant } from '@/contexts/TenantContext'
 import {
-  loadBusinessSettings, saveBusinessSettings,
+  loadBusinessSettings, loadBusinessSettingsAsync, saveBusinessSettingsAsync,
   type BusinessSettings, type NumberingRule,
   FORMAT_OPTIONS, NUMBERING_DOCS, previewNumbering,
 } from '@/lib/business-settings'
@@ -730,14 +730,14 @@ export default function NghiepVuPage() {
   const [settings, setSettings] = useState<BusinessSettings | null>(null)
 
   useEffect(() => {
-    setSettings(loadBusinessSettings())
+    loadBusinessSettingsAsync().then(s => setSettings(s))
   }, [])
 
   const patch = (p: Partial<BusinessSettings>) => {
     setSettings(prev => {
       if (!prev) return prev
       const next = { ...prev, ...p }
-      saveBusinessSettings(next)
+      saveBusinessSettingsAsync(next)
       return next
     })
   }
@@ -754,7 +754,7 @@ export default function NghiepVuPage() {
         title="Cài đặt nghiệp vụ"
         subtitle="Tùy chỉnh quy trình vận hành đặc thù của công ty"
         actions={
-          <button onClick={() => { setSettings(loadBusinessSettings()) }}
+          <button onClick={() => { loadBusinessSettingsAsync().then(s => setSettings(s)) }}
             className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-500 border border-[#e5e7eb] rounded-lg hover:bg-gray-50 transition-colors">
             <RotateCcw size={13} /> Tải lại
           </button>

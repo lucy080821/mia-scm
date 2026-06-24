@@ -296,8 +296,19 @@ export default function NhaCungCapPage() {
   useEffect(() => {
     if (!tenantId) return
     async function load() {
-      const { data } = await supabase.from('suppliers').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false })
+      const [{ data }, { data: poData }] = await Promise.all([
+        supabase.from('suppliers').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }),
+        supabase.from('purchase_orders').select('supplier_id, total_amount').eq('tenant_id', tenantId).neq('status', 'cancelled'),
+      ])
       if (!data) return
+
+      const poStats: Record<string, { count: number; total: number }> = {}
+      for (const o of (poData ?? [])) {
+        if (!poStats[o.supplier_id]) poStats[o.supplier_id] = { count: 0, total: 0 }
+        poStats[o.supplier_id].count++
+        poStats[o.supplier_id].total += o.total_amount ?? 0
+      }
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const mapped = data.map((s: any) => ({
         id: s.id,
@@ -311,8 +322,8 @@ export default function NhaCungCapPage() {
         payment_term: s.payment_term ?? 30,
         delivery_days: s.delivery_days ?? 3,
         rating: s.rating ?? 0,
-        total_orders: 0,
-        total_amount: 0,
+        total_orders: poStats[s.id]?.count ?? 0,
+        total_amount: poStats[s.id]?.total ?? 0,
         status: (s.status ?? 'active') as Supplier['status'],
         products: [],
         notes: '',
@@ -361,10 +372,14 @@ export default function NhaCungCapPage() {
 
       const parts: string[] = []
       if (data.summary) parts.push(data.summary)
-      if (data.alerts?.length) parts.push('<br/><strong>⚠️ Cảnh báo:</strong> ' + (data.alerts as string[]).join(' · '))
-      if (data.recommendations?.length) parts.push('<br/><strong>💡 Đề xuất:</strong> ' + (data.recommendations as string[]).join(' · '))
-      if (data.top_supplier) parts.push(`<br/>✅ NCC nổi bật: <strong>${data.top_supplier}</strong>`)
-      if (data.risk_supplier) parts.push(`<br/>⛔ Cần chú ý: <strong>${data.risk_supplier}</strong>`)
+      if (data.alerts?.length) {
+        for (const a of data.alerts as string[]) parts.push(`<br/>⚠️ ${a}`)
+      }
+      if (data.recommendations?.length) {
+        for (const r of data.recommendations as string[]) parts.push(`<br/>💡 ${r}`)
+      }
+      if (data.top_supplier) parts.push(`<br/>✅ Hoạt động tốt: <strong>${data.top_supplier}</strong>`)
+      if (data.risk_supplier) parts.push(`<br/>⚠️ Cần theo dõi: <strong>${data.risk_supplier}</strong>`)
 
       setAiContent(parts.join('') || 'Phân tích hoàn tất.')
     } catch {
@@ -405,7 +420,7 @@ export default function NhaCungCapPage() {
             phone: data.phone, email: data.email, address: data.address,
             payment_term: Number(data.payment_term),
             delivery_days: Number(data.delivery_days),
-            rating: 5.0, total_orders: 0, total_amount: 0,
+            rating: 0, total_orders: 0, total_amount: 0,
             status: data.status, products, notes: data.notes,
           }
           setSuppliers(prev => [...prev, newSupplier])
@@ -417,14 +432,36 @@ export default function NhaCungCapPage() {
         showToast('Lỗi kết nối — không thể lưu nhà cung cấp')
       }
     } else if (formTarget) {
-      setSuppliers(prev => prev.map(s =>
-        s.id === formTarget.id
-          ? { ...s, name: data.name, type: data.type, tax_code: data.tax_code, phone: data.phone,
-              email: data.email, address: data.address, payment_term: Number(data.payment_term),
-              delivery_days: Number(data.delivery_days), status: data.status, products, notes: data.notes }
-          : s
-      ))
-      setSelected(null)
+      try {
+        const res = await fetch(`/api/suppliers/${formTarget.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: data.name, type: data.type, tax_code: data.tax_code,
+            phone: data.phone, email: data.email, address: data.address,
+            payment_term: Number(data.payment_term),
+            delivery_days: Number(data.delivery_days),
+            status: data.status,
+          }),
+        })
+        if (res.ok) {
+          setSuppliers(prev => prev.map(s =>
+            s.id === formTarget.id
+              ? { ...s, name: data.name, type: data.type, tax_code: data.tax_code,
+                  phone: data.phone, email: data.email, address: data.address,
+                  payment_term: Number(data.payment_term),
+                  delivery_days: Number(data.delivery_days), status: data.status, products, notes: data.notes }
+              : s
+          ))
+          setSelected(null)
+          showToast('Đã cập nhật nhà cung cấp', 'success')
+        } else {
+          const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }))
+          showToast(`Lỗi cập nhật: ${err.error}`)
+        }
+      } catch {
+        showToast('Lỗi kết nối — không thể lưu thay đổi')
+      }
     }
     setFormTarget(null)
   }

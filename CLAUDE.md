@@ -261,6 +261,85 @@ SUPABASE_SERVICE_ROLE_KEY          # server-only
 - **Preview**: Load real warehouse codes từ Supabase để hiển thị đúng cột kho của công ty.
 - **Parser**: `normalizeInventoryTable` bỏ qua cột "tên sản phẩm" khi detect warehouse columns.
 
+### Tính năng đã nối DB thực (toàn bộ)
+
+| Module | Trang | Trạng thái |
+|---|---|---|
+| Dashboard | `/dashboard` | ✅ Real — `/api/dashboard`, realtime Supabase channel |
+| Bán hàng | Khách hàng | ✅ Real — `/api/customers` |
+| Bán hàng | Đơn hàng bán | ✅ Real — `/api/sales-orders`, đầy đủ workflow status |
+| Bán hàng | Báo giá | ✅ Real — `/api/quotes` + supabase |
+| Bán hàng | Trả hàng | ✅ Real — `/api/sales-returns` |
+| Bán hàng | Hóa đơn | ✅ Real — `/api/invoices` GET/POST/PATCH; lưu nháp vào DB, danh sách hóa đơn đã lưu ở right panel. Cần tạo bảng `invoices` trong Supabase (xem SQL bên dưới). Company info vẫn lưu localStorage. |
+| Kho hàng | Sản phẩm | ✅ Real — `/api/products`, toggle kho, DOS/ROP/EOQ tự tính |
+| Kho hàng | Tổng quan kho | ✅ Real — supabase trực tiếp, AI gợi ý, per-warehouse |
+| Kho hàng | Nhập kho | ✅ Real — `/api/stock-receipts` |
+| Kho hàng | Xuất kho | ✅ Real — `/api/stock-issues` |
+| Kho hàng | Chuyển kho | ✅ Real — `/api/stock-transfers` |
+| Kho hàng | Kiểm kê | ✅ Real — `/api/stocktakes` |
+| Mua hàng | Đơn mua hàng | ✅ Real — `/api/purchase-orders`, goods receipt flow, delete draft |
+| Mua hàng | Nhà cung cấp | ✅ Real — `/api/suppliers` |
+| Logistics | Tổng quan | ✅ Real — supabase, KPI deliveries |
+| Logistics | Đơn vận chuyển | ✅ Real — `/api/deliveries` |
+| Logistics | Kế hoạch giao hàng | ✅ Real — supabase, tạo/cập nhật delivery plan |
+| Logistics | Phương tiện | ✅ Real — `/api/vehicles` |
+| Logistics | Tài xế | ✅ Real — `/api/users` + `drivers` table, self-heal on_trip status |
+| Logistics | Đối soát COD | ✅ Real — supabase query deliveries + drivers |
+| Tài chính | Tổng quan | ✅ Real — `/api/finance?type=monthly` (12 tháng P&L) |
+| Tài chính | Doanh thu | ✅ Real — `/api/finance?type=orders` |
+| Tài chính | Chi phí | ✅ Real — `/api/finance?type=expenses` |
+| Tài chính | Chi phí phát sinh | ✅ Real — `/api/expenses` CRUD |
+| Tài chính | Lợi nhuận | ✅ Real — `/api/finance?type=monthly` |
+| Tài chính | Công nợ | ✅ Real — `/api/finance?type=receivables/payables` |
+| Báo cáo | Tất cả | ✅ Real — `/api/reports` (top_products, kpi_users, drilldown, inventory); plan-gated (growth/enterprise) |
+| Cài đặt | Danh mục | ✅ Real — `/api/categories` |
+| Cài đặt | Nhân viên | ✅ Real — `/api/users`, warehouse assignments |
+| Cài đặt | Nhập liệu | ✅ Real — `/api/import/[type]` |
+| Cài đặt | Nghiệp vụ | ✅ Real — `saveBusinessSettingsAsync()` / `loadBusinessSettingsAsync()` — lưu vào bảng `business_settings` (Supabase) + localStorage fallback. Debounce 800ms. Cần tạo bảng (xem SQL bên dưới). |
+
+---
+
+## Migrations cần chạy trong Supabase
+
+### Bảng `invoices`
+```sql
+CREATE TABLE invoices (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL REFERENCES tenants(id),
+  invoice_no TEXT NOT NULL,
+  invoice_date DATE,
+  customer_name TEXT,
+  customer_address TEXT,
+  tax_code TEXT,
+  order_ref TEXT,
+  note TEXT,
+  items JSONB DEFAULT '[]',
+  subtotal BIGINT DEFAULT 0,
+  vat_pct INTEGER DEFAULT 10,
+  vat BIGINT DEFAULT 0,
+  total BIGINT DEFAULT 0,
+  status TEXT DEFAULT 'draft',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "tenant_isolation" ON invoices
+  USING (tenant_id = (auth.jwt()->>'tenant_id')::uuid);
+```
+
+### Bảng `business_settings`
+```sql
+CREATE TABLE business_settings (
+  tenant_id UUID PRIMARY KEY REFERENCES tenants(id) ON DELETE CASCADE,
+  settings JSONB NOT NULL DEFAULT '{}',
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE business_settings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "tenant_isolation" ON business_settings
+  USING (tenant_id = (auth.jwt()->>'tenant_id')::uuid);
+```
+
+API graceful-fail nếu bảng chưa tồn tại (trả về [] / null thay vì crash).
+
 ---
 
 ## Quy tắc phát triển

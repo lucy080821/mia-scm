@@ -182,3 +182,36 @@ export function loadBusinessSettings(): BusinessSettings {
     return { ...DEFAULT_BUSINESS_SETTINGS, numbering: { ...DEFAULT_NUMBERING } }
   }
 }
+
+export async function loadBusinessSettingsAsync(): Promise<BusinessSettings> {
+  try {
+    const res = await fetch('/api/business-settings')
+    if (res.ok) {
+      const data = await res.json()
+      if (data && typeof data === 'object') {
+        const merged = {
+          ...DEFAULT_BUSINESS_SETTINGS,
+          ...data,
+          numbering: { ...DEFAULT_NUMBERING, ...(data.numbering ?? {}) },
+        }
+        saveBusinessSettings(merged)
+        return merged
+      }
+    }
+  } catch {}
+  return loadBusinessSettings()
+}
+
+let _saveTimer: ReturnType<typeof setTimeout> | null = null
+
+export function saveBusinessSettingsAsync(s: BusinessSettings): void {
+  saveBusinessSettings(s)
+  if (_saveTimer) clearTimeout(_saveTimer)
+  _saveTimer = setTimeout(() => {
+    fetch('/api/business-settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(s),
+    }).catch(() => {})
+  }, 800)
+}
