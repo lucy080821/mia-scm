@@ -1,8 +1,18 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import Sidebar from '@/components/layout/Sidebar'
+import dynamic from 'next/dynamic'
 import Topbar from '@/components/layout/Topbar'
+
+// Sidebar filters nav items based on user role + tenant modules — rendering it on the
+// server always produces a mismatch with the client's auth state, causing hydration errors.
+// Disabling SSR removes the mismatch entirely.
+const Sidebar = dynamic(() => import('@/components/layout/Sidebar'), {
+  ssr: false,
+  loading: () => (
+    <aside className="hidden lg:flex flex-col w-[200px] shrink-0 fixed top-0 left-0 h-screen z-30 bg-[#1e2a3a]" />
+  ),
+})
 import { canAccess } from '@/lib/auth-client'
 import { useAuth } from '@/hooks/useAuth'
 import { TenantProvider } from '@/contexts/TenantContext'
