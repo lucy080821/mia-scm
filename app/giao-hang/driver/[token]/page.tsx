@@ -447,6 +447,8 @@ export default function PermanentDriverPage() {
     if (!p) { setInvalid(true); return }
     setDriverId(p.driverId)
     loadPlan(p.driverId)
+    // Lưu token để fallback page có thể dẫn tài xế quay lại
+    try { localStorage.setItem('mia_driver_last_token', `/giao-hang/driver/${token}`) } catch { /* ignore */ }
   }, [token])
 
   const handleRefresh = async () => {

@@ -429,6 +429,8 @@ export default function DriverPage({ params }: { params: Promise<{ token: string
   useEffect(() => {
     const p = decodeToken(token)
     if (!p) { setInvalid(true); return }
+    // Lưu token để fallback page có thể dẫn tài xế quay lại
+    try { localStorage.setItem('mia_driver_last_token', `/giao-hang/${token}`) } catch { /* ignore */ }
 
     fetch(`/api/driver-plan/${p.deliveryId}`)
       .then(r => r.ok ? r.json() : null)
