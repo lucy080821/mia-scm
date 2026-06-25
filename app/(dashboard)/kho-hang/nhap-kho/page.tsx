@@ -1,6 +1,6 @@
 ﻿'use client'
-import { useState, useEffect } from 'react'
-import { Plus, Search, ArrowDownToLine, CheckCircle, Clock, X, AlertTriangle, Package, Trash2 } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Plus, Search, ArrowDownToLine, CheckCircle, Clock, X, AlertTriangle, Package, Trash2, RefreshCw } from 'lucide-react'
 import PageHeader from '@/components/layout/PageHeader'
 import ExportButton from '@/components/ui/ExportButton'
 import { formatVND, formatDate } from '@/lib/utils'
@@ -660,6 +660,7 @@ export default function NhapKhoPage() {
   const [page, setPage]                   = useState(1)
   const [pendingPOs, setPendingPOs]       = useState<PendingPO[]>([])
   const [loadingPOs, setLoadingPOs]       = useState(true)
+  const [pendingPOsError, setPendingPOsError] = useState<string | null>(null)
   const [receiveTarget, setReceiveTarget] = useState<PendingPO | null>(null)
 
   const loadReceipts = async () => {
@@ -672,18 +673,34 @@ export default function NhapKhoPage() {
     setLoading(false)
   }
 
-  const loadPendingPOs = async () => {
+  const loadPendingPOs = useCallback(async () => {
     setLoadingPOs(true)
-    const res = await fetch('/api/purchase-orders')
-    if (res.ok) {
-      const data = await res.json()
-      setPendingPOs((data as PendingPO[]).filter(p => p.status === 'sent' || p.status === 'delivering'))
+    setPendingPOsError(null)
+    try {
+      const res = await fetch('/api/purchase-orders', { cache: 'no-store' })
+      if (res.ok) {
+        const data = await res.json()
+        setPendingPOs((data as PendingPO[]).filter(p => p.status === 'sent' || p.status === 'delivering'))
+      } else {
+        const err = await res.json().catch(() => ({}))
+        setPendingPOsError(err.error || `Lỗi tải dữ liệu (${res.status})`)
+      }
+    } catch {
+      setPendingPOsError('Không thể kết nối máy chủ')
+    } finally {
+      setLoadingPOs(false)
     }
-    setLoadingPOs(false)
-  }
+  }, [])
 
+  useEffect(() => {
+    loadReceipts()
+    loadPendingPOs()
+    // Refresh pending POs when user switches back to this tab from mua-hang
+    const handleFocus = () => loadPendingPOs()
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { if (!tenantId) return; loadReceipts(); loadPendingPOs() }, [tenantId])
+  }, [])
 
   const filtered = receipts.filter(r => {
     const matchSearch = r.code.includes(search) || r.supplier.toLowerCase().includes(search.toLowerCase()) || r.po_ref.includes(search)
@@ -721,54 +738,68 @@ export default function NhapKhoPage() {
         </button>
       </PageHeader>
 
-      {/* POs awaiting goods receipt — only visible to warehouse staff working in this module */}
-      {(loadingPOs || pendingPOs.length > 0) && (
-        <div className="mb-5 bg-white rounded-xl border border-amber-200 overflow-hidden">
-          <div className="px-4 py-3 bg-amber-50 border-b border-amber-200 flex items-center gap-2">
-            <Clock size={15} className="text-amber-600 shrink-0" />
-            <span className="text-sm font-semibold text-amber-800">Đơn hàng đang chờ nhận</span>
-            {pendingPOs.length > 0 && (
-              <span className="px-2 py-0.5 bg-amber-500 text-white text-xs font-bold rounded-full">{pendingPOs.length}</span>
-            )}
-            <p className="ml-auto text-xs text-amber-600 hidden sm:block">Đơn mua đã duyệt — hàng đang trên đường về</p>
-          </div>
-          {loadingPOs ? (
-            <div className="px-4 py-3 text-sm text-gray-400">Đang tải...</div>
-          ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-[#e5e7eb] bg-gray-50">
-                  {['Mã PO', 'Nhà cung cấp', 'Dự kiến về', 'Số SP', 'Giá trị', 'Trạng thái', ''].map(h => (
-                    <th key={h} className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {pendingPOs.map(po => (
-                  <tr key={po.id} className="border-b border-[#f0f2f5] last:border-0 hover:bg-amber-50/50 transition-colors">
-                    <td className="px-4 py-3 text-sm font-medium text-[var(--mia-primary)]">{po.code}</td>
-                    <td className="px-4 py-3 text-xs font-medium text-[#1e2a3a] max-w-[160px] truncate">{po.supplier?.name ?? '—'}</td>
-                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{po.expected_date ? formatDate(po.expected_date) : '—'}</td>
-                    <td className="px-4 py-3 text-xs text-gray-500 text-center">{po.items.length}</td>
-                    <td className="px-4 py-3 text-xs font-semibold text-[#1e2a3a] whitespace-nowrap">{formatVND(po.total_amount)}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${po.status === 'sent' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
-                        {po.status === 'sent' ? 'Đã gửi NCC' : 'Đang giao'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <button onClick={() => setReceiveTarget(po)}
-                        className="px-3 py-1.5 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 hover:scale-[1.02] active:scale-95 transition-all whitespace-nowrap">
-                        Nhận hàng
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {/* POs awaiting goods receipt — always visible so warehouse staff can always find this feature */}
+      <div className="mb-5 bg-white rounded-xl border border-amber-200 overflow-hidden">
+        <div className="px-4 py-3 bg-amber-50 border-b border-amber-200 flex items-center gap-2">
+          <Clock size={15} className="text-amber-600 shrink-0" />
+          <span className="text-sm font-semibold text-amber-800">Đơn mua hàng chờ nhận</span>
+          {pendingPOs.length > 0 && (
+            <span className="px-2 py-0.5 bg-amber-500 text-white text-xs font-bold rounded-full">{pendingPOs.length}</span>
           )}
+          <p className="text-xs text-amber-600 hidden sm:block">Đơn đã duyệt / đang giao — bấm Nhận hàng khi hàng về kho</p>
+          <button
+            onClick={loadPendingPOs}
+            disabled={loadingPOs}
+            className="ml-auto flex items-center gap-1 px-2.5 py-1 text-xs text-amber-700 bg-amber-100 hover:bg-amber-200 rounded-lg transition-colors disabled:opacity-50"
+          >
+            <RefreshCw size={11} className={loadingPOs ? 'animate-spin' : ''} /> Tải lại
+          </button>
         </div>
-      )}
+        {loadingPOs ? (
+          <div className="px-4 py-5 text-sm text-gray-400 text-center">Đang tải danh sách đơn chờ nhận...</div>
+        ) : pendingPOsError ? (
+          <div className="px-4 py-5 text-center">
+            <p className="text-sm text-red-500 mb-2">{pendingPOsError}</p>
+            <button onClick={loadPendingPOs} className="text-xs text-amber-700 underline">Thử lại</button>
+          </div>
+        ) : pendingPOs.length === 0 ? (
+          <div className="px-4 py-5 text-sm text-gray-400 text-center">
+            Không có đơn mua nào đang chờ nhận — đơn mua hàng cần được duyệt (trạng thái <strong className="text-gray-600">Đã gửi NCC</strong>) mới xuất hiện ở đây
+          </div>
+        ) : (
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-[#e5e7eb] bg-gray-50">
+                {['Mã PO', 'Nhà cung cấp', 'Dự kiến về', 'Số SP', 'Giá trị', 'Trạng thái', ''].map(h => (
+                  <th key={h} className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {pendingPOs.map(po => (
+                <tr key={po.id} className="border-b border-[#f0f2f5] last:border-0 hover:bg-amber-50/50 transition-colors">
+                  <td className="px-4 py-3 text-sm font-medium text-[var(--mia-primary)]">{po.code}</td>
+                  <td className="px-4 py-3 text-xs font-medium text-[#1e2a3a] max-w-[160px] truncate">{po.supplier?.name ?? '—'}</td>
+                  <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{po.expected_date ? formatDate(po.expected_date) : '—'}</td>
+                  <td className="px-4 py-3 text-xs text-gray-500 text-center">{po.items.length}</td>
+                  <td className="px-4 py-3 text-xs font-semibold text-[#1e2a3a] whitespace-nowrap">{formatVND(po.total_amount)}</td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${po.status === 'sent' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
+                      {po.status === 'sent' ? 'Đã gửi NCC' : 'Đang giao'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <button onClick={() => setReceiveTarget(po)}
+                      className="px-3 py-1.5 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 hover:scale-[1.02] active:scale-95 transition-all whitespace-nowrap">
+                      Nhận hàng
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
         {[
