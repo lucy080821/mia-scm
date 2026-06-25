@@ -31,6 +31,34 @@ const STATUS_MAP: Record<string, { label: string; className: string }> = {
   cancelled: { label: 'Đã hủy',        className: 'bg-red-100 text-red-700' },
 }
 
+interface PendingPOItem {
+  product_id: string
+  product: { name: string; unit: string; sku: string } | null
+  quantity: number
+  unit_price: number
+}
+interface PendingPO {
+  id: string
+  code: string
+  supplier: { id: string; name: string } | null
+  order_date: string
+  expected_date: string | null
+  total_amount: number
+  status: 'sent' | 'delivering'
+  items: PendingPOItem[]
+}
+interface ReceiveItemDraft {
+  product_id: string
+  name: string
+  sku: string
+  unit: string
+  ordered_qty: number
+  unit_price: number
+  received_qty: number
+  lot_number: string
+  expiry_date: string
+}
+
 function mapReceipt(r: Record<string, unknown>): StockReceipt {
   const supplier  = r.supplier  as { id: string; name: string } | null
   const warehouse = r.warehouse as { id: string; name: string } | null
@@ -74,6 +102,158 @@ interface DraftItem {
 }
 function emptyItem(): DraftItem {
   return { product_id: '', sku: '', name: '', unit: '', ordered_qty: 1, unit_price: 0, lot_number: '', expiry_date: '' }
+}
+
+// ─── Receive From PO Modal ────────────────────────────────────────────────────
+function ReceiveFromPOModal({ po, onClose, onDone }: {
+  po: PendingPO; onClose: () => void; onDone: () => void
+}) {
+  const { id: tenantId } = useTenant()
+  const today = new Date().toISOString().slice(0, 10)
+  const [warehouseId,  setWarehouseId]  = useState('')
+  const [receiptDate,  setReceiptDate]  = useState(today)
+  const [items,        setItems]        = useState<ReceiveItemDraft[]>(() =>
+    po.items.map(it => ({
+      product_id:   it.product_id,
+      name:         it.product?.name ?? '',
+      sku:          it.product?.sku  ?? '',
+      unit:         it.product?.unit ?? '',
+      ordered_qty:  it.quantity,
+      unit_price:   it.unit_price,
+      received_qty: it.quantity,
+      lot_number:   '',
+      expiry_date:  '',
+    }))
+  )
+  const [warehouses, setWarehouses] = useState<DropdownItem[]>([])
+  const [saving,     setSaving]     = useState(false)
+  const [error,      setError]      = useState('')
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!tenantId) return
+    supabase.from('warehouses').select('id, name').eq('tenant_id', tenantId).eq('status', 'active').order('name').limit(50)
+      .then(({ data }) => setWarehouses((data ?? []) as DropdownItem[]))
+  }, [tenantId])
+
+  const updateItem = (i: number, field: keyof ReceiveItemDraft, val: string | number) => {
+    setItems(prev => { const next = [...prev]; next[i] = { ...next[i], [field]: val }; return next })
+  }
+
+  const handleSubmit = async () => {
+    if (!warehouseId) { setError('Vui lòng chọn kho nhập'); return }
+    setSaving(true); setError('')
+    const res = await fetch(`/api/purchase-orders/${po.id}/receive`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        warehouse_id: warehouseId,
+        receipt_date: receiptDate,
+        items: items.map(it => ({
+          product_id:   it.product_id,
+          ordered_qty:  it.ordered_qty,
+          received_qty: it.received_qty,
+          unit_price:   it.unit_price,
+          lot_number:   it.lot_number || '',
+          expiry_date:  it.expiry_date || null,
+        })),
+      }),
+    })
+    if (res.ok) { onDone(); onClose() }
+    else { const j = await res.json().catch(() => ({})); setError(j.error ?? 'Lỗi nhận hàng') }
+    setSaving(false)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#e5e7eb]">
+          <div>
+            <h2 className="text-base font-bold text-[#1e2a3a]">Nhận hàng — {po.code}</h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {po.supplier?.name ?? '—'} · Dự kiến: {po.expected_date ? formatDate(po.expected_date) : '—'}
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={16} /></button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 p-6 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Kho nhập <span className="text-red-400">*</span></label>
+              <select value={warehouseId} onChange={e => setWarehouseId(e.target.value)}
+                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] bg-white">
+                <option value="">-- Chọn kho --</option>
+                {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Ngày nhận hàng</label>
+              <input type="date" value={receiptDate} onChange={e => setReceiptDate(e.target.value)}
+                className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Chi tiết hàng nhận</h3>
+            <div className="border border-[#e5e7eb] rounded-xl overflow-hidden">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-[#e5e7eb]">
+                    {['Sản phẩm', 'SL đặt', 'SL nhận', 'Số lô', 'Hạn SD'].map(h => (
+                      <th key={h} className="text-left px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((it, i) => (
+                    <tr key={it.product_id} className="border-b border-[#f0f2f5] last:border-0">
+                      <td className="px-3 py-2">
+                        <p className="text-xs font-medium text-[#1e2a3a]">{it.name}</p>
+                        <p className="text-[10px] text-gray-400 font-mono">{it.sku}</p>
+                      </td>
+                      <td className="px-3 py-2 text-xs text-gray-500 text-center whitespace-nowrap">{it.ordered_qty} {it.unit}</td>
+                      <td className="px-3 py-2 w-28">
+                        <div className="flex items-center gap-1">
+                          <input type="number" min={0} value={it.received_qty || ''} onChange={e => updateItem(i, 'received_qty', +e.target.value)}
+                            className="w-16 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] text-center" />
+                          <span className="text-[10px] text-gray-400">{it.unit}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 w-28">
+                        <input type="text" value={it.lot_number} onChange={e => updateItem(i, 'lot_number', e.target.value)}
+                          placeholder="L240610"
+                          className="w-full h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
+                      </td>
+                      <td className="px-3 py-2 w-32">
+                        <input type="date" value={it.expiry_date} onChange={e => updateItem(i, 'expiry_date', e.target.value)}
+                          className="w-full h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]" />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2">
+              <AlertTriangle size={13} className="text-red-500 shrink-0" />
+              <p className="text-xs text-red-600">{error}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 py-4 border-t border-[#e5e7eb] flex justify-end gap-2">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border border-[#e5e7eb] rounded-lg hover:bg-gray-50 transition-colors">Hủy</button>
+          <button onClick={handleSubmit} disabled={saving}
+            className="px-5 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50">
+            {saving ? 'Đang lưu...' : <><ArrowDownToLine size={14} className="inline mr-1.5" />Xác nhận nhận hàng</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 // ─── Create Receipt Modal ─────────────────────────────────────────────────────
@@ -471,13 +651,16 @@ const PAGE_SIZE = 20
 
 export default function NhapKhoPage() {
   const { id: tenantId } = useTenant()
-  const [receipts, setReceipts]         = useState<StockReceipt[]>([])
-  const [loading, setLoading]           = useState(true)
-  const [search, setSearch]             = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
-  const [qcModal, setQcModal]           = useState<StockReceipt | null>(null)
-  const [showCreate, setShowCreate]     = useState(false)
-  const [page, setPage]                 = useState(1)
+  const [receipts, setReceipts]           = useState<StockReceipt[]>([])
+  const [loading, setLoading]             = useState(true)
+  const [search, setSearch]               = useState('')
+  const [statusFilter, setStatusFilter]   = useState('all')
+  const [qcModal, setQcModal]             = useState<StockReceipt | null>(null)
+  const [showCreate, setShowCreate]       = useState(false)
+  const [page, setPage]                   = useState(1)
+  const [pendingPOs, setPendingPOs]       = useState<PendingPO[]>([])
+  const [loadingPOs, setLoadingPOs]       = useState(true)
+  const [receiveTarget, setReceiveTarget] = useState<PendingPO | null>(null)
 
   const loadReceipts = async () => {
     setLoading(true)
@@ -489,8 +672,18 @@ export default function NhapKhoPage() {
     setLoading(false)
   }
 
+  const loadPendingPOs = async () => {
+    setLoadingPOs(true)
+    const res = await fetch('/api/purchase-orders')
+    if (res.ok) {
+      const data = await res.json()
+      setPendingPOs((data as PendingPO[]).filter(p => p.status === 'sent' || p.status === 'delivering'))
+    }
+    setLoadingPOs(false)
+  }
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { if (!tenantId) return; loadReceipts() }, [tenantId])
+  useEffect(() => { if (!tenantId) return; loadReceipts(); loadPendingPOs() }, [tenantId])
 
   const filtered = receipts.filter(r => {
     const matchSearch = r.code.includes(search) || r.supplier.toLowerCase().includes(search.toLowerCase()) || r.po_ref.includes(search)
@@ -527,6 +720,55 @@ export default function NhapKhoPage() {
           <Plus size={15} /> Tạo phiếu nhập
         </button>
       </PageHeader>
+
+      {/* POs awaiting goods receipt — only visible to warehouse staff working in this module */}
+      {(loadingPOs || pendingPOs.length > 0) && (
+        <div className="mb-5 bg-white rounded-xl border border-amber-200 overflow-hidden">
+          <div className="px-4 py-3 bg-amber-50 border-b border-amber-200 flex items-center gap-2">
+            <Clock size={15} className="text-amber-600 shrink-0" />
+            <span className="text-sm font-semibold text-amber-800">Đơn hàng đang chờ nhận</span>
+            {pendingPOs.length > 0 && (
+              <span className="px-2 py-0.5 bg-amber-500 text-white text-xs font-bold rounded-full">{pendingPOs.length}</span>
+            )}
+            <p className="ml-auto text-xs text-amber-600 hidden sm:block">Đơn mua đã duyệt — hàng đang trên đường về</p>
+          </div>
+          {loadingPOs ? (
+            <div className="px-4 py-3 text-sm text-gray-400">Đang tải...</div>
+          ) : (
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-[#e5e7eb] bg-gray-50">
+                  {['Mã PO', 'Nhà cung cấp', 'Dự kiến về', 'Số SP', 'Giá trị', 'Trạng thái', ''].map(h => (
+                    <th key={h} className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {pendingPOs.map(po => (
+                  <tr key={po.id} className="border-b border-[#f0f2f5] last:border-0 hover:bg-amber-50/50 transition-colors">
+                    <td className="px-4 py-3 text-sm font-medium text-[var(--mia-primary)]">{po.code}</td>
+                    <td className="px-4 py-3 text-xs font-medium text-[#1e2a3a] max-w-[160px] truncate">{po.supplier?.name ?? '—'}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{po.expected_date ? formatDate(po.expected_date) : '—'}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500 text-center">{po.items.length}</td>
+                    <td className="px-4 py-3 text-xs font-semibold text-[#1e2a3a] whitespace-nowrap">{formatVND(po.total_amount)}</td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${po.status === 'sent' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
+                        {po.status === 'sent' ? 'Đã gửi NCC' : 'Đang giao'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <button onClick={() => setReceiveTarget(po)}
+                        className="px-3 py-1.5 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 hover:scale-[1.02] active:scale-95 transition-all whitespace-nowrap">
+                        Nhận hàng
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
         {[
@@ -639,8 +881,15 @@ export default function NhapKhoPage() {
         )}
       </div>
 
-      {qcModal    && <QCModal receipt={qcModal} onClose={() => setQcModal(null)} onComplete={handleQCComplete} />}
-      {showCreate && <CreateReceiptModal onClose={() => setShowCreate(false)} onCreate={handleCreate} />}
+      {qcModal       && <QCModal receipt={qcModal} onClose={() => setQcModal(null)} onComplete={handleQCComplete} />}
+      {showCreate    && <CreateReceiptModal onClose={() => setShowCreate(false)} onCreate={handleCreate} />}
+      {receiveTarget && (
+        <ReceiveFromPOModal
+          po={receiveTarget}
+          onClose={() => setReceiveTarget(null)}
+          onDone={() => { loadReceipts(); loadPendingPOs() }}
+        />
+      )}
     </div>
   )
 }
