@@ -63,10 +63,11 @@ function mapReceipt(r: Record<string, unknown>): StockReceipt {
   const supplier  = r.supplier  as { id: string; name: string } | null
   const warehouse = r.warehouse as { id: string; name: string } | null
   const rawItems  = (r.items as Record<string, unknown>[]) ?? []
+  const poData = r.purchase_order as { code: string } | null
   return {
     id: r.id as string,
     code: r.code as string,
-    po_ref: (r.po_ref as string) || '—',
+    po_ref: poData?.code ?? '—',
     supplier_id: supplier?.id ?? '',
     supplier: supplier?.name ?? '',
     warehouse_id: warehouse?.id ?? '',
@@ -336,7 +337,6 @@ function CreateReceiptModal({ onClose, onCreate }: {
         supplier_id: supplierId,
         warehouse_id: warehouseId,
         receipt_date: date,
-        po_ref: poRef || null,
         note: note || null,
         items: filledItems.map(it => ({
           product_id: it.product_id,

@@ -91,7 +91,6 @@ export async function POST(
         code,
         supplier_id: po.supplier_id || null,
         purchase_order_id: poId,
-        po_ref: po.code,
         warehouse_id,
         receipt_date,
         note: note || null,

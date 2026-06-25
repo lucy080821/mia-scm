@@ -9,9 +9,10 @@ export async function GET() {
   const { data, error } = await supabaseAdmin
     .from('stock_receipts')
     .select(`
-      id, code, po_ref, purchase_order_id, receipt_date, total_amount, status, note,
+      id, code, purchase_order_id, receipt_date, total_amount, status, note,
       supplier:supplier_id ( id, name ),
       warehouse:warehouse_id ( id, name ),
+      purchase_order:purchase_order_id ( code ),
       items:stock_receipt_items (
         id, product_id, ordered_qty, received_qty, unit_price, lot_number, expiry_date, qc_passed, note,
         product:product_id ( sku, name, unit )
@@ -28,7 +29,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { supplier_id, purchase_order_id, warehouse_id, receipt_date, po_ref, note, items } = body
+    const { supplier_id, purchase_order_id, warehouse_id, receipt_date, note, items } = body
 
     if (!supplier_id || !warehouse_id || !receipt_date) {
       return NextResponse.json({ error: 'Thiếu thông tin bắt buộc' }, { status: 400 })
@@ -50,7 +51,6 @@ export async function POST(req: NextRequest) {
         purchase_order_id: purchase_order_id || null,
         warehouse_id,
         receipt_date,
-        po_ref: po_ref || null,
         note: note || null,
         total_amount: totalAmount,
         status: 'pending',
