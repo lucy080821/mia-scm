@@ -118,7 +118,7 @@ function DriverLinkModal({ driver, onClose }: { driver: Driver; onClose: () => v
   const [copied, setCopied] = useState(false)
   const token = createDriverToken({ id: driver.id, name: driver.name })
   const url = typeof window !== 'undefined'
-    ? `${window.location.origin}/giao-hang/driver/${token}`
+    ? `${window.location.origin}/giao-hang/${token}`
     : ''
 
   const handleCopy = () => {
