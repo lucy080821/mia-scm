@@ -1,10 +1,9 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { Truck, ArrowLeft, LayoutDashboard } from 'lucide-react'
+import Link from 'next/link'
 
 export default function GiaoHangIndex() {
-  const router = useRouter()
   const [lastToken, setLastToken] = useState<string | null>(null)
 
   useEffect(() => {
@@ -15,7 +14,7 @@ export default function GiaoHangIndex() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-[#f0f2f5] flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen bg-[#f0f2f5] flex flex-col items-center justify-center p-6 gap-8">
       <div className="text-center max-w-sm w-full">
         <div className="w-16 h-16 bg-[#1e2a3a] rounded-2xl flex items-center justify-center mx-auto mb-4">
           <Truck size={28} className="text-white" />
@@ -27,13 +26,13 @@ export default function GiaoHangIndex() {
             <p className="text-sm text-gray-500 mb-5">
               Bạn có kế hoạch giao hàng chưa hoàn thành. Bấm nút bên dưới để quay lại.
             </p>
-            <button
-              onClick={() => router.push(lastToken)}
+            <Link
+              href={lastToken}
               className="w-full flex items-center justify-center gap-2 px-5 py-3.5 bg-[#1e2a3a] text-white text-sm font-semibold rounded-2xl hover:bg-[#2d3f55] active:scale-[0.98] transition-all mb-3"
             >
               <ArrowLeft size={16} />
               Quay lại kế hoạch giao hàng
-            </button>
+            </Link>
             <p className="text-xs text-gray-400">
               Hoặc mở <strong>link giao hàng mới</strong> được điều phối gửi cho bạn.
             </p>
@@ -50,14 +49,14 @@ export default function GiaoHangIndex() {
         )}
       </div>
 
-      {/* Link về dashboard cho nhân viên/admin bị lạc vào trang này */}
-      <button
-        onClick={() => router.push('/dashboard')}
-        className="absolute bottom-8 flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+      {/* Dành cho nhân viên/admin bị lạc vào trang này — nằm trong flow, luôn click được */}
+      <Link
+        href="/login"
+        className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2 transition-colors py-2 px-4"
       >
         <LayoutDashboard size={13} />
         Về trang quản lý
-      </button>
+      </Link>
     </div>
   )
 }
