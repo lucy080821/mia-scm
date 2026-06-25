@@ -121,8 +121,13 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     const handler = () => {
       const t = loadTenantFromStorage()
       if (t) {
-        setTenantState(t)
-        applyTheme(t)
+        // Merge với DEFAULT_TENANT.enabledModules để không mất module nào
+        const merged = {
+          ...t,
+          enabledModules: Array.from(new Set([...DEFAULT_TENANT.enabledModules, ...t.enabledModules])),
+        }
+        setTenantState(merged)
+        applyTheme(merged)
       }
     }
     window.addEventListener('mia:tenant-updated', handler)
