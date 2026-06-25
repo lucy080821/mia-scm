@@ -12,7 +12,7 @@ import { useAutoRefresh } from '@/hooks/useAutoRefresh'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Delivery {
-  id: string; code: string; orderId: string; customer: string; route: string
+  id: string; code: string; orderId: string; orderCode: string; customer: string; route: string
   planned_date: string; distance_km: number; freight_cost: number
   carrier_type: 'own' | 'ghn' | 'ghtk'
   vehicle_id: string | null; driver_id: string | null
@@ -565,7 +565,7 @@ export default function DonVanChuyenPage() {
     const { data } = await supabase
       .from('deliveries')
       .select(`id, code, route, planned_date, distance_km, freight_cost, carrier_type, status, warehouse_id,
-        sales_order:sales_orders(id, final_amount, customer:customers(name)),
+        sales_order:sales_orders(id, code, final_amount, customer:customers(name)),
         vehicle:vehicles(id, plate, type, capacity_kg),
         driver:drivers(id, name, phone, rating)`)
       .eq('tenant_id', tenantId)
@@ -574,6 +574,7 @@ export default function DonVanChuyenPage() {
     setDeliveries((data ?? []).map((d: any) => ({
       id: d.id, code: d.code,
       orderId: d.sales_order?.id ?? '',
+      orderCode: d.sales_order?.code ?? '',
       customer: d.sales_order?.customer?.name ?? '—',
       route: d.route ?? '',
       planned_date: d.planned_date ?? '',
@@ -704,7 +705,7 @@ export default function DonVanChuyenPage() {
                   <tr key={d.id} className="border-b border-[#f0f2f5] hover:bg-gray-50/60 transition-colors">
                     <td className="px-4 py-3">
                       <p className="text-xs font-medium text-[var(--mia-primary)]">{d.code}</p>
-                      <p className="text-[10px] text-gray-400">{d.orderId}</p>
+                      {d.orderCode && <p className="text-[10px] text-gray-400">{d.orderCode}</p>}
                     </td>
                     <td className="px-4 py-3 text-xs font-medium text-[#1e2a3a] max-w-[140px] truncate">{d.customer}</td>
                     <td className="px-4 py-3">
