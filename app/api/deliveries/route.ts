@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
     if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const body = await req.json()
-    const { code, sales_order_id, vehicle_id, driver_id, planned_date, carrier_type, status, warehouse_id } = body
+    const { code, sales_order_id, vehicle_id, driver_id, planned_date, carrier_type, status, warehouse_id, route } = body
 
     if (!code || !sales_order_id) {
       return NextResponse.json({ error: 'Thiếu thông tin bắt buộc' }, { status: 400 })
@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
         carrier_type: carrier_type ?? 'own',
         status: status ?? 'pending',
         warehouse_id: warehouse_id ?? null,
+        route: route ?? null,
       })
       .select('id')
       .single()

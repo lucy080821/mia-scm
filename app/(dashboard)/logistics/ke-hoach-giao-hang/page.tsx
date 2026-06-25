@@ -1,6 +1,6 @@
-﻿'use client'
-import { useState, useEffect } from 'react'
-import { CalendarDays, Truck, MapPin, Package, Plus, Zap, ChevronDown, ChevronUp, X, CheckCircle2, Navigation, NavigationOff, Loader2 } from 'lucide-react'
+'use client'
+import { useState, useEffect, useCallback } from 'react'
+import { CalendarDays, Truck, MapPin, Package, Plus, Zap, ChevronDown, ChevronUp, X, CheckCircle2, Navigation, NavigationOff, Loader2, AlertCircle } from 'lucide-react'
 import PageHeader from '@/components/layout/PageHeader'
 import { formatVND } from '@/lib/utils'
 import { useDriverTracking } from '@/hooks/useDriverTracking'
@@ -11,25 +11,63 @@ import { useAutoRefresh } from '@/hooks/useAutoRefresh'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface DeliveryStop {
-  order_id: string; customer: string; address: string
-  cod: number; weight_kg: number; priority: 'high' | 'normal'
+  order_id: string      // sales_order UUID
+  order_code: string    // display code e.g. SO-260622-001
+  customer: string
+  address: string
+  cod: number
+  weight_kg: number
+  priority: 'high' | 'normal'
   time_window?: string
+  delivery_id?: string  // UUID once saved to DB
 }
+
 interface RouteGroup {
-  id: string; date: string; route_name: string
-  vehicle_plate: string; driver_name: string; driver_phone: string
-  stops: DeliveryStop[]; total_km: number; total_cod: number
+  id: string            // 'r'+timestamp for local routes, UUID for DB-backed
+  date: string
+  route_name: string
+  vehicle_plate: string
+  vehicle_id?: string
+  driver_name: string
+  driver_phone: string
+  driver_id?: string
+  stops: DeliveryStop[]
+  total_km: number
+  total_cod: number
   status: 'planned' | 'dispatched' | 'completed'
   ai_optimized: boolean
 }
 
-const INIT_UNASSIGNED: { id: string; customer: string; address: string; cod: number; weight_kg: number; priority: 'high' | 'normal'; date_needed: string }[] = []
-type UnassignedOrder = typeof INIT_UNASSIGNED[number]
+interface UnassignedOrder {
+  id: string            // sales_order UUID
+  code: string          // display code
+  customer: string
+  address: string
+  cod: number
+  weight_kg: number
+  priority: 'high' | 'normal'
+  date_needed: string
+}
+
+interface VehicleOption {
+  id: string
+  plate: string
+  type: string
+  driver_id: string | null
+  driver_name: string
+  driver_phone: string
+}
 
 const STATUS_MAP: Record<string, { label: string; className: string }> = {
   planned:    { label: 'Đã lập kế hoạch', className: 'bg-blue-100 text-blue-700' },
   dispatched: { label: 'Đã xuất phát',    className: 'bg-sky-100 text-sky-700' },
   completed:  { label: 'Hoàn thành',      className: 'bg-green-100 text-green-700' },
+}
+
+function mapDeliveryStatus(s: string): 'planned' | 'dispatched' | 'completed' {
+  if (s === 'delivering') return 'dispatched'
+  if (s === 'delivered')  return 'completed'
+  return 'planned'
 }
 
 // ─── Create Route Modal ───────────────────────────────────────────────────────
@@ -42,20 +80,14 @@ function CreateRouteModal({
 }) {
   const { id: tenantId } = useTenant()
   const today = new Date().toISOString().slice(0, 10)
-  const [form, setForm] = useState({
-    route_name: '',
-    date: today,
-    vehicle_plate: '',
-    total_km: '',
-  })
+  const [form, setForm] = useState({ route_name: '', date: today, vehicle_id: '', total_km: '' })
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [vehicles, setVehicles] = useState<{ plate: string; type: string; driver: string; phone: string }[]>([])
+  const [vehicles, setVehicles] = useState<VehicleOption[]>([])
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!tenantId) return
     supabase.from('vehicles')
-      .select('plate, type, drivers(name, phone)')
+      .select('id, plate, type, driver_id, drivers:driver_id(id, name, phone)')
       .eq('tenant_id', tenantId)
       .in('status', ['available', 'on_trip'])
       .order('plate')
@@ -63,12 +95,20 @@ function CreateRouteModal({
       .then(({ data }) => {
         setVehicles((data ?? []).map((v: any) => {
           const d = Array.isArray(v.drivers) ? v.drivers[0] : v.drivers
-          return { plate: v.plate, type: v.type ?? '—', driver: d?.name ?? '—', phone: d?.phone ?? '' }
+          return {
+            id: v.id,
+            plate: v.plate,
+            type: v.type ?? '—',
+            driver_id: d?.id ?? null,
+            driver_name: d?.name ?? '—',
+            driver_phone: d?.phone ?? '',
+          }
         }))
       })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId])
 
-  const selectedVehicle = vehicles.find(v => v.plate === form.vehicle_plate)
+  const selectedVehicle = vehicles.find(v => v.id === form.vehicle_id)
 
   const set = (k: string, v: string) => {
     setForm(f => ({ ...f, [k]: v }))
@@ -79,7 +119,7 @@ function CreateRouteModal({
     const e: Record<string, string> = {}
     if (!form.route_name.trim()) e.route_name = 'Nhập tên tuyến đường'
     if (!form.date) e.date = 'Chọn ngày giao'
-    if (!form.vehicle_plate) e.vehicle_plate = 'Chọn xe'
+    if (!form.vehicle_id) e.vehicle_id = 'Chọn xe'
     return e
   }
 
@@ -92,8 +132,10 @@ function CreateRouteModal({
       date: form.date,
       route_name: form.route_name.trim(),
       vehicle_plate: v.plate,
-      driver_name: v.driver,
-      driver_phone: v.phone,
+      vehicle_id: v.id,
+      driver_name: v.driver_name,
+      driver_phone: v.driver_phone,
+      driver_id: v.driver_id ?? undefined,
       stops: [],
       total_km: Number(form.total_km) || 0,
       total_cod: 0,
@@ -107,14 +149,12 @@ function CreateRouteModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#e5e7eb]">
           <p className="text-sm font-bold text-[#1e2a3a]">Tạo kế hoạch giao hàng</p>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={18} /></button>
         </div>
 
         <div className="p-5 space-y-4">
-          {/* Route name */}
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1">Tên tuyến đường <span className="text-red-500">*</span></label>
             <input value={form.route_name} onChange={e => set('route_name', e.target.value)}
@@ -123,7 +163,6 @@ function CreateRouteModal({
             {errors.route_name && <p className="text-[10px] text-red-500 mt-0.5">{errors.route_name}</p>}
           </div>
 
-          {/* Date */}
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1">Ngày giao <span className="text-red-500">*</span></label>
             <input type="date" value={form.date} onChange={e => set('date', e.target.value)}
@@ -131,23 +170,21 @@ function CreateRouteModal({
             {errors.date && <p className="text-[10px] text-red-500 mt-0.5">{errors.date}</p>}
           </div>
 
-          {/* Vehicle select */}
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1">Xe & Tài xế <span className="text-red-500">*</span></label>
-            <select value={form.vehicle_plate} onChange={e => set('vehicle_plate', e.target.value)}
-              className={`w-full h-9 px-3 text-sm rounded-lg border outline-none transition-colors focus:border-[var(--mia-primary)] focus:ring-1 focus:ring-[var(--mia-primary)] bg-white ${errors.vehicle_plate ? 'border-red-400' : 'border-[#e5e7eb]'}`}>
+            <select value={form.vehicle_id} onChange={e => set('vehicle_id', e.target.value)}
+              className={`w-full h-9 px-3 text-sm rounded-lg border outline-none transition-colors focus:border-[var(--mia-primary)] focus:ring-1 focus:ring-[var(--mia-primary)] bg-white ${errors.vehicle_id ? 'border-red-400' : 'border-[#e5e7eb]'}`}>
               <option value="">-- Chọn xe --</option>
               {vehicles.map(v => (
-                <option key={v.plate} value={v.plate}>{v.plate} · {v.type} · {v.driver}</option>
+                <option key={v.id} value={v.id}>{v.plate} · {v.type} · {v.driver_name}</option>
               ))}
             </select>
-            {errors.vehicle_plate && <p className="text-[10px] text-red-500 mt-0.5">{errors.vehicle_plate}</p>}
+            {errors.vehicle_id && <p className="text-[10px] text-red-500 mt-0.5">{errors.vehicle_id}</p>}
             {selectedVehicle && (
-              <p className="text-[10px] text-gray-400 mt-1">SĐT tài xế: {selectedVehicle.phone}</p>
+              <p className="text-[10px] text-gray-400 mt-1">SĐT tài xế: {selectedVehicle.driver_phone || '—'}</p>
             )}
           </div>
 
-          {/* KM estimate */}
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1">Quãng đường ước tính (km)</label>
             <input type="number" min="0" value={form.total_km} onChange={e => set('total_km', e.target.value)}
@@ -155,7 +192,7 @@ function CreateRouteModal({
               className="w-full h-9 px-3 text-sm rounded-lg border border-[#e5e7eb] outline-none transition-colors focus:border-[var(--mia-primary)] focus:ring-1 focus:ring-[var(--mia-primary)]" />
           </div>
 
-          <p className="text-[10px] text-gray-400">Sau khi tạo, bạn có thể thêm điểm giao từ mục "Chưa phân tuyến" bên phải.</p>
+          <p className="text-[10px] text-gray-400">Sau khi tạo, thêm đơn từ "Chưa phân tuyến" để kế hoạch được lưu vào hệ thống.</p>
         </div>
 
         <div className="px-5 pb-5 flex gap-2">
@@ -200,11 +237,10 @@ function AddToRouteModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#e5e7eb]">
           <div>
             <p className="text-sm font-bold text-[#1e2a3a]">Thêm vào tuyến</p>
-            <p className="text-xs text-gray-500 mt-0.5">{order.id} · {order.customer}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{order.code} · {order.customer}</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={18} /></button>
         </div>
@@ -324,10 +360,11 @@ function DriverTrackingButton({ route }: { route: RouteGroup }) {
 function RouteCard({ route, onDispatch }: { route: RouteGroup; onDispatch: (id: string) => void }) {
   const [expanded, setExpanded] = useState(false)
   const s = STATUS_MAP[route.status]
+  const isLocal = route.id.startsWith('r')
+  const canDispatch = route.status === 'planned' && route.stops.length > 0
 
   return (
     <div className={`bg-white rounded-xl border ${route.status === 'dispatched' ? 'border-sky-300' : 'border-[#e5e7eb]'} overflow-hidden`}>
-      {/* Header */}
       <div className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3 flex-1 min-w-0">
@@ -349,20 +386,25 @@ function RouteCard({ route, onDispatch }: { route: RouteGroup; onDispatch: (id: 
           <span className={`px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${s.className}`}>{s.label}</span>
         </div>
 
-        {/* Stats row */}
         <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
           <span className="flex items-center gap-1"><MapPin size={11} />{route.total_km} km</span>
           <span className="flex items-center gap-1"><Package size={11} />{route.stops.length} điểm</span>
           <span className="font-semibold text-[#1e2a3a]">COD: {formatVND(route.total_cod)}</span>
         </div>
 
-        {/* Stops preview / expand */}
+        {isLocal && route.stops.length === 0 && (
+          <div className="flex items-center gap-1.5 mt-2 text-[10px] text-amber-600 bg-amber-50 rounded-lg px-2.5 py-1.5">
+            <AlertCircle size={11} />
+            Thêm đơn vào tuyến này để lưu vào hệ thống
+          </div>
+        )}
+
         <div className="flex items-center justify-between mt-3">
           <button onClick={() => setExpanded(v => !v)} className="flex items-center gap-1 text-xs text-[var(--mia-primary)] font-medium hover:text-[#0284c7] transition-colors">
             {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
             {expanded ? 'Thu gọn' : `Xem ${route.stops.length} điểm giao`}
           </button>
-          {route.status === 'planned' && (
+          {canDispatch && (
             <button onClick={() => onDispatch(route.id)}
               className="px-3 py-1.5 bg-[var(--mia-primary)] text-white text-xs font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all">
               Điều xe xuất phát
@@ -380,7 +422,6 @@ function RouteCard({ route, onDispatch }: { route: RouteGroup; onDispatch: (id: 
         )}
       </div>
 
-      {/* Stop list (expandable) */}
       {expanded && (
         <div className="border-t border-[#e5e7eb] bg-gray-50">
           {route.stops.map((stop, i) => (
@@ -400,6 +441,7 @@ function RouteCard({ route, onDispatch }: { route: RouteGroup; onDispatch: (id: 
                   <MapPin size={9} />{stop.address}
                 </p>
                 <div className="flex gap-3 mt-1 text-[10px] text-gray-500">
+                  <span className="text-gray-400">{stop.order_code}</span>
                   <span>COD: <strong className="text-[#1e2a3a]">{formatVND(stop.cod)}</strong></span>
                   <span>{stop.weight_kg} kg</span>
                   {stop.priority === 'high' && <span className="text-red-500 font-semibold">Ưu tiên cao</span>}
@@ -428,12 +470,12 @@ export default function KeHoachGiaoHangPage() {
   const [aiText, setAiText]         = useState('')
   const [aiLoading, setAiLoading]   = useState(false)
 
-  const loadAll = async () => {
+  const loadAll = useCallback(async () => {
     if (!tenantId) return
     const [{ data: deliveries }, { data: pickedOrders }, { data: vehiclesData }] = await Promise.all([
       supabase
         .from('deliveries')
-        .select(`id, code, route, planned_date, distance_km, status,
+        .select(`id, code, route, planned_date, distance_km, status, vehicle_id, driver_id,
           sales_order:sales_orders(id, code, final_amount, customer:customers(name, address)),
           vehicle:vehicles(plate, type),
           driver:drivers(name, phone)`)
@@ -447,35 +489,59 @@ export default function KeHoachGiaoHangPage() {
         .order('delivery_date'),
       supabase
         .from('vehicles')
-        .select(`plate, type, status, drivers(name)`)
+        .select(`plate, type, status, drivers:driver_id(name)`)
         .eq('tenant_id', tenantId)
         .neq('status', 'inactive')
         .order('plate'),
     ])
 
-    setRoutes((deliveries ?? []).map((d: any) => ({
-      id: d.id,
-      date: d.planned_date ? d.planned_date.slice(0, 10) : today,
-      route_name: d.route || d.code,
-      vehicle_plate: d.vehicle?.plate ?? '—',
-      driver_name: d.driver?.name ?? '—',
-      driver_phone: d.driver?.phone ?? '',
-      stops: d.sales_order ? [{
-        order_id: d.sales_order.id,
-        customer: d.sales_order.customer?.name ?? '—',
-        address: d.sales_order.customer?.address ?? '',
-        cod: Number(d.sales_order.final_amount ?? 0),
-        weight_kg: 0,
-        priority: 'normal' as const,
-      }] : [],
-      total_km: Number(d.distance_km ?? 0),
-      total_cod: Number(d.sales_order?.final_amount ?? 0),
-      status: d.status === 'delivering' ? 'dispatched' : d.status === 'delivered' ? 'completed' : 'planned',
-      ai_optimized: false,
-    })))
+    // Group deliveries by route name (multi-stop support)
+    const routeMap = new Map<string, RouteGroup>()
+    for (const d of deliveries ?? []) {
+      const groupKey = d.route || d.id
+      if (!routeMap.has(groupKey)) {
+        routeMap.set(groupKey, {
+          id: d.id,
+          date: d.planned_date ? d.planned_date.slice(0, 10) : today,
+          route_name: d.route || d.code,
+          vehicle_plate: (d.vehicle as any)?.plate ?? '—',
+          vehicle_id: d.vehicle_id ?? undefined,
+          driver_name: (d.driver as any)?.name ?? '—',
+          driver_phone: (d.driver as any)?.phone ?? '',
+          driver_id: d.driver_id ?? undefined,
+          stops: [],
+          total_km: Number(d.distance_km ?? 0),
+          total_cod: 0,
+          status: mapDeliveryStatus(d.status),
+          ai_optimized: false,
+        })
+      }
+      const group = routeMap.get(groupKey)!
+      const so = d.sales_order as any
+      if (so) {
+        group.stops.push({
+          order_id: so.id,
+          order_code: so.code ?? '',
+          customer: so.customer?.name ?? '—',
+          address: so.customer?.address ?? '',
+          cod: Number(so.final_amount ?? 0),
+          weight_kg: 0,
+          priority: 'normal',
+          delivery_id: d.id,
+        })
+        group.total_cod += Number(so.final_amount ?? 0)
+      }
+    }
+
+    setRoutes(prev => {
+      // Preserve local routes (no DB backing yet) that aren't in DB
+      const localRoutes = prev.filter(r => r.id.startsWith('r') && r.stops.length === 0)
+      return [...Array.from(routeMap.values()), ...localRoutes]
+    })
 
     setUnassigned((pickedOrders ?? []).map((o: any) => ({
-      id: o.code,
+      id: o.id,
+      code: o.code,
       customer: o.customer?.name ?? '—',
       address: o.customer?.address ?? '',
       cod: Number(o.final_amount ?? 0),
@@ -487,17 +553,17 @@ export default function KeHoachGiaoHangPage() {
     setAvailableVehicles((vehiclesData ?? []).map((v: any) => ({
       plate: v.plate,
       type: v.type ?? '—',
-      driver: v.drivers?.name ?? 'Chưa phân tài xế',
+      driver: (Array.isArray(v.drivers) ? v.drivers[0] : v.drivers)?.name ?? 'Chưa phân tài xế',
       status: v.status,
     })))
 
     setLoading(false)
-  }
+  }, [tenantId, today])
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { if (!tenantId) return; loadAll() }, [tenantId])
+  useEffect(() => { if (!tenantId) return; loadAll() }, [tenantId, loadAll])
   useEffect(() => {
     if (!loading && unassigned.length > 0) fetchAiRoute(unassigned)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading])
   useOrdersRealtime(loadAll)
   useAutoRefresh(loadAll, 15_000)
@@ -505,32 +571,32 @@ export default function KeHoachGiaoHangPage() {
   const filteredRoutes = routes.filter(r => !dateFilter || r.date === dateFilter)
   const dates = [...new Set(routes.map(r => r.date))].sort()
 
-  const handleDispatch = async (id: string) => {
-    setRoutes(prev => prev.map(r => r.id === id ? { ...r, status: 'dispatched' } : r))
+  const handleDispatch = async (routeId: string) => {
+    const route = routes.find(r => r.id === routeId)
+    if (!route) return
 
-    // Dùng API route (supabaseAdmin) để bypass RLS, tránh update fail thầm lặng
-    const res = await fetch(`/api/deliveries/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'delivering' }),
-    })
-    if (!res.ok) return
+    const deliveryIds = route.stops.map(s => s.delivery_id).filter(Boolean) as string[]
+    if (deliveryIds.length === 0) return
 
-    const { data: delivery } = await supabase
-      .from('deliveries')
-      .select('vehicle_id, driver_id, sales_order_id')
-      .eq('id', id)
-      .single()
+    setRoutes(prev => prev.map(r => r.id === routeId ? { ...r, status: 'dispatched' } : r))
 
-    if (!delivery) return
+    const results = await Promise.all(deliveryIds.map(id =>
+      fetch(`/api/deliveries/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'delivering' }),
+      })
+    ))
+
+    if (results.some(r => !r.ok)) return
 
     const tasks: PromiseLike<any>[] = []
-    if (delivery.sales_order_id)
-      tasks.push(supabase.from('sales_orders').update({ status: 'delivering' }).eq('id', delivery.sales_order_id))
-    if (delivery.vehicle_id)
-      tasks.push(supabase.from('vehicles').update({ status: 'on_trip' }).eq('id', delivery.vehicle_id))
-    if (delivery.driver_id)
-      tasks.push(supabase.from('drivers').update({ status: 'on_trip' }).eq('id', delivery.driver_id))
+    if (route.vehicle_id)
+      tasks.push(supabase.from('vehicles').update({ status: 'on_trip' }).eq('id', route.vehicle_id))
+    if (route.driver_id)
+      tasks.push(supabase.from('drivers').update({ status: 'on_trip' }).eq('id', route.driver_id))
+    for (const stop of route.stops)
+      tasks.push(supabase.from('sales_orders').update({ status: 'delivering' }).eq('id', stop.order_id))
 
     if (tasks.length) await Promise.all(tasks)
   }
@@ -577,22 +643,66 @@ export default function KeHoachGiaoHangPage() {
     setDateFilter(newRoute.date)
   }
 
-  const handleAddToRoute = (orderId: string, routeId: string) => {
+  const handleAddToRoute = async (orderId: string, routeId: string) => {
     const order = unassigned.find(o => o.id === orderId)
-    if (!order) return
+    const route = routes.find(r => r.id === routeId)
+    if (!order || !route) return
+
+    // Optimistic update immediately
+    const newStop: DeliveryStop = {
+      order_id: order.id,
+      order_code: order.code,
+      customer: order.customer,
+      address: order.address,
+      cod: order.cod,
+      weight_kg: order.weight_kg,
+      priority: order.priority,
+    }
+    setRoutes(prev => prev.map(r =>
+      r.id !== routeId ? r : { ...r, stops: [...r.stops, newStop], total_cod: r.total_cod + order.cod }
+    ))
+    setUnassigned(prev => prev.filter(o => o.id !== orderId))
+
+    // Save to DB
+    if (!route.vehicle_id) return
+
+    const now = new Date()
+    const prefix = `DV-${now.getFullYear().toString().slice(2)}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`
+    const { count: dvCount } = await supabase
+      .from('deliveries')
+      .select('id', { count: 'exact', head: true })
+      .like('code', `${prefix}-%`)
+    const code = `${prefix}-${String((dvCount ?? 0) + 1).padStart(3, '0')}`
+
+    const res = await fetch('/api/deliveries', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code,
+        sales_order_id: order.id,
+        vehicle_id: route.vehicle_id,
+        driver_id: route.driver_id ?? null,
+        planned_date: route.date ? new Date(route.date + 'T00:00:00').toISOString() : now.toISOString(),
+        route: route.route_name,
+        carrier_type: 'own',
+        status: 'pending',
+      }),
+    })
+
+    if (!res.ok) return
+
+    const { id: deliveryId } = await res.json()
+
+    // Attach delivery_id to the stop so dispatch works
     setRoutes(prev => prev.map(r => {
       if (r.id !== routeId) return r
-      const newStop: DeliveryStop = {
-        order_id: order.id,
-        customer: order.customer,
-        address: order.address,
-        cod: order.cod,
-        weight_kg: order.weight_kg,
-        priority: order.priority,
+      return {
+        ...r,
+        stops: r.stops.map(s =>
+          s.order_id === order.id && !s.delivery_id ? { ...s, delivery_id: deliveryId } : s
+        ),
       }
-      return { ...r, stops: [...r.stops, newStop], total_cod: r.total_cod + order.cod }
     }))
-    setUnassigned(prev => prev.filter(o => o.id !== orderId))
   }
 
   const totalCOD = filteredRoutes.reduce((s, r) => s + r.total_cod, 0)
@@ -683,8 +793,7 @@ export default function KeHoachGiaoHangPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Route list */}
         <div className="lg:col-span-2 space-y-4">
-          {/* Date tabs */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <button onClick={() => setDateFilter('')}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${!dateFilter ? 'bg-[var(--mia-primary)] text-white' : 'bg-white border border-[#e5e7eb] text-gray-600 hover:bg-gray-50'}`}>
               Tất cả
@@ -705,7 +814,7 @@ export default function KeHoachGiaoHangPage() {
           }
         </div>
 
-        {/* Right panel: unassigned orders */}
+        {/* Right panel */}
         <div className="space-y-4">
           <div className="bg-white rounded-xl border border-[#e5e7eb] overflow-hidden">
             <div className="px-4 py-3 border-b border-[#e5e7eb] flex items-center justify-between">
@@ -720,32 +829,32 @@ export default function KeHoachGiaoHangPage() {
                 Tất cả đơn đã được phân tuyến
               </div>
             ) : (
-            <div className="divide-y divide-[#f0f2f5]">
-              {unassigned.map(o => (
-                <div key={o.id} className="p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="text-xs font-semibold text-[#1e2a3a]">{o.id}</p>
-                      <p className="text-xs text-gray-600 mt-0.5">{o.customer}</p>
-                      <p className="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5"><MapPin size={9} />{o.address}</p>
+              <div className="divide-y divide-[#f0f2f5]">
+                {unassigned.map(o => (
+                  <div key={o.id} className="p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-semibold text-[#1e2a3a]">{o.code}</p>
+                        <p className="text-xs text-gray-600 mt-0.5">{o.customer}</p>
+                        <p className="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5"><MapPin size={9} />{o.address}</p>
+                      </div>
+                      {o.priority === 'high' && (
+                        <span className="px-1.5 py-0.5 bg-red-100 text-red-600 text-[10px] font-bold rounded shrink-0">Gấp</span>
+                      )}
                     </div>
-                    {o.priority === 'high' && (
-                      <span className="px-1.5 py-0.5 bg-red-100 text-red-600 text-[10px] font-bold rounded shrink-0">Gấp</span>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between mt-2">
-                    <div className="text-[10px] text-gray-500 space-y-0.5">
-                      <p>COD: <strong className="text-[#1e2a3a]">{formatVND(o.cod)}</strong></p>
-                      <p>Giao trước: {new Date(o.date_needed).toLocaleDateString('vi-VN')}</p>
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="text-[10px] text-gray-500 space-y-0.5">
+                        <p>COD: <strong className="text-[#1e2a3a]">{formatVND(o.cod)}</strong></p>
+                        <p>Giao trước: {new Date(o.date_needed).toLocaleDateString('vi-VN')}</p>
+                      </div>
+                      <button onClick={() => setAddModal(o)}
+                        className="px-2.5 py-1 bg-[var(--mia-primary)] text-white text-[10px] font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all">
+                        Thêm vào tuyến
+                      </button>
                     </div>
-                    <button onClick={() => setAddModal(o)}
-                      className="px-2.5 py-1 bg-[var(--mia-primary)] text-white text-[10px] font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all">
-                      Thêm vào tuyến
-                    </button>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
             )}
           </div>
 
@@ -764,8 +873,8 @@ export default function KeHoachGiaoHangPage() {
                     <p className="text-[10px] text-gray-400">{v.type} · {v.driver}</p>
                   </div>
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                    v.status === 'available' ? 'bg-green-100 text-green-700' :
-                    v.status === 'on_trip'   ? 'bg-blue-100 text-blue-700' :
+                    v.status === 'available'   ? 'bg-green-100 text-green-700' :
+                    v.status === 'on_trip'     ? 'bg-blue-100 text-blue-700' :
                     v.status === 'maintenance' ? 'bg-red-100 text-red-700' :
                     'bg-gray-100 text-gray-500'
                   }`}>

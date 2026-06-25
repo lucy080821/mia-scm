@@ -3,6 +3,7 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import { Plus, Search, X, Trash2, Upload, Download, CheckCircle, AlertCircle, FileSpreadsheet } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import ExportButton from '@/components/ui/ExportButton'
+import { loadBusinessSettingsAsync, saveBusinessSettingsAsync, loadBusinessSettings } from '@/lib/business-settings'
 
 interface Expense {
   id: string; code: string; date: string; category: string
@@ -43,7 +44,7 @@ const fmtDate = (d: string) => {
 }
 
 const BUILTIN_CATEGORIES = Object.entries(EXPENSE_CATEGORY_LABEL).map(([v, l]) => ({ value: v, label: l }))
-const CUSTOM_CATS_KEY = 'mia_expense_custom_cats'
+const LEGACY_CATS_KEY = 'mia_expense_custom_cats'
 
 interface FormState {
   date: string; category: string; description: string; amount: string; note: string
@@ -92,10 +93,22 @@ export default function ChiPhiPhatSinhPage() {
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem(CUSTOM_CATS_KEY) ?? '[]')
-      if (Array.isArray(stored)) setCustomCats(stored)
-    } catch {}
+    // Load custom categories from DB (business_settings) with localStorage fallback
+    loadBusinessSettingsAsync().then(s => {
+      let cats = s.expenseCustomCategories ?? []
+      // One-time migration from legacy localStorage key
+      if (cats.length === 0) {
+        try {
+          const legacy = JSON.parse(localStorage.getItem(LEGACY_CATS_KEY) ?? '[]')
+          if (Array.isArray(legacy) && legacy.length > 0) {
+            cats = legacy
+            saveBusinessSettingsAsync({ ...s, expenseCustomCategories: cats })
+            localStorage.removeItem(LEGACY_CATS_KEY)
+          }
+        } catch {}
+      }
+      setCustomCats(cats)
+    })
     fetch('/api/expenses').then(r => r.ok ? r.json() : []).then((data: any[]) => {
       setExpenses(data.map(e => ({
         id: e.id, code: e.code, date: e.expense_date,
@@ -129,15 +142,19 @@ export default function ChiPhiPhatSinhPage() {
     else { setAddingCat(false); setForm(f => ({ ...f, category: val })) }
   }
 
+  const persistCustomCats = (cats: string[]) => {
+    setCustomCats(cats)
+    const current = loadBusinessSettings()
+    saveBusinessSettingsAsync({ ...current, expenseCustomCategories: cats })
+  }
+
   const confirmNewCat = () => {
     const trimmed = newCatInput.trim()
     if (!trimmed) { setNewCatError('Nhập tên loại chi phí'); return }
     if (allCategories.some(c => c.label.toLowerCase() === trimmed.toLowerCase())) {
       setNewCatError('Loại này đã tồn tại'); return
     }
-    const next = [...customCats, trimmed]
-    setCustomCats(next)
-    localStorage.setItem(CUSTOM_CATS_KEY, JSON.stringify(next))
+    persistCustomCats([...customCats, trimmed])
     setForm(f => ({ ...f, category: trimmed }))
     setAddingCat(false); setNewCatInput(''); setNewCatError('')
   }
@@ -145,9 +162,7 @@ export default function ChiPhiPhatSinhPage() {
   const cancelNewCat = () => { setAddingCat(false); setNewCatInput(''); setNewCatError('') }
 
   const deleteCustomCat = (name: string) => {
-    const next = customCats.filter(c => c !== name)
-    setCustomCats(next)
-    localStorage.setItem(CUSTOM_CATS_KEY, JSON.stringify(next))
+    persistCustomCats(customCats.filter(c => c !== name))
     if (form.category === name) setForm(f => ({ ...f, category: allCategories[0]?.value ?? 'salary' }))
   }
 

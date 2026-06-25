@@ -58,6 +58,9 @@ export interface BusinessSettings {
   paperSize: 'a4' | 'a5' | 'thermal80'
   requireSignatureIssue: boolean
   requireSignatureInvoice: boolean
+
+  // Danh mục chi phí tùy chỉnh (per-tenant)
+  expenseCustomCategories?: string[]
 }
 
 export const DEFAULT_NUMBERING: Record<string, NumberingRule> = {
