@@ -663,29 +663,29 @@ export default function DonMuaHangPage() {
 
   const loadPOs = async () => {
     const res = await fetch('/api/purchase-orders')
-    if (res.ok) {
-      const data = await res.json()
-      const mapped: PurchaseOrder[] = data.map((o: any) => ({
-        id: o.id,
-        code: o.code,
-        supplier: o.supplier?.name ?? '—',
-        supplier_id: o.supplier?.id ?? '',
-        order_date: o.order_date,
-        expected_date: o.expected_date ?? '',
-        total_amount: o.total_amount ?? 0,
-        status: o.status,
-        created_by: o.created_by?.full_name ?? '—',
-        note: o.note ?? '',
-        items: (o.items ?? []).map((it: any) => ({
-          product_id: it.product_id,
-          name: it.product?.name ?? '—',
-          unit: it.product?.unit ?? '',
-          quantity: it.quantity,
-          unit_price: it.unit_price,
-        })),
-      }))
-      setPos(mapped)
-    }
+    if (!res.ok) return  // giữ nguyên danh sách cũ nếu API lỗi / hết session
+    const data = await res.json()
+    if (!Array.isArray(data)) return  // không xóa danh sách nếu response không phải mảng
+    const mapped: PurchaseOrder[] = data.map((o: any) => ({
+      id: o.id,
+      code: o.code,
+      supplier: o.supplier?.name ?? '—',
+      supplier_id: o.supplier?.id ?? '',
+      order_date: o.order_date,
+      expected_date: o.expected_date ?? '',
+      total_amount: o.total_amount ?? 0,
+      status: o.status,
+      created_by: o.created_by?.full_name ?? '—',
+      note: o.note ?? '',
+      items: (o.items ?? []).map((it: any) => ({
+        product_id: it.product_id,
+        name: it.product?.name ?? '—',
+        unit: it.product?.unit ?? '',
+        quantity: it.quantity,
+        unit_price: it.unit_price,
+      })),
+    }))
+    setPos(mapped)
   }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps

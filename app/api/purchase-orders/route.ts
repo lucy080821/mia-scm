@@ -4,7 +4,7 @@ import { getServerTenantId } from '@/lib/server-auth'
 
 export async function GET() {
   const tenantId = await getServerTenantId()
-  if (!tenantId) return NextResponse.json([])
+  if (!tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { data, error } = await supabaseAdmin
     .from('purchase_orders')

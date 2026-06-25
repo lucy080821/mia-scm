@@ -49,13 +49,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (status !== undefined) updatePayload.status = status
     if (total_amount !== undefined) updatePayload.total_amount = total_amount
 
-    const { error: poErr } = await supabaseAdmin
+    const { data: updated, error: poErr } = await supabaseAdmin
       .from('purchase_orders')
       .update(updatePayload)
       .eq('id', id)
       .eq('tenant_id', tenantId)
+      .select('id, status')
 
     if (poErr) return NextResponse.json({ error: poErr.message }, { status: 400 })
+    // Supabase trả về success kể cả khi 0 rows bị update — cần check để không báo giả
+    if (!updated || updated.length === 0) {
+      return NextResponse.json({ error: 'Không tìm thấy đơn hoặc không có quyền cập nhật' }, { status: 404 })
+    }
 
     // Replace items if provided
     if (Array.isArray(items)) {
