@@ -279,16 +279,16 @@ SUPABASE_SERVICE_ROLE_KEY          # server-only
 | Kho hàng | Kiểm kê | ✅ Real — `/api/stocktakes` |
 | Mua hàng | Đơn mua hàng | ✅ Real — `/api/purchase-orders`, goods receipt flow, delete draft |
 | Mua hàng | Nhà cung cấp | ✅ Real — `/api/suppliers` |
-| Logistics | Tổng quan | ✅ Real — supabase, KPI deliveries |
-| Logistics | Đơn vận chuyển | ✅ Real — `/api/deliveries` |
-| Logistics | Kế hoạch giao hàng | ✅ Real — supabase, tạo/cập nhật delivery plan |
+| Logistics | Tổng quan | ✅ Real — supabase, KPI deliveries; `total_trips` tài xế self-heal khi delivery = delivered |
+| Logistics | Đơn vận chuyển | ✅ Real — `/api/deliveries`; hiện mã SO dưới mã DV |
+| Logistics | Kế hoạch giao hàng | ✅ Real — auto-save deliveries khi thêm đơn vào tuyến, dispatch multi-stop |
 | Logistics | Phương tiện | ✅ Real — `/api/vehicles` |
 | Logistics | Tài xế | ✅ Real — `/api/users` + `drivers` table, self-heal on_trip status |
 | Logistics | Đối soát COD | ✅ Real — supabase query deliveries + drivers |
 | Tài chính | Tổng quan | ✅ Real — `/api/finance?type=monthly` (12 tháng P&L) |
 | Tài chính | Doanh thu | ✅ Real — `/api/finance?type=orders` |
 | Tài chính | Chi phí | ✅ Real — `/api/finance?type=expenses` |
-| Tài chính | Chi phí phát sinh | ✅ Real — `/api/expenses` CRUD |
+| Tài chính | Chi phí phát sinh | ✅ Real — `/api/expenses` CRUD; danh mục tùy chỉnh lưu `business_settings` DB (shared per tenant) |
 | Tài chính | Lợi nhuận | ✅ Real — `/api/finance?type=monthly` |
 | Tài chính | Công nợ | ✅ Real — `/api/finance?type=receivables/payables` |
 | Báo cáo | Tất cả | ✅ Real — `/api/reports` (top_products, kpi_users, drilldown, inventory); plan-gated (growth/enterprise) |
@@ -350,3 +350,41 @@ API graceful-fail nếu bảng chưa tồn tại (trả về [] / null thay vì 
 - Admin Supabase (`supabase-admin.ts`) chỉ dùng ở server-side (route handlers, server components), không bao giờ expose sang client.
 - Tất cả văn bản UI bằng tiếng Việt.
 - Supplier `type` field: chỉ nhận `'distributor_l1'` hoặc `'manufacturer'` (DB CHECK constraint `suppliers_type_check`).
+
+---
+
+## Patterns nhất quán dữ liệu
+
+### Bảng item không có `tenant_id`
+Các bảng con (`sales_order_items`, `stock_receipt_items`, v.v.) **không có cột `tenant_id`**. Lọc tenant phải dùng `!inner` join qua bảng cha:
+```typescript
+// SAI — luôn trả về 0 rows:
+supabase.from('sales_order_items').select('...').eq('tenant_id', tenantId)
+
+// ĐÚNG:
+supabase.from('sales_order_items')
+  .select('..., sales_orders!inner(tenant_id)')
+  .eq('sales_orders.tenant_id', tenantId)
+```
+Áp dụng cho: `sales_order_items`, `stock_receipt_items`, `stock_issue_items`, `stocktake_items`, `purchase_order_items`.
+
+### Self-healing counter (total_trips)
+Không increment `total_trips` bằng `total_trips + 1` — dễ lệch nếu bỏ sót event. Thay vào đó COUNT lại toàn bộ khi delivery hoàn thành:
+```typescript
+const { count } = await supabaseAdmin.from('deliveries')
+  .select('id', { count: 'exact', head: true })
+  .eq('driver_id', driverId).eq('status', 'delivered')
+supabaseAdmin.from('drivers').update({ total_trips: count ?? 0 }).eq('id', driverId)
+```
+
+### Count query hiệu quả
+Dùng `{ count: 'exact', head: true }` để đếm mà không fetch rows — nhanh hơn và ít bandwidth:
+```typescript
+const { count } = await supabase.from('table').select('id', { count: 'exact', head: true }).eq(...)
+```
+
+### Cài đặt dùng chung theo tenant
+Dữ liệu cần chia sẻ giữa các user của cùng tenant (danh mục tùy chỉnh, cấu hình nghiệp vụ...) phải lưu `business_settings` JSONB trong DB, không dùng localStorage. Dùng `saveBusinessSettingsAsync` + `loadBusinessSettingsAsync` từ `lib/business-settings.ts`.
+
+### Kế hoạch giao hàng (ke-hoach-giao-hang) — DB model
+Multi-stop routes: mỗi đơn hàng = 1 bản ghi `deliveries`. Các delivery cùng 1 tuyến được nhóm bằng cột `route` TEXT (tên tuyến). Khi thêm đơn vào tuyến → POST `/api/deliveries` ngay lập tức (không chờ dispatch). Khi dispatch → PATCH tất cả `delivery_id` trong tuyến để gán xe + tài xế.

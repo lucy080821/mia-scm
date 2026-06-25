@@ -139,7 +139,7 @@ export default function WarehouseOverviewPage() {
 
   async function loadAbcData() {
     const [{ data: items }, { count }] = await Promise.all([
-      supabase.from('sales_order_items').select('product_id, subtotal').eq('tenant_id', tenantId).limit(10000),
+      supabase.from('sales_order_items').select('product_id, subtotal, sales_orders!inner(tenant_id)').eq('sales_orders.tenant_id', tenantId).limit(10000),
       supabase.from('products').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('status', 'active'),
     ])
 

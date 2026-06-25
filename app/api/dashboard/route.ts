@@ -32,7 +32,7 @@ export async function GET() {
   const [
     { data: ordersThisMonth },
     { data: allOrders, count: orderCount },
-    { data: delivering },
+    { count: deliveringCount },
     { data: customers, count: customerCount },
     { data: inventory },
     { data: inventoryAll },
@@ -48,10 +48,10 @@ export async function GET() {
   ] = await Promise.all([
     // Revenue this month (completed orders)
     supabaseAdmin.from('sales_orders').select('final_amount').eq('tenant_id', tenantId).gte('order_date', monthStart).eq('status', 'completed'),
-    // New orders this month
-    supabaseAdmin.from('sales_orders').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).gte('order_date', monthStart),
-    // Currently delivering
-    supabaseAdmin.from('deliveries').select('id', { count: 'exact', head: false }).eq('tenant_id', tenantId).in('status', ['picking', 'delivering']),
+    // New orders this month (loại trừ cancelled/failed)
+    supabaseAdmin.from('sales_orders').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).gte('order_date', monthStart).in('status', ['new', 'confirmed', 'picking', 'picked', 'pending_ship', 'delivering', 'completed']),
+    // Currently delivering — dùng count trực tiếp thay vì fetch rows
+    supabaseAdmin.from('deliveries').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).in('status', ['picking', 'delivering']),
     // Total active customers
     supabaseAdmin.from('customers').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('status', 'active'),
     // Low stock items (for lowStock KPI)
@@ -202,7 +202,7 @@ export async function GET() {
       revenue,
       yearRevenue,
       newOrders: orderCount ?? 0,
-      delivering: (delivering ?? []).length,
+      delivering: deliveringCount ?? 0,
       customers: customerCount ?? 0,
       lowStock: lowStock.length,
     },
