@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Truck, ArrowLeft } from 'lucide-react'
+import { Truck, ArrowLeft, LayoutDashboard } from 'lucide-react'
 
 export default function GiaoHangIndex() {
   const router = useRouter()
@@ -15,7 +15,7 @@ export default function GiaoHangIndex() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-[#f0f2f5] flex items-center justify-center p-6">
+    <div className="min-h-screen bg-[#f0f2f5] flex flex-col items-center justify-center p-6">
       <div className="text-center max-w-sm w-full">
         <div className="w-16 h-16 bg-[#1e2a3a] rounded-2xl flex items-center justify-center mx-auto mb-4">
           <Truck size={28} className="text-white" />
@@ -49,6 +49,15 @@ export default function GiaoHangIndex() {
           </>
         )}
       </div>
+
+      {/* Link về dashboard cho nhân viên/admin bị lạc vào trang này */}
+      <button
+        onClick={() => router.push('/dashboard')}
+        className="absolute bottom-8 flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+      >
+        <LayoutDashboard size={13} />
+        Về trang quản lý
+      </button>
     </div>
   )
 }
