@@ -655,6 +655,7 @@ export default function DonMuaHangPage() {
   const [sendTarget, setSendTarget] = useState<PurchaseOrder | null>(null)
   const [approveTarget, setApproveTarget] = useState<PurchaseOrder | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<PurchaseOrder | null>(null)
+  const [processingId, setProcessingId] = useState<string | null>(null)
   const [toast, setToast] = useState('')
   const [page, setPage] = useState(1)
 
@@ -755,38 +756,65 @@ export default function DonMuaHangPage() {
     })
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: 'Lỗi kết nối' }))
-      showToast(`Lỗi: ${err.error}`)
+      showToast(`❌ ${err.error}`)
       return false
     }
+    // Reload từ DB để đảm bảo trạng thái thực sự được lưu
+    await loadPOs()
     return true
   }
 
   const handleSubmitForApproval = async (id: string) => {
-    if (await patchStatus(id, 'pending')) {
-      setPos(prev => prev.map(p => p.id === id ? { ...p, status: 'pending' } : p))
-      showToast('Đã gửi đơn chờ duyệt')
+    setProcessingId(id)
+    try {
+      if (await patchStatus(id, 'pending')) {
+        showToast('✓ Đã gửi đơn chờ duyệt')
+      }
+    } finally {
+      setProcessingId(null)
     }
   }
 
   const handleSend = async (id: string) => {
     if (await patchStatus(id, 'sent')) {
-      setPos(prev => prev.map(p => p.id === id ? { ...p, status: 'sent' } : p))
-      showToast('Đã gửi đơn cho nhà cung cấp')
+      showToast('✓ Đã gửi đơn cho nhà cung cấp')
     }
   }
 
   const handleApprove = async (id: string, note: string) => {
-    if (await patchStatus(id, 'sent')) {
-      setPos(prev => prev.map(p => p.id === id ? { ...p, status: 'sent', note: note || p.note } : p))
-      showToast('Đã duyệt đơn mua hàng — chuyển sang Đã gửi NCC')
+    // Gửi status + note cùng lúc trong 1 PATCH
+    const body: Record<string, string> = { status: 'sent' }
+    if (note) body.note = note
+    const res = await fetch(`/api/purchase-orders/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Lỗi kết nối' }))
+      showToast(`❌ ${err.error}`)
+      return
     }
+    await loadPOs()
+    showToast('✓ Đã duyệt — chuyển sang Đã gửi NCC')
   }
 
   const handleRejectPO = async (id: string, reason: string) => {
-    if (await patchStatus(id, 'draft')) {
-      setPos(prev => prev.map(p => p.id === id ? { ...p, status: 'draft', note: reason || p.note } : p))
-      showToast('Đã từ chối — đơn trả về Bản nháp')
+    // Gửi status + note cùng lúc trong 1 PATCH (note không bị chặn vì đang là pending)
+    const body: Record<string, string> = { status: 'draft' }
+    if (reason) body.note = reason
+    const res = await fetch(`/api/purchase-orders/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Lỗi kết nối' }))
+      showToast(`❌ ${err.error}`)
+      return
     }
+    await loadPOs()
+    showToast('Đã từ chối — đơn trả về Bản nháp')
   }
 
   const handleDelete = async (id: string) => {
@@ -884,8 +912,12 @@ export default function DonMuaHangPage() {
                           <Pencil size={11} />Sửa
                         </button>
                         <button onClick={() => handleSubmitForApproval(p.id)}
-                          className="flex items-center gap-1 px-3 py-1.5 bg-[var(--mia-primary)] text-white text-xs font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all">
-                          <Send size={11} />Gửi duyệt
+                          disabled={processingId === p.id}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-[var(--mia-primary)] text-white text-xs font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed transition-all">
+                          {processingId === p.id
+                            ? <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            : <Send size={11} />}
+                          {processingId === p.id ? 'Đang gửi...' : 'Gửi duyệt'}
                         </button>
                       </div>
                     )}

@@ -28,7 +28,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { supplier_id, order_date, expected_date, items, note, created_by } = body
+    const { supplier_id, order_date, expected_date, items, note, created_by, status } = body
 
     if (!supplier_id || !order_date || !items?.length) {
       return NextResponse.json({ error: 'Thiếu thông tin bắt buộc' }, { status: 400 })
@@ -42,6 +42,9 @@ export async function POST(req: NextRequest) {
 
     const total_amount = items.reduce((s: number, it: { quantity: number; unit_price: number }) => s + it.quantity * it.unit_price, 0)
 
+    // Cho phép tạo thẳng với status 'pending' khi bấm "Gửi duyệt" trong modal tạo
+    const initialStatus = status === 'pending' ? 'pending' : 'draft'
+
     const { data: po, error: poErr } = await supabaseAdmin
       .from('purchase_orders')
       .insert({
@@ -50,7 +53,7 @@ export async function POST(req: NextRequest) {
         order_date,
         expected_date: expected_date || null,
         total_amount,
-        status: 'draft',
+        status: initialStatus,
         created_by: created_by || null,
         note: note || null,
         tenant_id: tenantId,

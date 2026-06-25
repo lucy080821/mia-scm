@@ -21,12 +21,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     if (!existing) return NextResponse.json({ error: 'Không tìm thấy đơn' }, { status: 404 })
 
-    const hasDataChanges = supplier_id !== undefined || expected_date !== undefined || note !== undefined || Array.isArray(items)
-    if (hasDataChanges && existing.status !== 'draft') {
+    // Chỉ cần chặn khi thay đổi dữ liệu đơn (không phải note/status) ngoài trạng thái draft
+    const hasStructuralChanges = supplier_id !== undefined || expected_date !== undefined || Array.isArray(items)
+    if (hasStructuralChanges && existing.status !== 'draft') {
       return NextResponse.json({ error: 'Chỉ chỉnh sửa được đơn ở trạng thái Bản nháp' }, { status: 400 })
     }
     if (status !== undefined && status !== existing.status) {
-      const allowed: Record<string, string[]> = { draft: ['pending'], pending: ['sent', 'draft'] }
+      const allowed: Record<string, string[]> = {
+        draft:      ['pending'],
+        pending:    ['sent', 'draft'],
+        sent:       ['delivering', 'completed'],
+        delivering: ['completed'],
+      }
       if (!(allowed[existing.status] ?? []).includes(status)) {
         return NextResponse.json({ error: `Không thể chuyển trạng thái từ ${existing.status} sang ${status}` }, { status: 400 })
       }
@@ -47,6 +53,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       .from('purchase_orders')
       .update(updatePayload)
       .eq('id', id)
+      .eq('tenant_id', tenantId)
 
     if (poErr) return NextResponse.json({ error: poErr.message }, { status: 400 })
 
