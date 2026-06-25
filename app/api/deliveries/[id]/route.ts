@@ -41,8 +41,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         }
         if (delivery.vehicle_id)
           cascade.push(supabaseAdmin.from('vehicles').update({ status: 'available' }).eq('id', delivery.vehicle_id))
-        if (delivery.driver_id)
-          cascade.push(supabaseAdmin.from('drivers').update({ status: 'available' }).eq('id', delivery.driver_id))
+        if (delivery.driver_id) {
+          if (status === 'delivered') {
+            // Tăng total_trips khi giao thành công
+            const { data: driverData } = await supabaseAdmin
+              .from('drivers').select('total_trips').eq('id', delivery.driver_id).single()
+            cascade.push(supabaseAdmin.from('drivers').update({
+              status: 'available',
+              total_trips: (driverData?.total_trips ?? 0) + 1,
+            }).eq('id', delivery.driver_id))
+          } else {
+            cascade.push(supabaseAdmin.from('drivers').update({ status: 'available' }).eq('id', delivery.driver_id))
+          }
+        }
 
         await Promise.all(cascade)
       }
