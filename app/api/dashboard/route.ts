@@ -89,10 +89,10 @@ export async function GET() {
       .eq('planned_date', today).order('created_at', { ascending: false }),
     // Revenue last 6 months for chart
     supabaseAdmin.from('sales_orders').select('order_date, final_amount').eq('tenant_id', tenantId).eq('status', 'completed').gte('order_date', sixStart),
-    // Sales order items for top products bar chart (all orders)
+    // Sales order items for top products bar chart — filter qua sales_orders vì bảng này không có tenant_id
     supabaseAdmin.from('sales_order_items')
-      .select('subtotal, product:products(name, sku)')
-      .eq('tenant_id', tenantId)
+      .select('subtotal, product:products(name, sku), sales_orders!inner(tenant_id)')
+      .eq('sales_orders.tenant_id', tenantId)
       .limit(2000),
     // Deliveries last 7 days (for weekly performance chart)
     supabaseAdmin.from('deliveries')
