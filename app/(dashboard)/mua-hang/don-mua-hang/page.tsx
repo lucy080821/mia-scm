@@ -759,7 +759,8 @@ export default function DonMuaHangPage() {
       showToast(`❌ ${err.error}`)
       return false
     }
-    // Reload từ DB để đảm bảo trạng thái thực sự được lưu
+    // Reload từ DB + reset filter về "Tất cả" để luôn thấy đơn sau khi đổi trạng thái
+    setStatusFilter('all')
     await loadPOs()
     return true
   }
@@ -768,7 +769,7 @@ export default function DonMuaHangPage() {
     setProcessingId(id)
     try {
       if (await patchStatus(id, 'pending')) {
-        showToast('✓ Đã gửi đơn chờ duyệt')
+        showToast('✓ Đã gửi chờ duyệt — xem trong tab Chờ duyệt')
       }
     } finally {
       setProcessingId(null)
@@ -795,8 +796,9 @@ export default function DonMuaHangPage() {
       showToast(`❌ ${err.error}`)
       return
     }
+    setStatusFilter('all')
     await loadPOs()
-    showToast('✓ Đã duyệt — chuyển sang Đã gửi NCC')
+    showToast('✓ Đã duyệt — đơn chuyển sang Đã gửi NCC, bấm Nhận hàng khi hàng về')
   }
 
   const handleRejectPO = async (id: string, reason: string) => {
@@ -813,6 +815,7 @@ export default function DonMuaHangPage() {
       showToast(`❌ ${err.error}`)
       return
     }
+    setStatusFilter('all')
     await loadPOs()
     showToast('Đã từ chối — đơn trả về Bản nháp')
   }
