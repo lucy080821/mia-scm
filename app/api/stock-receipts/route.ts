@@ -14,7 +14,7 @@ export async function GET() {
       warehouse:warehouse_id ( id, name ),
       purchase_order:purchase_order_id ( code ),
       items:stock_receipt_items (
-        id, product_id, ordered_qty, received_qty, unit_price, lot_number, expiry_date, qc_passed, note,
+        id, product_id, quantity, unit_price, lot_number, expiry_date,
         product:product_id ( sku, name, unit )
       )
     `)
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     const { count } = await supabaseAdmin.from('stock_receipts').select('id', { count: 'exact', head: true }).like('code', `${prefix}-%`)
     const code = `${prefix}-${String((count ?? 0) + 1).padStart(3, '0')}`
 
-    const totalAmount = (items ?? []).reduce((s: number, it: { ordered_qty?: number; unit_price?: number }) => s + (it.ordered_qty ?? 0) * (it.unit_price ?? 0), 0)
+    const totalAmount = (items ?? []).reduce((s: number, it: { ordered_qty?: number; quantity?: number; unit_price?: number }) => s + ((it.ordered_qty ?? it.quantity) ?? 0) * (it.unit_price ?? 0), 0)
 
     const { data: receipt, error: rErr } = await supabaseAdmin
       .from('stock_receipts')
@@ -63,10 +63,10 @@ export async function POST(req: NextRequest) {
 
     const filledItems = (items ?? []).filter((it: { product_id?: string }) => it.product_id)
     if (filledItems.length > 0) {
-      const rows = filledItems.map((it: { product_id: string; ordered_qty: number; unit_price?: number; lot_number?: string; expiry_date?: string }) => ({
+      const rows = filledItems.map((it: { product_id: string; ordered_qty?: number; quantity?: number; unit_price?: number; lot_number?: string; expiry_date?: string }) => ({
         receipt_id: receipt.id,
         product_id: it.product_id,
-        ordered_qty: it.ordered_qty,
+        quantity: it.ordered_qty ?? it.quantity ?? 0,
         unit_price: it.unit_price ?? 0,
         lot_number: it.lot_number || '',
         expiry_date: it.expiry_date || null,

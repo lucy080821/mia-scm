@@ -83,12 +83,12 @@ function mapReceipt(r: Record<string, unknown>): StockReceipt {
         sku: product?.sku ?? '',
         name: product?.name ?? '',
         unit: product?.unit ?? '',
-        ordered_qty: (it.ordered_qty as number) ?? 0,
-        received_qty: (it.received_qty as number) ?? 0,
+        ordered_qty: (it.quantity as number) ?? 0,
+        received_qty: (it.quantity as number) ?? 0,
         lot_number: (it.lot_number as string) ?? '',
         expiry_date: (it.expiry_date as string) ?? '',
-        qc_passed: it.qc_passed as boolean | null,
-        note: (it.note as string) ?? '',
+        qc_passed: null,
+        note: '',
       }
     }),
   }

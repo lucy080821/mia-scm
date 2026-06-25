@@ -108,12 +108,10 @@ export async function POST(
       await supabaseAdmin.from('stock_receipt_items').insert({
         receipt_id: receipt.id,
         product_id: it.product_id,
-        ordered_qty: it.ordered_qty,
-        received_qty: it.received_qty,
+        quantity: it.received_qty,
         unit_price: it.unit_price,
         lot_number: it.lot_number || '',
         expiry_date: it.expiry_date || null,
-        qc_passed: true,
       })
 
       if (it.received_qty > 0) {

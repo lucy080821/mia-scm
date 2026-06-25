@@ -48,18 +48,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
             await supabaseAdmin
               .from('stock_receipt_items')
               .update({
-                received_qty: it.received_qty ?? 0,
-                qc_passed: it.qc_passed ?? null,
+                quantity: it.received_qty ?? it.quantity ?? 0,
                 lot_number: it.lot_number || '',
                 expiry_date: it.expiry_date || null,
-                note: it.note || null,
               })
               .eq('id', it.id)
           }
 
-          // Increase inventory only on completion + QC passed
-          if (status === 'completed' && it.qc_passed !== false) {
-            const qty = it.received_qty ?? 0
+          // Increase inventory only on completion
+          if (status === 'completed') {
+            const qty = it.received_qty ?? it.quantity ?? 0
             if (qty > 0) {
               await adjustInventory(it.product_id, receipt.warehouse_id, it.lot_number || '', qty, it.expiry_date)
             }
