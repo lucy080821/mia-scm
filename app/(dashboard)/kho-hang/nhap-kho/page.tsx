@@ -532,17 +532,19 @@ function QCModal({ receipt, onClose, onComplete }: {
 }) {
   const [items,  setItems]  = useState<ReceiptItem[]>(receipt.items.map(it => ({ ...it })))
   const [saving, setSaving] = useState(false)
+  const [error,  setError]  = useState<string | null>(null)
 
   const updateItem = (i: number, field: keyof ReceiptItem, val: string | number | boolean | null) => {
     setItems(prev => { const next = [...prev]; next[i] = { ...next[i], [field]: val }; return next })
   }
 
-  const allQCDone  = items.every(it => it.qc_passed !== null)
+  const allQCDone  = items.length > 0 && items.every(it => it.qc_passed !== null)
   const anyFail    = items.some(it => it.qc_passed === false)
   const isReadOnly = receipt.status === 'approved' || receipt.status === 'completed'
 
   const handleSubmit = async () => {
     setSaving(true)
+    setError(null)
     const newStatus: StockReceipt['status'] = anyFail ? 'approved' : 'completed'
     const res = await fetch(`/api/stock-receipts/${receipt.id}`, {
       method: 'PATCH',
@@ -553,73 +555,115 @@ function QCModal({ receipt, onClose, onComplete }: {
       onComplete(receipt.id, items, newStatus)
       onClose()
     } else {
-      alert('Lỗi cập nhật QC')
+      const body = await res.json().catch(() => ({}))
+      setError(body.error || 'Lỗi cập nhật — vui lòng thử lại')
     }
     setSaving(false)
   }
 
+  const statusInfo = STATUS_MAP[receipt.status]
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#e5e7eb]">
           <div>
-            <h2 className="text-base font-bold text-[#1e2a3a]">Kiểm tra hàng — {receipt.code}</h2>
+            <h2 className="text-base font-bold text-[#1e2a3a]">
+              {isReadOnly ? 'Chi tiết phiếu nhập' : 'Kiểm tra hàng nhập'} — {receipt.code}
+            </h2>
             <p className="text-xs text-gray-500 mt-0.5">{receipt.supplier} · {receipt.warehouse}</p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={16} /></button>
+          <div className="flex items-center gap-2">
+            <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusInfo?.className ?? ''}`}>{statusInfo?.label ?? receipt.status}</span>
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={16} /></button>
+          </div>
         </div>
 
+        {/* Summary */}
+        <div className="px-6 py-3 bg-gray-50 border-b border-[#e5e7eb] grid grid-cols-3 gap-4">
+          <div>
+            <p className="text-[10px] font-semibold text-gray-400 uppercase mb-0.5">Ngày nhập</p>
+            <p className="text-sm font-medium text-[#1e2a3a]">{formatDate(receipt.date)}</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold text-gray-400 uppercase mb-0.5">PO liên kết</p>
+            <p className="text-sm font-medium text-[#1e2a3a]">{receipt.po_ref}</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold text-gray-400 uppercase mb-0.5">Tổng giá trị</p>
+            <p className="text-sm font-semibold text-[#1e2a3a]">{formatVND(receipt.total_amount)}</p>
+          </div>
+        </div>
+
+        {/* Body */}
         <div className="overflow-y-auto flex-1 p-6 space-y-4">
-          {items.map((it, i) => (
-            <div key={it.product_id + i} className={`border rounded-xl p-4 transition-colors ${it.qc_passed === true ? 'border-green-300 bg-green-50' : it.qc_passed === false ? 'border-red-300 bg-red-50' : 'border-[#e5e7eb]'}`}>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">{it.sku}</span>
-                <span className="text-sm font-semibold text-[#1e2a3a]">{it.name}</span>
+          {items.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-center gap-3">
+              <div className={`w-14 h-14 rounded-full flex items-center justify-center ${receipt.status === 'completed' ? 'bg-green-100' : 'bg-gray-100'}`}>
+                {receipt.status === 'completed'
+                  ? <CheckCircle size={28} className="text-green-600" />
+                  : <Package size={28} className="text-gray-400" />
+                }
               </div>
-              <div className="grid grid-cols-2 gap-3 mb-3">
-                <div>
-                  <label className="block text-[10px] font-semibold text-gray-500 mb-1">Số lượng nhận thực tế ({it.unit})</label>
-                  <input type="number" min={0} value={it.received_qty || ''} onChange={e => updateItem(i, 'received_qty', +e.target.value)}
-                    disabled={isReadOnly}
-                    className="w-full h-8 px-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] disabled:bg-gray-50" />
-                  <p className="text-[10px] text-gray-400 mt-0.5">Đặt hàng: {it.ordered_qty} {it.unit}</p>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-semibold text-gray-500 mb-1">Số lô sản xuất</label>
-                  <input type="text" value={it.lot_number} onChange={e => updateItem(i, 'lot_number', e.target.value)}
-                    disabled={isReadOnly} placeholder="VD: L240610"
-                    className="w-full h-8 px-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] disabled:bg-gray-50" />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-semibold text-gray-500 mb-1">Hạn sử dụng</label>
-                  <input type="date" value={it.expiry_date} onChange={e => updateItem(i, 'expiry_date', e.target.value)}
-                    disabled={isReadOnly}
-                    className="w-full h-8 px-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] disabled:bg-gray-50" />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-semibold text-gray-500 mb-1">Ghi chú</label>
-                  <input type="text" value={it.note} onChange={e => updateItem(i, 'note', e.target.value)}
-                    disabled={isReadOnly} placeholder="Lỗi bao bì..."
-                    className="w-full h-8 px-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] disabled:bg-gray-50" />
-                </div>
+              <div>
+                <p className="text-sm font-semibold text-[#1e2a3a]">
+                  {receipt.status === 'completed' ? 'Phiếu nhập đã hoàn tất' : 'Chưa có chi tiết sản phẩm'}
+                </p>
+                <p className="text-xs text-gray-400 mt-1 max-w-[320px]">
+                  {receipt.status === 'completed'
+                    ? 'Hàng đã được nhập kho và tồn kho đã cập nhật. Chi tiết dòng hàng được ghi nhận trực tiếp từ đơn mua hàng liên kết.'
+                    : 'Phiếu chưa có dòng sản phẩm. Tồn kho đã được cập nhật qua đơn mua hàng liên kết nếu có.'
+                  }
+                </p>
               </div>
-              {!isReadOnly && (
-                <div>
-                  <label className="block text-[10px] font-semibold text-gray-500 mb-2">Kết quả kiểm tra chất lượng</label>
-                  <div className="flex gap-2">
-                    <button onClick={() => updateItem(i, 'qc_passed', true)}
-                      className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${it.qc_passed === true ? 'bg-green-600 text-white' : 'border border-green-300 text-green-600 hover:bg-green-50'}`}>
-                      <CheckCircle size={13} className="inline mr-1" />Đạt QC
-                    </button>
-                    <button onClick={() => updateItem(i, 'qc_passed', false)}
-                      className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${it.qc_passed === false ? 'bg-red-500 text-white' : 'border border-red-300 text-red-500 hover:bg-red-50'}`}>
-                      <AlertTriangle size={13} className="inline mr-1" />Không đạt
-                    </button>
+            </div>
+          ) : (
+            items.map((it, i) => (
+              <div key={it.product_id + i} className={`border rounded-xl p-4 transition-colors ${it.qc_passed === true ? 'border-green-300 bg-green-50' : it.qc_passed === false ? 'border-red-300 bg-red-50' : 'border-[#e5e7eb]'}`}>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">{it.sku}</span>
+                  <span className="text-sm font-semibold text-[#1e2a3a]">{it.name}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-500 mb-1">Số lượng nhận ({it.unit})</label>
+                    <input type="number" min={0} value={it.received_qty || ''} onChange={e => updateItem(i, 'received_qty', +e.target.value)}
+                      disabled={isReadOnly}
+                      className="w-full h-8 px-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] disabled:bg-gray-50" />
+                    <p className="text-[10px] text-gray-400 mt-0.5">Đặt hàng: {it.ordered_qty} {it.unit}</p>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-500 mb-1">Số lô sản xuất</label>
+                    <input type="text" value={it.lot_number} onChange={e => updateItem(i, 'lot_number', e.target.value)}
+                      disabled={isReadOnly} placeholder="VD: L240610"
+                      className="w-full h-8 px-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] disabled:bg-gray-50" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-500 mb-1">Hạn sử dụng</label>
+                    <input type="date" value={it.expiry_date} onChange={e => updateItem(i, 'expiry_date', e.target.value)}
+                      disabled={isReadOnly}
+                      className="w-full h-8 px-2 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)] disabled:bg-gray-50" />
                   </div>
                 </div>
-              )}
-            </div>
-          ))}
+                {!isReadOnly && (
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-500 mb-2">Kết quả kiểm tra chất lượng</label>
+                    <div className="flex gap-2">
+                      <button onClick={() => updateItem(i, 'qc_passed', true)}
+                        className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${it.qc_passed === true ? 'bg-green-600 text-white' : 'border border-green-300 text-green-600 hover:bg-green-50'}`}>
+                        <CheckCircle size={13} className="inline mr-1" />Đạt QC
+                      </button>
+                      <button onClick={() => updateItem(i, 'qc_passed', false)}
+                        className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${it.qc_passed === false ? 'bg-red-500 text-white' : 'border border-red-300 text-red-500 hover:bg-red-50'}`}>
+                        <AlertTriangle size={13} className="inline mr-1" />Không đạt
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
         </div>
 
         {anyFail && !isReadOnly && (
@@ -629,11 +673,20 @@ function QCModal({ receipt, onClose, onComplete }: {
           </div>
         )}
 
+        {error && (
+          <div className="mx-6 mb-2 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2">
+            <AlertTriangle size={13} className="text-red-500 shrink-0" />
+            <p className="text-xs text-red-600">{error}</p>
+          </div>
+        )}
+
         <div className="px-6 py-4 border-t border-[#e5e7eb] flex justify-between items-center">
-          <span className="text-xs text-gray-400">{items.filter(it => it.qc_passed !== null).length}/{items.length} dòng đã kiểm</span>
+          <span className="text-xs text-gray-400">
+            {items.length > 0 ? `${items.filter(it => it.qc_passed !== null).length}/${items.length} dòng đã kiểm` : ''}
+          </span>
           <div className="flex gap-2">
             <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border border-[#e5e7eb] rounded-lg hover:bg-gray-50 transition-colors">Đóng</button>
-            {!isReadOnly && (
+            {!isReadOnly && items.length > 0 && (
               <button onClick={handleSubmit} disabled={!allQCDone || saving}
                 className="px-4 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-40 transition-all hover:scale-[1.02] active:scale-95">
                 {saving ? 'Đang lưu...' : anyFail ? 'Lưu & Báo cáo NCC' : 'Xác nhận nhập kho'}
