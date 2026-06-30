@@ -5,33 +5,31 @@ import { supabase } from '@/lib/supabase'
 
 export default function GiaoHangIndex() {
   const [lastToken, setLastToken] = useState<string | null>(null)
-  const [checked, setChecked] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    // Hiện nội dung ngay (localStorage chỉ có trên client)
+    try {
+      const saved = localStorage.getItem('mia_driver_last_token')
+      if (saved) setLastToken(saved)
+    } catch { /* ignore */ }
+    setMounted(true)
+
+    // Kiểm tra session trong nền — nếu đã đăng nhập thì redirect về trang phù hợp
     supabase.auth.getSession()
       .then(({ data: { session } }) => {
         if (session?.user) {
           const role = session.user.user_metadata?.role ?? null
-          // Đăng nhập rồi → redirect về trang phù hợp, không hiện fallback
-          const dest = role === 'driver' ? '/logistics/ke-hoach-giao-hang' : '/dashboard'
-          window.location.href = dest
-          return
+          window.location.href = role === 'driver'
+            ? '/logistics/ke-hoach-giao-hang'
+            : '/dashboard'
         }
-        // Chưa đăng nhập → hiện fallback với token gần nhất
-        try {
-          const saved = localStorage.getItem('mia_driver_last_token')
-          if (saved) setLastToken(saved)
-        } catch { /* ignore */ }
-        setChecked(true)
       })
-      .catch(() => {
-        // Lỗi getSession → hiện fallback bình thường
-        setChecked(true)
-      })
+      .catch(() => { /* lỗi session → ở lại trang này */ })
   }, [])
 
-  // Đang kiểm tra session → hiện blank (không hiện spinner tránh stuck)
-  if (!checked) return null
+  // Chưa mount (SSR) → blank thoáng qua, không hiện spinner
+  if (!mounted) return null
 
   return (
     <div className="min-h-screen bg-[#f0f2f5] flex flex-col items-center justify-center p-6 gap-6">
