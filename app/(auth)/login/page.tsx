@@ -33,7 +33,11 @@ export default function LoginPage() {
       })
       const profile = profileRes.ok ? await profileRes.json() : null
       const role = profile?.role ?? data.user?.user_metadata?.role ?? 'admin'
-      router.push(role === 'owner' ? '/owner/dashboard' : '/dashboard')
+      router.push(
+        role === 'owner'  ? '/owner/dashboard' :
+        role === 'driver' ? '/logistics/ke-hoach-giao-hang' :
+        '/dashboard'
+      )
       router.refresh()
     } catch {
       setError('Email hoặc mật khẩu không đúng.')
