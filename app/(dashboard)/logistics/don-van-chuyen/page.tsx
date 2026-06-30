@@ -1093,8 +1093,8 @@ export default function DonVanChuyenPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId])
 
-  useOrdersRealtime(loadDeliveries, ['sales_orders', 'deliveries'])
-  useAutoRefresh(loadDeliveries, 5_000)
+  useOrdersRealtime(() => loadDeliveries(), ['sales_orders', 'deliveries'])
+  useAutoRefresh(() => loadDeliveries(), 5_000)
 
   const filtered = deliveries.filter(d => {
     const matchSearch = d.code.includes(search) || d.customer.toLowerCase().includes(search.toLowerCase()) || d.route.toLowerCase().includes(search.toLowerCase())
