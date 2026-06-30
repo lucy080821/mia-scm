@@ -284,6 +284,7 @@ function EditQuoteModal({ quote, onClose, onSave, customers, products }: {
   customers: CustomerOption[]
   products: ProductOption[]
 }) {
+  const units = useUnits()
   const [customerId, setCustomerId] = useState(quote.customer_id ?? '')
   const [date, setDate]             = useState(quote.date)
   const [expiry, setExpiry]         = useState(quote.expiry)
