@@ -1,20 +1,42 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Truck, ArrowLeft } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 
 export default function GiaoHangIndex() {
+  const router = useRouter()
   const [lastToken, setLastToken] = useState<string | null>(null)
   const [checked, setChecked] = useState(false)
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('mia_driver_last_token')
-      if (saved) setLastToken(saved)
-    } catch { /* ignore */ }
-    setChecked(true)
-  }, [])
+    // Nếu tài xế đã đăng nhập → redirect về trang kế hoạch giao hàng
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const role = session.user.user_metadata?.role ?? null
+        if (role === 'driver') {
+          router.replace('/logistics/ke-hoach-giao-hang')
+          return
+        }
+        if (role && role !== 'driver') {
+          router.replace('/dashboard')
+          return
+        }
+      }
+      // Chưa đăng nhập: hiện fallback với token gần nhất
+      try {
+        const saved = localStorage.getItem('mia_driver_last_token')
+        if (saved) setLastToken(saved)
+      } catch { /* ignore */ }
+      setChecked(true)
+    })
+  }, [router])
 
-  if (!checked) return null
+  if (!checked) return (
+    <div className="min-h-screen bg-[#f0f2f5] flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-[#0ea5e9] border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
 
   return (
     <div className="min-h-screen bg-[#f0f2f5] flex flex-col items-center justify-center p-6 gap-6">
