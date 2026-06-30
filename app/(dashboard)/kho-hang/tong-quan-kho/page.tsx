@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { Package, TrendingDown, AlertTriangle, ArrowDownToLine, ArrowUpFromLine, Warehouse, Calendar, X, Trash2 } from 'lucide-react'
+import * as XLSX from 'xlsx'
+import { Package, TrendingDown, AlertTriangle, ArrowDownToLine, ArrowUpFromLine, Warehouse, Calendar, X, Trash2, Download } from 'lucide-react'
 import PageHeader from '@/components/layout/PageHeader'
 import KpiCard from '@/components/ui/KpiCard'
 import AiSuggestionBox from '@/components/ui/AiSuggestionBox'
@@ -89,6 +90,13 @@ interface SuggestedOrder {
   purchase_price: number
   warehouse_id: string
   warehouse_name: string
+}
+
+function exportXlsx(rows: object[], filename: string) {
+  const ws = XLSX.utils.json_to_sheet(rows)
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Sheet1')
+  XLSX.writeFile(wb, filename)
 }
 
 export default function WarehouseOverviewPage() {
@@ -535,6 +543,12 @@ export default function WarehouseOverviewPage() {
                   <span className="text-xs font-semibold text-[var(--mia-primary)]">{formatVND(wh.totalValue)}</span>
                 </div>
                 <div className="flex items-center gap-2">
+                  {whSuggested.length > 0 && (
+                    <button onClick={() => exportXlsx(whSuggested.map(p => ({ 'SKU': p.sku, 'Tên SP': p.name, 'ĐVT': p.unit, 'Tồn kho': p.stock, 'ROP': p.rop, 'DOS còn lại': p.dos ?? '—', 'Đề xuất đặt (EOQ)': p.eoq, 'Đơn giá': p.purchase_price })), `de-xuat-${wh.name}.xlsx`)}
+                      className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 border border-[#e5e7eb] rounded-lg hover:bg-gray-50 bg-white">
+                      <Download size={11} /> Excel
+                    </button>
+                  )}
                   {whAlerts.length > 0 && (
                     <span className="text-[10px] bg-red-100 text-red-600 font-semibold px-2 py-0.5 rounded-full">
                       {whAlerts.filter(a => a.level === 'critical').length > 0
@@ -636,7 +650,13 @@ export default function WarehouseOverviewPage() {
                 <h2 className="text-sm font-semibold text-[#1e2a3a]">Đề xuất đặt hàng ngay</h2>
                 <span className="text-[10px] bg-sky-100 text-sky-600 font-semibold px-2 py-0.5 rounded-full">{suggestedOrders.length} sản phẩm</span>
               </div>
-              <a href="/mua-hang/don-mua-hang" className="text-xs text-[var(--mia-primary)] hover:underline">Tạo đơn mua hàng →</a>
+              <div className="flex items-center gap-2">
+                <button onClick={() => exportXlsx(suggestedOrders.map(p => ({ 'SKU': p.sku, 'Tên SP': p.name, 'ĐVT': p.unit, 'Kho': p.warehouse_name, 'Tồn kho': p.stock, 'ROP': p.rop, 'DOS còn lại': p.dos ?? '—', 'Đề xuất đặt (EOQ)': p.eoq, 'Đơn giá': p.purchase_price })), 'de-xuat-dat-hang.xlsx')}
+                  className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 border border-[#e5e7eb] rounded-lg hover:bg-gray-50">
+                  <Download size={11} /> Excel
+                </button>
+                <a href="/mua-hang/don-mua-hang" className="text-xs text-[var(--mia-primary)] hover:underline">Tạo đơn mua hàng →</a>
+              </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -691,7 +711,15 @@ export default function WarehouseOverviewPage() {
 
         {/* Warehouse stats */}
         <div className="bg-white rounded-xl border border-[#e5e7eb] p-4">
-          <h2 className="text-sm font-semibold text-[#1e2a3a] mb-4">Tồn kho theo kho</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-[#1e2a3a]">Tồn kho theo kho</h2>
+            {warehouseStats.length > 0 && (
+              <button onClick={() => exportXlsx(warehouseStats.map(w => ({ 'Kho': w.name, 'Số SKU': w.skuCount, 'Tổng số lượng': w.totalQty, 'Giá trị (VND)': w.totalValue })), 'ton-kho-theo-kho.xlsx')}
+                className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 border border-[#e5e7eb] rounded-lg hover:bg-gray-50">
+                <Download size={11} /> Excel
+              </button>
+            )}
+          </div>
           {loading ? (
             <div className="space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-10 bg-gray-100 rounded-lg animate-pulse" />)}</div>
           ) : warehouseStats.length === 0 ? (
@@ -725,7 +753,15 @@ export default function WarehouseOverviewPage() {
         <div className="bg-white rounded-xl border border-[#e5e7eb]">
           <div className="flex items-center justify-between px-4 py-3 border-b border-[#e5e7eb]">
             <h2 className="text-sm font-semibold text-[#1e2a3a]">Giao dịch kho gần đây</h2>
-            <a href="/kho-hang/nhap-kho" className="text-xs text-[var(--mia-primary)] hover:underline">Xem tất cả →</a>
+            <div className="flex items-center gap-2">
+              {movements.length > 0 && (
+                <button onClick={() => exportXlsx(movements.map(m => ({ 'Phiếu': m.code, 'Loại': m.type === 'in' ? 'Nhập' : 'Xuất', 'Kho': m.warehouse, 'Giá trị (VND)': m.total_amount ?? 0, 'Ngày': m.date, 'Trạng thái': m.status })), 'giao-dich-kho.xlsx')}
+                  className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 border border-[#e5e7eb] rounded-lg hover:bg-gray-50">
+                  <Download size={11} /> Excel
+                </button>
+              )}
+              <a href="/kho-hang/nhap-kho" className="text-xs text-[var(--mia-primary)] hover:underline">Xem tất cả →</a>
+            </div>
           </div>
           {loading ? (
             <div className="p-4 space-y-3">{[1, 2, 3, 4].map(i => <div key={i} className="h-8 bg-gray-100 rounded animate-pulse" />)}</div>
@@ -773,9 +809,17 @@ export default function WarehouseOverviewPage() {
               <AlertTriangle size={14} className="text-yellow-500" />
               <h2 className="text-sm font-semibold text-[#1e2a3a]">Cảnh báo tồn kho</h2>
             </div>
-            <span className="text-[10px] font-semibold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">
-              {alertItems.length} sản phẩm
-            </span>
+            <div className="flex items-center gap-2">
+              {alertItems.length > 0 && (
+                <button onClick={() => exportXlsx(alertItems.map(p => ({ 'SKU': p.sku, 'Tên SP': p.name, 'Kho': p.warehouse, 'Tồn kho': p.stock, 'ĐVT': p.unit, 'Min Stock': p.min_stock, 'ROP': p.rop, 'EOQ': p.eoq, 'Mức cảnh báo': p.level === 'critical' ? 'Nguy hiểm' : 'Cảnh báo' })), 'canh-bao-ton-kho.xlsx')}
+                  className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 border border-[#e5e7eb] rounded-lg hover:bg-gray-50">
+                  <Download size={11} /> Excel
+                </button>
+              )}
+              <span className="text-[10px] font-semibold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">
+                {alertItems.length} sản phẩm
+              </span>
+            </div>
           </div>
           {loading ? (
             <div className="p-4 space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-20 bg-gray-100 rounded-lg animate-pulse" />)}</div>
@@ -824,7 +868,15 @@ export default function WarehouseOverviewPage() {
 
         {/* Top products */}
         <div className="bg-white rounded-xl border border-[#e5e7eb] p-4">
-          <h2 className="text-sm font-semibold text-[#1e2a3a] mb-3">Top sản phẩm tồn kho</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-[#1e2a3a]">Top sản phẩm tồn kho</h2>
+            {topProducts.length > 0 && (
+              <button onClick={() => exportXlsx(topProducts.map((p, i) => ({ 'STT': i + 1, 'Tên SP': p.name, 'Số lượng': p.qty, 'Giá trị (VND)': p.value })), 'top-san-pham-ton-kho.xlsx')}
+                className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 border border-[#e5e7eb] rounded-lg hover:bg-gray-50">
+                <Download size={11} /> Excel
+              </button>
+            )}
+          </div>
           {loading ? (
             <div className="space-y-2">{[1, 2, 3, 4].map(i => <div key={i} className="h-10 bg-gray-100 rounded animate-pulse" />)}</div>
           ) : topProducts.length === 0 ? (
@@ -857,11 +909,19 @@ export default function WarehouseOverviewPage() {
               <Calendar size={14} className="text-orange-500" />
               <h2 className="text-sm font-semibold text-[#1e2a3a]">Hạn sử dụng lô hàng</h2>
             </div>
-            {expiryProducts.length > 0 && (
-              <span className="text-[10px] font-semibold bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">
-                {expiryProducts.filter(p => p.remainingPct <= 25).length} sắp hết
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {expiryProducts.length > 0 && (
+                <button onClick={() => exportXlsx(expiryProducts.map(p => ({ 'SKU': p.sku, 'Tên SP': p.name, 'ĐVT': p.unit, 'HSD tổng (ngày)': p.expiryDays, 'Còn lại (ngày)': p.remainingDays, 'Còn lại (%)': p.remainingPct })), 'han-su-dung-lo-hang.xlsx')}
+                  className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 border border-[#e5e7eb] rounded-lg hover:bg-gray-50">
+                  <Download size={11} /> Excel
+                </button>
+              )}
+              {expiryProducts.length > 0 && (
+                <span className="text-[10px] font-semibold bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">
+                  {expiryProducts.filter(p => p.remainingPct <= 25).length} sắp hết
+                </span>
+              )}
+            </div>
           </div>
           {expiryProducts.length === 0 ? (
             <div className="px-4 py-8 text-center">

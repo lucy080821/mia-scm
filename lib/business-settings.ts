@@ -61,6 +61,9 @@ export interface BusinessSettings {
 
   // Danh mục chi phí tùy chỉnh (per-tenant)
   expenseCustomCategories?: string[]
+
+  // Đơn vị tính (per-tenant)
+  units?: string[]
 }
 
 export const DEFAULT_NUMBERING: Record<string, NumberingRule> = {

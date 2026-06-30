@@ -1,6 +1,6 @@
 ﻿'use client'
-import { useState, useEffect } from 'react'
-import { Plus, Search, Truck, CheckCircle, Clock, AlertTriangle, X, MapPin, Camera, PenLine, Banknote, Copy, Check, RefreshCw, Timer, TrendingUp, Package } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Plus, Search, Truck, CheckCircle, Clock, AlertTriangle, X, MapPin, Camera, PenLine, Banknote, Copy, Check, RefreshCw, Timer, TrendingUp, Package, Navigation } from 'lucide-react'
 import PageHeader from '@/components/layout/PageHeader'
 import ExportButton from '@/components/ui/ExportButton'
 import { formatVND, formatDate } from '@/lib/utils'
@@ -35,11 +35,41 @@ const STATUS_MAP: Record<string, { label: string; className: string }> = {
   failed:     { label: 'Giao thất bại', className: 'bg-red-100 text-red-700' },
 }
 
-// helper: lọc theo kho — null warehouse_id trên driver/vehicle = không giới hạn kho
+// xe/tài xế không gán kho → đi được mọi nơi
+// xe/tài xế gán kho X → CHỈ nhận đơn từ kho X
 function matchWarehouse(entityWarehouseId: string | null, filterWarehouseId: string | null): boolean {
-  if (!filterWarehouseId) return true        // delivery chưa gắn kho → hiện tất cả
-  if (!entityWarehouseId) return true        // driver/xe chưa gắn kho → cho phép mọi nơi
+  if (!entityWarehouseId) return true   // xe/tài xế không gán kho → đi được mọi nơi
+  if (!filterWarehouseId) return true   // không biết kho của đơn → không thể lọc, show tất cả
   return entityWarehouseId === filterWarehouseId
+}
+
+async function selfHealOnTrip(
+  vehicles: any[], drivers: any[]
+): Promise<{ vehicles: any[]; drivers: any[] }> {
+  const onTripVIds = vehicles.filter(x => x.status === 'on_trip').map(x => x.id as string)
+  const onTripDIds = drivers.filter(x => x.status === 'on_trip').map(x => x.id as string)
+
+  const [activeV, activeD] = await Promise.all([
+    onTripVIds.length > 0
+      ? supabase.from('deliveries').select('vehicle_id').in('vehicle_id', onTripVIds).in('status', ['pending', 'assigned', 'delivering'])
+      : Promise.resolve({ data: [] as any[] }),
+    onTripDIds.length > 0
+      ? supabase.from('deliveries').select('driver_id').in('driver_id', onTripDIds).in('status', ['pending', 'assigned', 'delivering'])
+      : Promise.resolve({ data: [] as any[] }),
+  ])
+
+  const activeVSet = new Set((activeV.data ?? []).map((x: any) => x.vehicle_id))
+  const activeDSet = new Set((activeD.data ?? []).map((x: any) => x.driver_id))
+  const staleVIds  = onTripVIds.filter(id => !activeVSet.has(id))
+  const staleDIds  = onTripDIds.filter(id => !activeDSet.has(id))
+
+  if (staleVIds.length > 0) supabase.from('vehicles').update({ status: 'available' }).in('id', staleVIds).then(() => {})
+  if (staleDIds.length > 0) supabase.from('drivers').update({ status: 'available' }).in('id', staleDIds).then(() => {})
+
+  return {
+    vehicles: vehicles.map(x => staleVIds.includes(x.id) ? { ...x, status: 'available' } : x),
+    drivers:  drivers.map(x => staleDIds.includes(x.id) ? { ...x, status: 'available' } : x),
+  }
 }
 
 // ─── Assign Modal ─────────────────────────────────────────────────────────────
@@ -55,18 +85,32 @@ function AssignModal({ delivery, onClose, onAssign }: {
   const [availDrivers, setAvailDrivers] = useState<{ id: string; name: string; phone: string; rating: number; status: string; warehouse_id: string | null }[]>([])
   const [loadingOpts, setLoadingOpts] = useState(true)
 
-  const wid = delivery.warehouse_id
-
   useEffect(() => {
-    Promise.all([
-      supabase.from('vehicles').select('id, plate, type, capacity_kg, status, warehouse_id').eq('tenant_id', tenantId).in('status', ['available', 'on_trip']).order('plate'),
-      supabase.from('drivers').select('id, name, phone, rating, status, warehouse_id').eq('tenant_id', tenantId).in('status', ['available', 'on_trip']).order('name'),
-    ]).then(([v, d]) => {
-      setAvailVehicles(((v.data ?? []) as any).filter((x: any) => matchWarehouse(x.warehouse_id, wid)))
-      setAvailDrivers(((d.data ?? []) as any).filter((x: any) => matchWarehouse(x.warehouse_id, wid)))
+    ;(async () => {
+      // Ưu tiên warehouse_id từ delivery; nếu không có → tra từ stock_issue của đơn hàng
+      let wid = delivery.warehouse_id
+      if (!wid && delivery.orderId) {
+        const { data: issue } = await supabase
+          .from('stock_issues').select('warehouse_id')
+          .eq('sales_order_id', delivery.orderId).maybeSingle()
+        wid = issue?.warehouse_id ?? null
+      }
+
+      const [v, d] = await Promise.all([
+        supabase.from('vehicles').select('id, plate, type, capacity_kg, status, warehouse_id').eq('tenant_id', tenantId).in('status', ['available', 'on_trip']).order('plate'),
+        supabase.from('drivers').select('id, name, phone, rating, status, warehouse_id').eq('tenant_id', tenantId).in('status', ['available', 'on_trip']).order('name'),
+      ])
+
+      let filtered = await selfHealOnTrip(
+        ((v.data ?? []) as any).filter((x: any) => matchWarehouse(x.warehouse_id, wid)),
+        ((d.data ?? []) as any).filter((x: any) => matchWarehouse(x.warehouse_id, wid)),
+      )
+      setAvailVehicles(filtered.vehicles)
+      setAvailDrivers(filtered.drivers)
       setLoadingOpts(false)
-    })
-  }, [wid])
+    })()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [delivery.id])
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -165,15 +209,72 @@ function PODModal({ delivery, onClose, onConfirm, onFail }: {
   onConfirm: (id: string, cod: number) => void
   onFail: (id: string, reason: string) => void
 }) {
-  const [tab, setTab] = useState<'success' | 'fail'>('success')
-  const [cod, setCod] = useState(delivery.cod_amount)
+  const [tab, setTab]           = useState<'success' | 'fail'>('success')
+  const [cod, setCod]           = useState(delivery.cod_amount)
   const [failReason, setFailReason] = useState('')
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null)
+  const [sigUrl, setSigUrl]     = useState<string | null>(null)
+  const [showSigPad, setShowSigPad] = useState(false)
+
+  const fileRef   = useRef<HTMLInputElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const drawing   = useRef(false)
+  const lastPt    = useRef<{ x: number; y: number } | null>(null)
+
+  const canConfirm = !!photoUrl && !!sigUrl
+
+  const getCanvasPos = (
+    e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>,
+    canvas: HTMLCanvasElement,
+  ) => {
+    const rect   = canvas.getBoundingClientRect()
+    const scaleX = canvas.width  / rect.width
+    const scaleY = canvas.height / rect.height
+    const src = 'touches' in e ? e.touches[0] : (e as React.MouseEvent)
+    return { x: (src.clientX - rect.left) * scaleX, y: (src.clientY - rect.top) * scaleY }
+  }
+
+  const onSigStart = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault()
+    drawing.current = true
+    lastPt.current  = getCanvasPos(e, canvasRef.current!)
+  }
+  const onSigMove = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (!drawing.current || !canvasRef.current || !lastPt.current) return
+    e.preventDefault()
+    const ctx = canvasRef.current.getContext('2d')!
+    const pt  = getCanvasPos(e, canvasRef.current)
+    ctx.beginPath()
+    ctx.moveTo(lastPt.current.x, lastPt.current.y)
+    ctx.lineTo(pt.x, pt.y)
+    ctx.strokeStyle = '#1e2a3a'
+    ctx.lineWidth   = 2.5
+    ctx.lineCap     = 'round'
+    ctx.lineJoin    = 'round'
+    ctx.stroke()
+    lastPt.current = pt
+  }
+  const onSigEnd = () => { drawing.current = false; lastPt.current = null }
+
+  const clearSig = () => {
+    const c = canvasRef.current
+    if (c) c.getContext('2d')!.clearRect(0, 0, c.width, c.height)
+  }
+  const saveSig = () => {
+    const c = canvasRef.current
+    if (!c) return
+    setSigUrl(c.toDataURL('image/png'))
+    setShowSigPad(false)
+  }
+
   const FAIL_REASONS = ['Khách vắng nhà', 'Khách từ chối nhận', 'Sai địa chỉ', 'Hàng hỏng', 'Khác']
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#e5e7eb]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#e5e7eb] sticky top-0 bg-white z-10">
           <div>
             <h2 className="text-base font-bold text-[#1e2a3a]">Xác nhận giao hàng</h2>
             <p className="text-xs text-gray-500 mt-0.5">{delivery.code} · {delivery.customer}</p>
@@ -181,6 +282,7 @@ function PODModal({ delivery, onClose, onConfirm, onFail }: {
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={16} /></button>
         </div>
 
+        {/* Tabs */}
         <div className="px-6 pt-4">
           <div className="flex rounded-xl overflow-hidden border border-[#e5e7eb]">
             <button onClick={() => setTab('success')}
@@ -197,16 +299,86 @@ function PODModal({ delivery, onClose, onConfirm, onFail }: {
         <div className="p-6 space-y-4">
           {tab === 'success' ? (
             <>
+              {/* ── Ảnh + Chữ ký ── */}
+              <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden"
+                onChange={e => {
+                  const file = e.target.files?.[0]
+                  if (!file) return
+                  const reader = new FileReader()
+                  reader.onload = ev => setPhotoUrl(ev.target?.result as string)
+                  reader.readAsDataURL(file)
+                  e.target.value = ''
+                }} />
+
               <div className="grid grid-cols-2 gap-3">
-                <div className="border-2 border-dashed border-[#e5e7eb] rounded-xl p-4 flex flex-col items-center gap-2 text-gray-400 hover:border-[var(--mia-primary)] cursor-pointer transition-colors">
-                  <Camera size={22} />
-                  <span className="text-xs">Ảnh giao hàng</span>
-                </div>
-                <div className="border-2 border-dashed border-[#e5e7eb] rounded-xl p-4 flex flex-col items-center gap-2 text-gray-400 hover:border-[var(--mia-primary)] cursor-pointer transition-colors">
-                  <PenLine size={22} />
-                  <span className="text-xs">Chữ ký người nhận</span>
-                </div>
+                {/* Camera box */}
+                <button type="button" onClick={() => fileRef.current?.click()}
+                  className={`border-2 border-dashed rounded-xl overflow-hidden transition-all text-left ${photoUrl ? 'border-green-400' : 'border-[#e5e7eb] hover:border-[var(--mia-primary)]'}`}>
+                  {photoUrl ? (
+                    <div className="relative">
+                      <img src={photoUrl} alt="Ảnh giao hàng" className="w-full h-24 object-cover" />
+                      <div className="absolute bottom-0 inset-x-0 bg-green-600/80 text-white text-[10px] font-semibold text-center py-1">
+                        ✓ Đã chụp · Bấm để đổi
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-4 flex flex-col items-center gap-2 text-gray-400">
+                      <Camera size={22} />
+                      <span className="text-xs text-center">Ảnh giao hàng <span className="text-red-400">*</span></span>
+                    </div>
+                  )}
+                </button>
+
+                {/* Signature box */}
+                <button type="button" onClick={() => { setShowSigPad(s => !s) }}
+                  className={`border-2 border-dashed rounded-xl overflow-hidden transition-all text-left ${sigUrl ? 'border-green-400' : 'border-[#e5e7eb] hover:border-[var(--mia-primary)]'}`}>
+                  {sigUrl ? (
+                    <div className="relative">
+                      <img src={sigUrl} alt="Chữ ký" className="w-full h-24 object-contain bg-gray-50 p-1" />
+                      <div className="absolute bottom-0 inset-x-0 bg-green-600/80 text-white text-[10px] font-semibold text-center py-1">
+                        ✓ Đã ký · Bấm để ký lại
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-4 flex flex-col items-center gap-2 text-gray-400">
+                      <PenLine size={22} />
+                      <span className="text-xs text-center">Chữ ký người nhận <span className="text-red-400">*</span></span>
+                    </div>
+                  )}
+                </button>
               </div>
+
+              {/* Signature pad (inline, mở khi cần) */}
+              {showSigPad && (
+                <div className="border border-[#e5e7eb] rounded-xl overflow-hidden">
+                  <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-[#e5e7eb]">
+                    <span className="text-xs font-semibold text-gray-600">Ký tên người nhận hàng</span>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={clearSig}
+                        className="text-xs text-gray-500 hover:text-red-500 px-2 py-1 rounded hover:bg-red-50 transition-colors">
+                        Xóa
+                      </button>
+                      <button type="button" onClick={saveSig}
+                        className="text-xs font-semibold text-white bg-[var(--mia-primary)] px-3 py-1 rounded hover:opacity-90 transition-opacity">
+                        Lưu chữ ký
+                      </button>
+                    </div>
+                  </div>
+                  <canvas
+                    ref={canvasRef}
+                    width={400} height={160}
+                    className="w-full bg-white cursor-crosshair"
+                    style={{ touchAction: 'none', display: 'block' }}
+                    onMouseDown={onSigStart} onMouseMove={onSigMove} onMouseUp={onSigEnd} onMouseLeave={onSigEnd}
+                    onTouchStart={onSigStart} onTouchMove={onSigMove} onTouchEnd={onSigEnd}
+                  />
+                  <p className="text-[10px] text-gray-400 text-center py-1.5 bg-gray-50">
+                    Vẽ chữ ký của người nhận hàng, sau đó bấm <strong>Lưu chữ ký</strong>
+                  </p>
+                </div>
+              )}
+
+              {/* COD */}
               <div>
                 <label className="block text-xs font-semibold text-gray-500 mb-1.5">
                   <Banknote size={12} className="inline mr-1" />Thu COD
@@ -218,8 +390,19 @@ function PODModal({ delivery, onClose, onConfirm, onFail }: {
                 </div>
                 <p className="text-xs text-gray-400 mt-1">Giá trị COD đơn: {formatVND(delivery.cod_amount)}</p>
               </div>
-              <button onClick={() => { onConfirm(delivery.id, cod); onClose() }}
-                className="w-full py-2.5 bg-green-600 text-white text-sm font-semibold rounded-xl hover:bg-green-700 transition-all hover:scale-[1.02] active:scale-95">
+
+              {/* Checklist trạng thái */}
+              <div className="flex gap-3 text-xs">
+                <span className={`flex items-center gap-1 ${photoUrl ? 'text-green-600' : 'text-gray-400'}`}>
+                  {photoUrl ? <CheckCircle size={13} /> : <Camera size={13} />} Ảnh giao hàng
+                </span>
+                <span className={`flex items-center gap-1 ${sigUrl ? 'text-green-600' : 'text-gray-400'}`}>
+                  {sigUrl ? <CheckCircle size={13} /> : <PenLine size={13} />} Chữ ký
+                </span>
+              </div>
+
+              <button disabled={!canConfirm} onClick={() => { onConfirm(delivery.id, cod); onClose() }}
+                className="w-full py-3 bg-green-600 text-white text-sm font-semibold rounded-xl hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:scale-[1.02] active:scale-95">
                 <CheckCircle size={15} className="inline mr-2" />Xác nhận đã giao
               </button>
             </>
@@ -279,8 +462,12 @@ function SalesOrderAssignModal({ order, onClose, onDone }: {
         supabase.from('vehicles').select('id, plate, type, capacity_kg, status, warehouse_id').eq('tenant_id', tenantId).in('status', ['available', 'on_trip']).order('plate'),
         supabase.from('drivers').select('id, name, phone, rating, status, warehouse_id').eq('tenant_id', tenantId).in('status', ['available', 'on_trip']).order('name'),
       ])
-      setVehicles(((v.data ?? []) as any).filter((x: any) => matchWarehouse(x.warehouse_id, wid)))
-      setDrivers(((d.data ?? []) as any).filter((x: any) => matchWarehouse(x.warehouse_id, wid)))
+      const healed = await selfHealOnTrip(
+        ((v.data ?? []) as any).filter((x: any) => matchWarehouse(x.warehouse_id, wid)),
+        ((d.data ?? []) as any).filter((x: any) => matchWarehouse(x.warehouse_id, wid)),
+      )
+      setVehicles(healed.vehicles)
+      setDrivers(healed.drivers)
       setLoading(false)
     }
     load()
@@ -439,14 +626,25 @@ interface PickedSO {
   items: { name: string; quantity: number; unit: string }[]
 }
 
+interface PendingShipGroup {
+  vehicleId: string | null
+  driverId: string | null
+  vehiclePlate: string
+  driverName: string
+  deliveryIds: string[]
+  orderIds: string[]
+  orderCodes: string[]
+}
+
 function PickedOrdersPanel() {
   const { id: tenantId } = useTenant()
-  const [orders, setOrders]           = useState<PickedSO[]>([])
-  const [assignTarget, setAssignTarget] = useState<PickedSO | null>(null)
-  const [updating, setUpdating]       = useState<string | null>(null)
+  const [pickedOrders, setPickedOrders]     = useState<PickedSO[]>([])
+  const [dispatchGroups, setDispatchGroups] = useState<PendingShipGroup[]>([])
+  const [assignTarget, setAssignTarget]     = useState<PickedSO | null>(null)
+  const [dispatching, setDispatching]       = useState<string | null>(null) // vehicleId+driverId key
 
   const load = async () => {
-    const { data } = await supabase
+    const { data: soData } = await supabase
       .from('sales_orders')
       .select(`id, code, status, delivery_date,
         customer:customers(name),
@@ -454,89 +652,135 @@ function PickedOrdersPanel() {
       .eq('tenant_id', tenantId)
       .in('status', ['picked', 'pending_ship'])
       .order('created_at')
-    setOrders((data ?? []).map((o: any) => ({
+
+    const allOrders = (soData ?? []).map((o: any) => ({
       id: o.id, code: o.code, status: o.status,
       customer: o.customer?.name ?? '—',
       delivery_date: o.delivery_date ?? '',
       items: (o.items ?? []).map((it: any) => ({
         name: it.product?.name ?? '—', quantity: it.quantity, unit: it.product?.unit ?? '',
       })),
-    })))
+    }))
+
+    setPickedOrders(allOrders.filter((o: PickedSO) => o.status === 'picked'))
+
+    // Nhóm pending_ship theo tài xế+xe
+    const pendingShipIds = allOrders.filter((o: PickedSO) => o.status === 'pending_ship').map((o: PickedSO) => o.id)
+    if (pendingShipIds.length > 0) {
+      const { data: deliveries } = await supabase
+        .from('deliveries')
+        .select(`id, sales_order_id, vehicle_id, driver_id,
+          vehicle:vehicles(plate), driver:drivers(name)`)
+        .in('sales_order_id', pendingShipIds)
+        .in('status', ['pending', 'assigned'])
+
+      const groupMap = new Map<string, PendingShipGroup>()
+      for (const d of deliveries ?? []) {
+        const key = `${d.vehicle_id ?? 'none'}__${d.driver_id ?? 'none'}`
+        const so = allOrders.find((o: PickedSO) => o.id === d.sales_order_id)
+        if (!groupMap.has(key)) {
+          groupMap.set(key, {
+            vehicleId: d.vehicle_id ?? null,
+            driverId: d.driver_id ?? null,
+            vehiclePlate: (Array.isArray(d.vehicle) ? d.vehicle[0] : d.vehicle)?.plate ?? '—',
+            driverName: (Array.isArray(d.driver) ? d.driver[0] : d.driver)?.name ?? '—',
+            deliveryIds: [], orderIds: [], orderCodes: [],
+          })
+        }
+        const g = groupMap.get(key)!
+        g.deliveryIds.push(d.id)
+        g.orderIds.push(d.sales_order_id)
+        if (so) g.orderCodes.push(so.code)
+      }
+      setDispatchGroups(Array.from(groupMap.values()))
+    } else {
+      setDispatchGroups([])
+    }
   }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (!tenantId) return; load() }, [tenantId])
   useOrdersRealtime(load)
 
-  const startDelivering = async (orderId: string) => {
-    setUpdating(orderId)
-    await fetch(`/api/sales-orders/${orderId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'delivering' }),
-    })
-    // Cập nhật delivery record và vehicle/driver → on_trip
-    const { data: delivery } = await supabase
-      .from('deliveries')
-      .select('id, vehicle_id, driver_id')
-      .eq('sales_order_id', orderId)
-      .maybeSingle()
-    if (delivery) {
-      await supabase.from('deliveries').update({ status: 'delivering', actual_date: new Date().toISOString() }).eq('id', delivery.id)
-      if (delivery.vehicle_id) await supabase.from('vehicles').update({ status: 'on_trip' }).eq('id', delivery.vehicle_id)
-      if (delivery.driver_id) await supabase.from('drivers').update({ status: 'on_trip' }).eq('id', delivery.driver_id)
-    }
-    setUpdating(null)
+  // Dispatch cả nhóm xe+tài xế cùng lúc
+  const dispatchGroup = async (group: PendingShipGroup) => {
+    const key = `${group.vehicleId}__${group.driverId}`
+    setDispatching(key)
+    await Promise.all(
+      group.deliveryIds.map(id =>
+        fetch(`/api/deliveries/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            status: 'delivering',
+            vehicle_id: group.vehicleId ?? null,
+            driver_id:  group.driverId  ?? null,
+          }),
+        })
+      )
+    )
+    setDispatching(null)
     load()
   }
 
-  if (orders.length === 0) return null
+  if (pickedOrders.length === 0 && dispatchGroups.length === 0) return null
 
   return (
     <>
       <div className="bg-sky-50 border border-sky-200 rounded-xl p-4 mb-5">
         <div className="flex items-center gap-2 mb-3">
           <Package size={15} className="text-sky-600" />
-          <h3 className="text-sm font-bold text-sky-800">Đơn hàng sẵn sàng vận chuyển ({orders.length})</h3>
+          <h3 className="text-sm font-bold text-sky-800">
+            Đơn hàng sẵn sàng vận chuyển ({pickedOrders.length + dispatchGroups.reduce((s, g) => s + g.orderIds.length, 0)})
+          </h3>
           <span className="flex items-center gap-1 text-[10px] text-sky-500 ml-1">
             <span className="w-1.5 h-1.5 bg-sky-400 rounded-full animate-pulse" />Tự động cập nhật
           </span>
         </div>
-        <div className="space-y-2">
-          {orders.map(o => (
-            <div key={o.id} className="bg-white rounded-xl border border-sky-100 px-4 py-3 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4 min-w-0 flex-1">
-                <div className="shrink-0">
-                  <span className="text-xs font-bold text-[var(--mia-primary)]">{o.code}</span>
-                  <span className={`ml-2 inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium ${o.status === 'picked' ? 'bg-purple-100 text-purple-700' : 'bg-orange-100 text-orange-700'}`}>
-                    {o.status === 'picked' ? 'Chờ phân xe' : 'Đã phân xe — chờ xuất phát'}
-                  </span>
-                </div>
-                <span className="text-xs font-medium text-[#1e2a3a] truncate max-w-[160px]">{o.customer}</span>
-                <span className="text-xs text-gray-400 truncate max-w-[200px] hidden md:block">
-                  {o.items[0]?.name}{o.items.length > 1 ? ` +${o.items.length - 1} sp` : ''}
-                </span>
-                {o.delivery_date && (
-                  <span className="text-xs text-gray-400 whitespace-nowrap hidden lg:block">Giao: {formatDate(o.delivery_date)}</span>
-                )}
-              </div>
+
+        {/* Chờ phân xe — từng đơn */}
+        {pickedOrders.map(o => (
+          <div key={o.id} className="bg-white rounded-xl border border-sky-100 px-4 py-3 flex items-center justify-between gap-4 mb-2">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
               <div className="shrink-0">
-                {o.status === 'picked' && (
-                  <button onClick={() => setAssignTarget(o)}
-                    className="px-3 py-1.5 bg-[var(--mia-primary)] text-white text-xs font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all whitespace-nowrap">
-                    Phân xe giao hàng
-                  </button>
-                )}
-                {o.status === 'pending_ship' && (
-                  <button onClick={() => startDelivering(o.id)} disabled={updating === o.id}
-                    className="px-3 py-1.5 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 whitespace-nowrap">
-                    {updating === o.id ? '...' : 'Điều xe xuất phát'}
-                  </button>
-                )}
+                <span className="text-xs font-bold text-[var(--mia-primary)]">{o.code}</span>
+                <span className="ml-2 inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-100 text-purple-700">Chờ phân xe</span>
+              </div>
+              <span className="text-xs font-medium text-[#1e2a3a] truncate">{o.customer}</span>
+            </div>
+            <button onClick={() => setAssignTarget(o)}
+              className="shrink-0 px-3 py-1.5 bg-[var(--mia-primary)] text-white text-xs font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all whitespace-nowrap">
+              Phân xe giao hàng
+            </button>
+          </div>
+        ))}
+
+        {/* Đã phân xe — nhóm theo tài xế+xe */}
+        {dispatchGroups.map(group => {
+          const key = `${group.vehicleId}__${group.driverId}`
+          return (
+            <div key={key} className="bg-white rounded-xl border border-green-200 px-4 py-3 mb-2">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-bold text-green-700">🚛 {group.vehiclePlate}</span>
+                    <span className="text-xs text-gray-500">· {group.driverName}</span>
+                    <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] font-semibold rounded-full">
+                      {group.orderIds.length} đơn
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-gray-400">{group.orderCodes.join(' · ')}</p>
+                </div>
+                <button
+                  onClick={() => dispatchGroup(group)}
+                  disabled={dispatching === key}
+                  className="shrink-0 px-3 py-1.5 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 whitespace-nowrap">
+                  {dispatching === key ? '...' : 'Điều xe xuất phát'}
+                </button>
               </div>
             </div>
-          ))}
-        </div>
+          )
+        })}
       </div>
 
       {assignTarget && (
@@ -550,6 +794,220 @@ function PickedOrdersPanel() {
   )
 }
 
+// ─── Live Delivering Panel ─────────────────────────────────────────────────────
+interface LiveOrder {
+  id: string; code: string; orderCode: string; customer: string; codAmount: number
+}
+interface LiveGroup {
+  key: string
+  vehiclePlate: string; vehicleType: string; vehicleCapacity: number
+  driverName: string; driverPhone: string; driverRating: number | null
+  route: string
+  gps: { lat: number; lng: number; speedKmh: number | null; updatedAt: string } | null
+  orders: LiveOrder[]
+}
+
+function LiveDeliveringPanel({ tenantId, onOpenPOD, onOpenAssign }: {
+  tenantId: string
+  onOpenPOD: (id: string) => void
+  onOpenAssign: (id: string) => void
+}) {
+  const [groups, setGroups] = useState<LiveGroup[]>([])
+
+  const load = useCallback(async () => {
+    if (!tenantId) return
+    const [{ data: dvs }, { data: locs }] = await Promise.all([
+      supabase
+        .from('deliveries')
+        .select(`id, code, route, vehicle_id, driver_id,
+          sales_order:sales_orders(code, final_amount, customer:customers(name)),
+          vehicle:vehicles(plate, type, capacity_kg),
+          driver:drivers(name, phone, rating)`)
+        .eq('tenant_id', tenantId)
+        .eq('status', 'delivering')
+        .order('created_at', { ascending: false }),
+      supabase.from('driver_locations')
+        .select('driver_name, lat, lng, speed_kmh, updated_at')
+        .eq('tenant_id', tenantId),
+    ])
+
+    const locMap = new Map((locs ?? []).map((l: any) => [l.driver_name, l]))
+    const groupMap = new Map<string, LiveGroup>()
+
+    for (const d of dvs ?? []) {
+      const dName   = (d.driver as any)?.name ?? ''
+      const key     = `${d.vehicle_id ?? 'none'}__${d.driver_id ?? 'none'}`
+      if (!groupMap.has(key)) {
+        const loc = locMap.get(dName)
+        groupMap.set(key, {
+          key,
+          vehiclePlate:   (d.vehicle as any)?.plate ?? '',
+          vehicleType:    (d.vehicle as any)?.type ?? '',
+          vehicleCapacity: Number((d.vehicle as any)?.capacity_kg ?? 0),
+          driverName:     dName,
+          driverPhone:    (d.driver as any)?.phone ?? '',
+          driverRating:   (d.driver as any)?.rating ?? null,
+          route:          d.route ?? '',
+          gps: loc ? { lat: loc.lat, lng: loc.lng, speedKmh: loc.speed_kmh, updatedAt: loc.updated_at } : null,
+          orders: [],
+        })
+      }
+      groupMap.get(key)!.orders.push({
+        id: d.id, code: d.code,
+        orderCode: (d.sales_order as any)?.code ?? '',
+        customer:  (d.sales_order as any)?.customer?.name ?? '—',
+        codAmount: Number((d.sales_order as any)?.final_amount ?? 0),
+      })
+    }
+
+    setGroups(Array.from(groupMap.values()))
+  }, [tenantId])
+
+  useEffect(() => {
+    if (!tenantId) return
+    load()
+    const ch = supabase
+      .channel(`live-dvt-${tenantId}`)
+      .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'driver_locations' }, () => load())
+      .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'deliveries' }, () => load())
+      .subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [tenantId, load])
+
+  if (groups.length === 0) return null
+
+  const totalOrders = groups.reduce((s, g) => s + g.orders.length, 0)
+
+  return (
+    <div className="mb-5 space-y-1">
+      <div className="flex items-center gap-2 mb-2 px-1">
+        <span className="w-2 h-2 bg-sky-500 rounded-full animate-pulse" />
+        <h3 className="text-sm font-bold text-[#1e2a3a]">
+          Đang giao hàng · {groups.length} chuyến · {totalOrders} đơn
+        </h3>
+        <span className="text-[10px] text-sky-500">· Cập nhật tự động</span>
+      </div>
+
+      {groups.map(group => (
+        <div key={group.key} className="bg-white rounded-xl border border-[#e5e7eb] overflow-hidden shadow-sm">
+
+          {/* ── Header: xe + tài xế + GPS ── */}
+          <div className="bg-[#1e2a3a] px-4 py-3 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+              <Truck size={19} className="text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              {/* Xe */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {group.vehiclePlate
+                  ? <span className="text-sm font-bold text-white">{group.vehiclePlate}</span>
+                  : <span className="flex items-center gap-1 px-2 py-0.5 bg-orange-500/30 border border-orange-400/50 text-orange-300 text-[10px] font-semibold rounded-full">
+                      <AlertTriangle size={9} />Chưa gán xe
+                    </span>
+                }
+                {group.vehicleType && (
+                  <span className="px-1.5 py-0.5 bg-white/15 text-white/80 text-[10px] rounded-full">{group.vehicleType}</span>
+                )}
+                {group.vehicleCapacity > 0 && (
+                  <span className="text-[10px] text-white/50">{(group.vehicleCapacity / 1000).toFixed(1)} tấn</span>
+                )}
+                <span className="ml-auto shrink-0 px-2 py-0.5 bg-sky-500/70 text-white text-[10px] font-bold rounded-full">
+                  {group.orders.length} đơn
+                </span>
+              </div>
+              {/* Tài xế */}
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                {group.driverName
+                  ? <span className="text-xs text-white/80">{group.driverName}</span>
+                  : <span className="flex items-center gap-1 px-2 py-0.5 bg-orange-500/30 border border-orange-400/50 text-orange-300 text-[10px] font-semibold rounded-full">
+                      <AlertTriangle size={9} />Chưa có tài xế
+                    </span>
+                }
+                {group.driverPhone && (
+                  <a href={`tel:${group.driverPhone}`}
+                    className="text-[10px] text-sky-300 hover:text-sky-200 transition-colors">
+                    {group.driverPhone}
+                  </a>
+                )}
+                {group.driverRating !== null && (
+                  <span className="text-[10px] text-yellow-300 font-semibold">★ {group.driverRating}</span>
+                )}
+              </div>
+            </div>
+
+            {/* GPS */}
+            {group.gps ? (
+              <a
+                href={`https://maps.google.com/?q=${group.gps.lat},${group.gps.lng}`}
+                target="_blank" rel="noopener noreferrer"
+                className="shrink-0 flex flex-col items-end gap-0.5 hover:opacity-80 transition-opacity"
+              >
+                <span className="flex items-center gap-1 px-2 py-0.5 bg-green-500/25 border border-green-400/40 text-green-300 text-[10px] font-semibold rounded-full">
+                  <span className="w-1 h-1 bg-green-400 rounded-full animate-pulse" />GPS Live
+                </span>
+                <span className="text-[10px] text-white/60 mt-0.5">
+                  {group.gps.speedKmh !== null ? `${group.gps.speedKmh} km/h` : 'Đỗ xe'}
+                </span>
+                <span className="text-[9px] text-white/40">
+                  {new Date(group.gps.updatedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                </span>
+              </a>
+            ) : (
+              <div className="shrink-0 flex flex-col items-end gap-0.5">
+                <span className="px-2 py-0.5 bg-white/10 text-white/35 text-[10px] rounded-full">Không có GPS</span>
+              </div>
+            )}
+          </div>
+
+          {/* Tuyến đường */}
+          {group.route && (
+            <div className="px-4 py-1.5 bg-sky-50 border-b border-sky-100 flex items-center gap-1.5 text-[10px] text-sky-700 font-medium">
+              <MapPin size={9} className="shrink-0" />{group.route}
+            </div>
+          )}
+
+          {/* Danh sách đơn */}
+          <div className="divide-y divide-[#f5f7fa]">
+            {group.orders.map((order, idx) => (
+              <div key={order.id} className="flex items-center justify-between px-4 py-2.5 gap-3 hover:bg-gray-50/60 transition-colors">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="w-5 h-5 shrink-0 rounded-full bg-[#1e2a3a]/10 text-[#1e2a3a] text-[10px] font-bold flex items-center justify-center">
+                    {idx + 1}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-bold text-[var(--mia-primary)]">{order.code}</span>
+                      {order.orderCode && <span className="text-[9px] text-gray-400">{order.orderCode}</span>}
+                    </div>
+                    <p className="text-xs font-medium text-[#1e2a3a] truncate">{order.customer}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {order.codAmount > 0 && (
+                    <span className="text-[10px] font-semibold text-green-700 whitespace-nowrap">{formatVND(order.codAmount)}</span>
+                  )}
+                  {(!group.vehiclePlate || !group.driverName) && (
+                    <button
+                      onClick={() => onOpenAssign(order.id)}
+                      className="px-2.5 py-1 bg-orange-500 text-white text-[10px] font-semibold rounded-lg hover:bg-orange-600 hover:scale-[1.02] active:scale-95 transition-all whitespace-nowrap">
+                      Gán xe
+                    </button>
+                  )}
+                  <button
+                    onClick={() => onOpenPOD(order.id)}
+                    className="px-2.5 py-1 bg-green-600 text-white text-[10px] font-semibold rounded-lg hover:bg-green-700 hover:scale-[1.02] active:scale-95 transition-all whitespace-nowrap">
+                    POD
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function DonVanChuyenPage() {
   const { id: tenantId } = useTenant()
@@ -559,18 +1017,32 @@ export default function DonVanChuyenPage() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [assignModal, setAssignModal] = useState<Delivery | null>(null)
   const [podModal, setPodModal] = useState<Delivery | null>(null)
+  const [currentRole, setCurrentRole]   = useState<string | null>(null)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [driverVehicleId, setDriverVehicleId] = useState<string | null>(null)
 
+  const loadDeliveries = async (role?: string | null, userId?: string | null, vehicleId?: string | null) => {
+    if (!tenantId) return
+    const r = role  ?? currentRole
+    const u = userId ?? currentUserId
+    const v = vehicleId ?? driverVehicleId
 
-  const loadDeliveries = async () => {
-    const { data } = await supabase
+    let q = supabase
       .from('deliveries')
-      .select(`id, code, route, planned_date, distance_km, freight_cost, carrier_type, status, warehouse_id,
+      .select(`id, code, route, planned_date, distance_km, freight_cost, carrier_type, status, warehouse_id, driver_id, vehicle_id,
         sales_order:sales_orders(id, code, final_amount, customer:customers(name)),
         vehicle:vehicles(id, plate, type, capacity_kg),
         driver:drivers(id, name, phone, rating)`)
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false })
-      .limit(200)
+      .limit(500)
+
+    // Driver: chỉ thấy đơn của mình (theo driver_id hoặc vehicle_id)
+    if (r === 'driver' && u) {
+      q = v ? (q as any).or(`driver_id.eq.${u},vehicle_id.eq.${v}`) : q.eq('driver_id', u)
+    }
+
+    const { data } = await q
     setDeliveries((data ?? []).map((d: any) => ({
       id: d.id, code: d.code,
       orderId: d.sales_order?.id ?? '',
@@ -581,8 +1053,8 @@ export default function DonVanChuyenPage() {
       distance_km: Number(d.distance_km ?? 0),
       freight_cost: Number(d.freight_cost ?? 0),
       carrier_type: (d.carrier_type ?? 'own') as 'own' | 'ghn' | 'ghtk',
-      vehicle_id: d.vehicle?.id ?? null,
-      driver_id: d.driver?.id ?? null,
+      vehicle_id: d.vehicle?.id ?? d.vehicle_id ?? null,
+      driver_id: d.driver?.id ?? d.driver_id ?? null,
       vehicle_plate: d.vehicle?.plate ?? '',
       driver_name: d.driver?.name ?? '',
       status: d.status as Delivery['status'],
@@ -593,8 +1065,34 @@ export default function DonVanChuyenPage() {
     setLoading(false)
   }
 
+  useEffect(() => {
+    if (!tenantId) return
+    let cancelled = false
+    ;(async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (cancelled) return
+      const userId = session?.user?.id ?? null
+      // Đọc role từ DB thay vì user_metadata để tránh race condition với useAuth
+      let role: string | null = session?.user?.user_metadata?.role ?? null
+      if (userId) {
+        const { data: profile } = await supabase.from('users').select('role').eq('id', userId).maybeSingle()
+        if (profile?.role) role = profile.role
+      }
+      if (cancelled) return
+      setCurrentRole(role)
+      setCurrentUserId(userId)
+      let vehicleId: string | null = null
+      if (role === 'driver' && userId) {
+        const { data } = await supabase.from('drivers').select('vehicle_id').eq('id', userId).maybeSingle()
+        vehicleId = data?.vehicle_id ?? null
+        setDriverVehicleId(vehicleId)
+      }
+      if (!cancelled) loadDeliveries(role, userId, vehicleId)
+    })()
+    return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { if (!tenantId) return; loadDeliveries() }, [tenantId])
+  }, [tenantId])
+
   useOrdersRealtime(loadDeliveries, ['sales_orders', 'deliveries'])
   useAutoRefresh(loadDeliveries, 5_000)
 
@@ -605,10 +1103,15 @@ export default function DonVanChuyenPage() {
   })
 
   const handleAssign = async (id: string, vehicle_id: string, driver_id: string, route: string) => {
+    const current = deliveries.find(d => d.id === id)
+    // Nếu đơn đang giao thì chỉ cập nhật xe/tài xế, không đổi status về assigned
+    const body = current?.status === 'delivering'
+      ? { vehicle_id, driver_id, route }
+      : { vehicle_id, driver_id, route, status: 'assigned' }
     await fetch(`/api/deliveries/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ vehicle_id, driver_id, route, status: 'assigned' }),
+      body: JSON.stringify(body),
     })
     loadDeliveries()
   }
@@ -616,14 +1119,14 @@ export default function DonVanChuyenPage() {
   const patchDelivery = (id: string, body: object) =>
     fetch(`/api/deliveries/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 
-  const handleConfirmDelivery = async (id: string, _cod: number) => {
+  const handleConfirmDelivery = async (id: string, cod: number) => {
     setDeliveries(prev => prev.map(d => d.id === id ? { ...d, status: 'delivered' } : d))
-    await patchDelivery(id, { status: 'delivered' })
+    await patchDelivery(id, { status: 'delivered', cod_collected: cod })
   }
 
-  const handleFailDelivery = async (id: string, _reason: string) => {
+  const handleFailDelivery = async (id: string, reason: string) => {
     setDeliveries(prev => prev.map(d => d.id === id ? { ...d, status: 'failed' } : d))
-    await patchDelivery(id, { status: 'failed' })
+    await patchDelivery(id, { status: 'failed', fail_reason: reason })
   }
 
   const handleStartDelivery = async (id: string) => {
@@ -631,20 +1134,40 @@ export default function DonVanChuyenPage() {
     await patchDelivery(id, { status: 'delivering' })
   }
 
+  const isDriver = currentRole === 'driver'
+
   return (
     <div>
-      <PageHeader title="Đơn vận chuyển" subtitle="Phân tuyến xe, theo dõi và xác nhận giao hàng">
-        <button onClick={loadDeliveries}
+      <PageHeader
+        title="Đơn vận chuyển"
+        subtitle={isDriver ? 'Lịch sử các chuyến giao hàng của bạn' : 'Phân tuyến xe, theo dõi và xác nhận giao hàng'}>
+        <button onClick={() => loadDeliveries()}
           className="flex items-center gap-2 px-3 py-2 border border-[#e5e7eb] text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 hover:scale-[1.02] active:scale-95 transition-all">
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Làm mới
         </button>
-        <ExportButton module="logistics" />
-        <button className="flex items-center gap-2 px-4 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all">
-          <Plus size={15} /> Tạo đơn vận chuyển
-        </button>
+        {!isDriver && <ExportButton module="logistics" />}
+        {!isDriver && (
+          <button className="flex items-center gap-2 px-4 py-2 bg-[var(--mia-primary)] text-white text-sm font-semibold rounded-lg hover:opacity-90 hover:scale-[1.02] active:scale-95 transition-all">
+            <Plus size={15} /> Tạo đơn vận chuyển
+          </button>
+        )}
       </PageHeader>
 
-      <PickedOrdersPanel />
+      {!isDriver && <PickedOrdersPanel />}
+
+      {!isDriver && (
+        <LiveDeliveringPanel
+          tenantId={tenantId}
+          onOpenPOD={id => {
+            const d = deliveries.find(x => x.id === id)
+            if (d) setPodModal(d)
+          }}
+          onOpenAssign={id => {
+            const d = deliveries.find(x => x.id === id)
+            if (d) setAssignModal(d)
+          }}
+        />
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
         {[
@@ -753,6 +1276,25 @@ export default function DonVanChuyenPage() {
                             <button onClick={() => setAssignModal(d)}
                               className="px-3 py-1.5 border border-[#e5e7eb] text-gray-600 text-xs font-medium rounded-lg hover:bg-gray-50 transition-colors whitespace-nowrap">
                               Đổi xe
+                            </button>
+                          </>
+                        )}
+                        {d.status === 'delivering' && (
+                          <>
+                            {!d.vehicle_plate ? (
+                              <button onClick={() => setAssignModal(d)}
+                                className="px-3 py-1.5 bg-orange-500 text-white text-xs font-semibold rounded-lg hover:bg-orange-600 hover:scale-[1.02] active:scale-95 transition-all whitespace-nowrap">
+                                Gán xe/tài xế
+                              </button>
+                            ) : (
+                              <button onClick={() => setAssignModal(d)}
+                                className="px-3 py-1.5 border border-[#e5e7eb] text-gray-600 text-xs font-medium rounded-lg hover:bg-gray-50 transition-colors whitespace-nowrap">
+                                Đổi xe
+                              </button>
+                            )}
+                            <button onClick={() => setPodModal(d)}
+                              className="px-3 py-1.5 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 hover:scale-[1.02] active:scale-95 transition-all whitespace-nowrap">
+                              Xác nhận POD
                             </button>
                           </>
                         )}

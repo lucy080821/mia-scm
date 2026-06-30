@@ -12,6 +12,7 @@ import { calcDaysOfStock, calcDateElapsedPct, getAlertLevel } from '@/lib/stock-
 import { calcSafetyStock, calcROP, calcEOQ, classifyABC, AbcClass } from '@/lib/inventory-formulas'
 import { supabase } from '@/lib/supabase'
 import { useTenant } from '@/contexts/TenantContext'
+import { useUnits } from '@/hooks/useUnits'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -148,6 +149,7 @@ function RopCell({ stock, rop, eoq, unit }: { stock: number; rop: number; eoq: n
 function ProductFormModal({ product, onClose, onSave }: {
   product?: Product; onClose: () => void; onSave: (p: Product) => void
 }) {
+  const units = useUnits()
   const [form, setForm] = useState<Omit<Product, 'id' | 'stock' | 'created_at' | 'abc_class' | 'safety_stock' | 'rop' | 'eoq'>>(
     product
       ? {
@@ -200,7 +202,7 @@ function ProductFormModal({ product, onClose, onSave }: {
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Đơn vị tính <span className="text-red-400">*</span></label>
             <select value={form.unit} onChange={e => set('unit', e.target.value)}
               className="w-full h-9 px-3 text-sm border border-[#e5e7eb] rounded-lg outline-none focus:border-[var(--mia-primary)]">
-              {['L', 'kg', 'thùng', 'cái', 'gói', 'hộp'].map(u => <option key={u}>{u}</option>)}
+              {units.map(u => <option key={u}>{u}</option>)}
             </select>
           </div>
           <div className="col-span-2">

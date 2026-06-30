@@ -44,24 +44,51 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ dri
     }
     const allDriverIds = [...new Set([driverId, ...sameNameDriverIds])]
 
-    // Đơn đang active: không lọc theo ngày (tránh mất đơn tạo hôm qua chưa giao xong)
-    const { data: activeDeliveries } = await supabaseAdmin
+    // Lấy vehicle_id của tài xế (để bắt deliveries gán theo xe, không phải theo driver_id)
+    const { data: driverRecord } = await supabaseAdmin
+      .from('drivers')
+      .select('vehicle_id')
+      .in('id', allDriverIds)
+      .not('vehicle_id', 'is', null)
+      .limit(5)
+    const vehicleIds = (driverRecord ?? []).map((d: any) => d.vehicle_id as string).filter(Boolean)
+
+    // Đơn đang active: tìm theo driver_id HOẶC vehicle_id (bắt deliveries cũ chưa có driver_id)
+    const activeFilter = supabaseAdmin
       .from('deliveries')
       .select(selectFields)
-      .in('driver_id', allDriverIds)
       .in('status', ['pending', 'assigned', 'picking', 'delivering'])
       .order('planned_date')
 
+    const { data: activeDeliveries } = vehicleIds.length > 0
+      ? await activeFilter.or(`driver_id.in.(${allDriverIds.join(',')}),vehicle_id.in.(${vehicleIds.join(',')})`)
+      : await activeFilter.in('driver_id', allDriverIds)
+
+    // Cập nhật driver_id cho deliveries thiếu (không block response)
+    if (vehicleIds.length > 0 && activeDeliveries) {
+      const missingDriverId = activeDeliveries.filter((d: any) => !d.driver_id && vehicleIds.includes(d.vehicle_id))
+      if (missingDriverId.length > 0) {
+        supabaseAdmin.from('deliveries')
+          .update({ driver_id: driverId })
+          .in('id', missingDriverId.map((d: any) => d.id))
+          .then(() => {})
+      }
+    }
+
     // Đơn đã hoàn thành/thất bại: chỉ lấy của hôm nay
-    const { data: completedDeliveries } = await supabaseAdmin
+    const completedFilter = supabaseAdmin
       .from('deliveries')
       .select(selectFields)
-      .in('driver_id', allDriverIds)
       .in('status', ['delivered', 'failed'])
       .gte('planned_date', today.toISOString())
       .order('planned_date')
 
+    const { data: completedDeliveries } = vehicleIds.length > 0
+      ? await completedFilter.or(`driver_id.in.(${allDriverIds.join(',')}),vehicle_id.in.(${vehicleIds.join(',')})`)
+      : await completedFilter.in('driver_id', allDriverIds)
+
     const deliveries = [...(activeDeliveries ?? []), ...(completedDeliveries ?? [])]
+      .filter((d, i, arr) => arr.findIndex(x => x.id === d.id) === i) // dedup
       .sort((a, b) => new Date(a.planned_date ?? 0).getTime() - new Date(b.planned_date ?? 0).getTime())
 
     const stops = (deliveries ?? []).map((d: any, i: number) => {
@@ -85,34 +112,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ dri
       }
     })
 
-    // Debug: tìm tất cả deliveries thuộc driver này (bỏ qua filter status)
-    const { data: allDeliveriesForDriver } = await supabaseAdmin
-      .from('deliveries')
-      .select('id, code, status, driver_id, planned_date')
-      .in('driver_id', allDriverIds)
-      .limit(20)
-
-    // Debug: lấy sample deliveries để xem driver_id thực tế trong DB
-    const { data: sampleDeliveries } = await supabaseAdmin
-      .from('deliveries')
-      .select('id, code, status, driver_id')
-      .not('driver_id', 'is', null)
-      .limit(5)
-
     return NextResponse.json({
       driver: driverName ?? 'Tài xế',
       vehicle: vehiclePlate,
       stops,
       date: today.toISOString().slice(0, 10),
-      _debug: {
-        driverId,
-        allDriverIds,
-        activeCount: activeDeliveries?.length ?? 0,
-        completedCount: completedDeliveries?.length ?? 0,
-        allDeliveriesForDriver,
-        sampleDeliveries,
-        todayIso: today.toISOString(),
-      },
     })
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 })

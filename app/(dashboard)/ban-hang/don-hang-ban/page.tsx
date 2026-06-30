@@ -14,6 +14,7 @@ import { supabase } from '@/lib/supabase'
 import { useTenant } from '@/contexts/TenantContext'
 import { useOrdersRealtime } from '@/hooks/useOrdersRealtime'
 import { useAutoRefresh } from '@/hooks/useAutoRefresh'
+import WorkflowBanner from '@/components/workflow/WorkflowBanner'
 
 interface OrderItem { product_id: string; name: string; unit: string; quantity: number; unit_price: number; quy_cach?: string }
 interface OrderPendingAction {
@@ -1111,7 +1112,7 @@ export default function SalesOrdersPage() {
       const res = await fetch(`/api/sales-orders/${orderId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: to }),
+        body: JSON.stringify({ status: to, ...(warehouseId ? { warehouse_id: warehouseId } : {}) }),
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }))
@@ -1121,22 +1122,8 @@ export default function SalesOrdersPage() {
         return
       }
 
-      if (to === 'confirmed' && warehouseId) {
-        const today = new Date()
-        const dateStr = `${today.getFullYear().toString().slice(2)}${String(today.getMonth()+1).padStart(2,'0')}${String(today.getDate()).padStart(2,'0')}`
-        const code = `PX-${dateStr}-${String(Math.floor(Math.random()*900)+100)}`
-        const { error } = await supabase.from('stock_issues').insert({
-          code,
-          sales_order_id: orderId,
-          warehouse_id: warehouseId,
-          issue_date: today.toISOString().slice(0, 10),
-          status: 'pending',
-          created_by: user?.id ?? null,
-        })
-        if (!error) showToast(`✅ Đã duyệt đơn và tạo phiếu xuất kho ${code}`)
-        else showToast('✅ Đã duyệt đơn (phiếu xuất kho tạo thất bại)')
-      } else if (to === 'confirmed') {
-        showToast('✅ Đã duyệt đơn')
+      if (to === 'confirmed') {
+        showToast(warehouseId ? '✅ Đã duyệt đơn — phiếu xuất kho đã được tạo tự động' : '✅ Đã duyệt đơn')
       }
     } catch {
       setOrders(prevOrders)
@@ -1166,6 +1153,12 @@ export default function SalesOrdersPage() {
             <Button onClick={() => setShowCreate(true)}><Plus size={14} />Tạo đơn hàng</Button>
           </>
         }
+      />
+
+      <WorkflowBanner
+        count={orders.filter(o => o.status === 'new').length}
+        label="đơn mới chưa xác nhận"
+        hint="Bấm vào đơn → chọn 'Xác nhận đơn' để duyệt"
       />
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-5">

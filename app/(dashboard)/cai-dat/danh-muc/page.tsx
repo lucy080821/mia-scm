@@ -418,20 +418,45 @@ function GroupsTab() {
 
 // ─── Units tab ────────────────────────────────────────────────────────────────
 
+const DEFAULT_UNITS_FALLBACK = ['Thùng', 'Cái', 'Gói', 'Hộp', 'Kg', 'Lít', 'Chai', 'Bao']
+
 function UnitsTab() {
-  const { id: tenantId } = useTenant()
   const [units, setUnits]     = useState<string[]>([])
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving]   = useState(false)
+  const [newUnit, setNewUnit] = useState('')
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (!tenantId) return
-    supabase.from('products').select('unit').eq('tenant_id', tenantId).then(({ data }) => {
-      const distinct = [...new Set((data ?? []).map(p => p.unit).filter(Boolean))].sort()
-      setUnits(distinct)
-      setLoading(false)
+    import('@/lib/business-settings').then(({ loadBusinessSettingsAsync }) => {
+      loadBusinessSettingsAsync().then(s => {
+        setUnits(s.units && s.units.length > 0 ? s.units : DEFAULT_UNITS_FALLBACK)
+        setLoading(false)
+      })
     })
-  }, [tenantId])
+  }, [])
+
+  async function persist(next: string[]) {
+    setSaving(true)
+    const { loadBusinessSettingsAsync, saveBusinessSettingsAsync } = await import('@/lib/business-settings')
+    const current = await loadBusinessSettingsAsync()
+    saveBusinessSettingsAsync({ ...current, units: next })
+    setSaving(false)
+  }
+
+  function handleAdd() {
+    const trimmed = newUnit.trim()
+    if (!trimmed || units.includes(trimmed)) return
+    const next = [...units, trimmed]
+    setUnits(next)
+    setNewUnit('')
+    persist(next)
+  }
+
+  function handleDelete(u: string) {
+    const next = units.filter(x => x !== u)
+    setUnits(next)
+    persist(next)
+  }
 
   return (
     <div className="bg-white rounded-xl border border-[#e5e7eb] p-5">
@@ -439,19 +464,46 @@ function UnitsTab() {
         <h3 className="text-sm font-semibold text-[#1e2a3a]">
           Đơn vị tính {!loading && `(${units.length})`}
         </h3>
-        <span className="text-xs text-gray-400">Lấy từ danh sách sản phẩm</span>
+        {saving && <Loader2 size={14} className="animate-spin text-gray-400" />}
       </div>
+
+      <div className="flex gap-2 mb-4">
+        <input
+          type="text"
+          className="flex-1 border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+          placeholder="Thêm đơn vị tính mới..."
+          value={newUnit}
+          onChange={e => setNewUnit(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleAdd()}
+        />
+        <button
+          onClick={handleAdd}
+          disabled={!newUnit.trim()}
+          className="flex items-center gap-1 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-40"
+        >
+          <Plus size={14} />
+          Thêm
+        </button>
+      </div>
+
       {loading ? (
         <div className="flex items-center justify-center py-10 text-gray-400">
           <Loader2 size={20} className="animate-spin" />
         </div>
       ) : units.length === 0 ? (
-        <p className="text-xs text-gray-400 py-8 text-center">Chưa có sản phẩm nào</p>
+        <p className="text-xs text-gray-400 py-8 text-center">Chưa có đơn vị tính nào</p>
       ) : (
         <div className="flex flex-wrap gap-2">
           {units.map(u => (
-            <div key={u} className="px-3 py-2 bg-gray-50 border border-[#e5e7eb] rounded-lg">
+            <div key={u} className="flex items-center gap-1 px-3 py-2 bg-gray-50 border border-[#e5e7eb] rounded-lg">
               <span className="text-sm font-medium text-[#1e2a3a]">{u}</span>
+              <button
+                onClick={() => handleDelete(u)}
+                className="ml-1 text-gray-400 hover:text-red-500"
+                title="Xóa"
+              >
+                <X size={12} />
+              </button>
             </div>
           ))}
         </div>

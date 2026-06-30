@@ -6,6 +6,7 @@ import { formatVND, formatDate } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
 import { useTenant } from '@/contexts/TenantContext'
+import { useUnits } from '@/hooks/useUnits'
 
 interface QuoteItem { id: number; name: string; unit: string; qty: number; price: number; discount: number }
 interface PendingAction {
@@ -24,7 +25,7 @@ type ProductOption  = { id: string; name: string; unit: string; price: number }
 
 type DraftItem = { id: number; name: string; unit: string; qty: number; price: number; discount: number }
 let itemIdSeq = 1
-const emptyItem = (): DraftItem => ({ id: itemIdSeq++, name: '', unit: 'thùng', qty: 1, price: 0, discount: 0 })
+const emptyItem = (): DraftItem => ({ id: itemIdSeq++, name: '', unit: 'Thùng', qty: 1, price: 0, discount: 0 })
 
 // ─── Create Quote Modal ───────────────────────────────────────────────────────
 function CreateQuoteModal({ onClose, onCreate, customers, products }: {
@@ -287,7 +288,7 @@ function EditQuoteModal({ quote, onClose, onSave, customers, products }: {
   const [date, setDate]             = useState(quote.date)
   const [expiry, setExpiry]         = useState(quote.expiry)
   const [note, setNote]             = useState(quote.note)
-  const [items, setItems]           = useState<QuoteItem[]>(quote.itemList.length ? quote.itemList : [{ id: 1, name: '', unit: 'thùng', qty: 1, price: 0, discount: 0 }])
+  const [items, setItems]           = useState<QuoteItem[]>(quote.itemList.length ? quote.itemList : [{ id: 1, name: '', unit: 'Thùng', qty: 1, price: 0, discount: 0 }])
 
   const setItemField = (id: number, field: keyof QuoteItem, val: string | number) =>
     setItems(prev => prev.map(it => it.id === id ? { ...it, [field]: val } : it))
@@ -341,7 +342,7 @@ function EditQuoteModal({ quote, onClose, onSave, customers, products }: {
           <div>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xs font-semibold text-gray-500 uppercase">Sản phẩm</h3>
-              <button onClick={() => setItems(prev => [...prev, { id: Date.now(), name: '', unit: 'thùng', qty: 1, price: 0, discount: 0 }])}
+              <button onClick={() => setItems(prev => [...prev, { id: Date.now(), name: '', unit: 'Thùng', qty: 1, price: 0, discount: 0 }])}
                 className="flex items-center gap-1 px-2.5 py-1 bg-[var(--mia-primary)]/10 text-[var(--mia-primary)] rounded-lg text-xs font-semibold hover:bg-[var(--mia-primary)]/20 transition-colors">
                 <Plus size={12} /> Thêm dòng
               </button>
@@ -363,7 +364,7 @@ function EditQuoteModal({ quote, onClose, onSave, customers, products }: {
                           {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                         </select>
                       </td>
-                      <td className="px-3 py-2 w-16"><input value={it.unit} onChange={e => setItemField(it.id,'unit',e.target.value)} className="w-14 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none text-center" /></td>
+                      <td className="px-3 py-2 w-20"><select value={it.unit} onChange={e => setItemField(it.id,'unit',e.target.value)} className="w-18 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none bg-white">{units.map(u => <option key={u}>{u}</option>)}</select></td>
                       <td className="px-3 py-2 w-20"><input type="number" min={1} value={it.qty||''} onChange={e => setItemField(it.id,'qty',+e.target.value)} className="w-16 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none text-center" /></td>
                       <td className="px-3 py-2 w-32"><input type="number" min={0} value={it.price||''} onChange={e => setItemField(it.id,'price',+e.target.value)} className="w-28 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none" /></td>
                       <td className="px-3 py-2 w-16"><input type="number" min={0} max={100} value={it.discount||''} onChange={e => setItemField(it.id,'discount',+e.target.value)} className="w-12 h-8 px-2 text-xs border border-[#e5e7eb] rounded-lg outline-none text-center" /></td>
@@ -549,6 +550,7 @@ export default function BaoGiaPage() {
   const { id: tenantId } = useTenant()
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
+  const units = useUnits()
   const [quotes,     setQuotes]     = useState<Quote[]>([])
   const [customers,  setCustomers]  = useState<CustomerOption[]>([])
   const [products,   setProducts]   = useState<ProductOption[]>([])

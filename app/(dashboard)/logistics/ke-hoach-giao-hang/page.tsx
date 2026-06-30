@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase'
 import { useTenant } from '@/contexts/TenantContext'
 import { useOrdersRealtime } from '@/hooks/useOrdersRealtime'
 import { useAutoRefresh } from '@/hooks/useAutoRefresh'
+import WorkflowBanner from '@/components/workflow/WorkflowBanner'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface DeliveryStop {
@@ -86,25 +87,22 @@ function CreateRouteModal({
 
   useEffect(() => {
     if (!tenantId) return
-    supabase.from('vehicles')
-      .select('id, plate, type, driver_id, drivers:driver_id(id, name, phone)')
-      .eq('tenant_id', tenantId)
-      .in('status', ['available', 'on_trip'])
-      .order('plate')
-      .limit(50)
-      .then(({ data }) => {
-        setVehicles((data ?? []).map((v: any) => {
-          const d = Array.isArray(v.drivers) ? v.drivers[0] : v.drivers
-          return {
-            id: v.id,
-            plate: v.plate,
-            type: v.type ?? '—',
-            driver_id: d?.id ?? null,
-            driver_name: d?.name ?? '—',
-            driver_phone: d?.phone ?? '',
-          }
-        }))
-      })
+    // vehicles không có driver_id — join ngược từ drivers.vehicle_id
+    Promise.all([
+      supabase.from('vehicles').select('id, plate, type').eq('tenant_id', tenantId).neq('status', 'inactive').order('plate').limit(50),
+      supabase.from('drivers').select('id, name, phone, vehicle_id').eq('tenant_id', tenantId),
+    ]).then(([vehRes, drvRes]) => {
+      const driverByVehicle: Record<string, any> = {}
+      ;(drvRes.data ?? []).forEach((d: any) => { if (d.vehicle_id) driverByVehicle[d.vehicle_id] = d })
+      setVehicles((vehRes.data ?? []).map((v: any) => ({
+        id: v.id,
+        plate: v.plate,
+        type: v.type ?? '—',
+        driver_id: driverByVehicle[v.id]?.id ?? null,
+        driver_name: driverByVehicle[v.id]?.name ?? 'Chưa có tài xế',
+        driver_phone: driverByVehicle[v.id]?.phone ?? '',
+      })))
+    })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId])
 
@@ -287,6 +285,63 @@ function AddToRouteModal({
   )
 }
 
+// ─── Live Location Display (manager side) ────────────────────────────────────
+function LiveLocationDisplay({ driverName }: { driverName: string }) {
+  const { id: tenantId } = useTenant()
+  const [loc, setLoc] = useState<{ lat: number; lng: number; speedKmh: number | null; updatedAt: string } | null>(null)
+
+  useEffect(() => {
+    if (!driverName || driverName === '—' || !tenantId) return
+
+    const load = async () => {
+      const { data } = await supabase
+        .from('driver_locations')
+        .select('lat, lng, speed_kmh, updated_at')
+        .eq('driver_name', driverName)
+        .eq('tenant_id', tenantId)
+        .maybeSingle()
+      setLoc(data ? { lat: data.lat, lng: data.lng, speedKmh: data.speed_kmh, updatedAt: data.updated_at } : null)
+    }
+
+    load()
+    const ch = supabase
+      .channel(`loc-${driverName}-${Math.random().toString(36).slice(2)}`)
+      .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'driver_locations' }, () => load())
+      .subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [driverName, tenantId])
+
+  if (!loc) {
+    return (
+      <div className="mt-2 flex items-center gap-1.5 text-[10px] text-gray-400 px-1">
+        <span className="w-1.5 h-1.5 rounded-full bg-gray-300 shrink-0" />
+        Tài xế chưa chia sẻ vị trí GPS
+      </div>
+    )
+  }
+
+  return (
+    <a
+      href={`https://maps.google.com/?q=${loc.lat},${loc.lng}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="mt-2 flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 hover:bg-green-100 px-3 py-2 transition-colors"
+    >
+      <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse shrink-0" />
+      <Navigation size={10} className="text-green-600 shrink-0" />
+      <span className="text-[10px] font-semibold text-green-700">
+        {loc.speedKmh !== null ? `${loc.speedKmh} km/h` : 'Đỗ xe'}
+      </span>
+      <span className="text-[10px] text-green-600">
+        {loc.lat.toFixed(4)}, {loc.lng.toFixed(4)}
+      </span>
+      <span className="text-[10px] text-gray-400 ml-auto whitespace-nowrap">
+        {new Date(loc.updatedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+      </span>
+    </a>
+  )
+}
+
 // ─── Driver Tracking Button ───────────────────────────────────────────────────
 function DriverTrackingButton({ route }: { route: RouteGroup }) {
   const { id: tenantId } = useTenant()
@@ -418,7 +473,10 @@ function RouteCard({ route, onDispatch }: { route: RouteGroup; onDispatch: (id: 
         </div>
 
         {route.status === 'dispatched' && (
-          <DriverTrackingButton route={route} />
+          <>
+            <LiveLocationDisplay driverName={route.driver_name} />
+            <DriverTrackingButton route={route} />
+          </>
         )}
       </div>
 
@@ -455,12 +513,269 @@ function RouteCard({ route, onDispatch }: { route: RouteGroup; onDispatch: (id: 
   )
 }
 
+// ─── Driver View ─────────────────────────────────────────────────────────────
+const FAIL_REASONS_DV = ['Khách vắng mặt', 'Sai địa chỉ', 'Khách từ chối nhận', 'Hàng bị hư hỏng', 'Khác']
+
+function DriverView({ userId }: { userId: string }) {
+  useTenant() // đảm bảo tenant context được load, CSS var --mia-primary được set
+  const [pending, setPending]       = useState<any[]>([])  // chưa giao
+  const [delivered, setDelivered]   = useState<any[]>([])  // đã giao hôm nay
+  const [loading, setLoading]       = useState(true)
+  const [confirmId, setConfirmId]   = useState<string | null>(null)
+  const [failId, setFailId]         = useState<string | null>(null)
+  const [failReason, setFailReason] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  const selectFields = `id, code, status, cod_collected, driver_id, vehicle_id,
+    sales_order:sales_orders(
+      code, final_amount,
+      customer:customers(name, address, phone),
+      items:sales_order_items(quantity, product:products(name, unit))
+    )`
+
+  const load = async () => {
+    const todayStart = new Date(); todayStart.setHours(0,0,0,0)
+
+    // vehicles không có cột driver_id — dùng drivers.vehicle_id là nguồn sự thật
+    const { data: driverRecord } = await supabase
+      .from('drivers').select('vehicle_id').eq('id', userId).maybeSingle()
+    const vehicleId = driverRecord?.vehicle_id ?? null
+
+    // Query deliveries theo driver_id HOẶC vehicle_id (bắt cả trường hợp dispatch chỉ lưu vehicle_id)
+    const buildFilter = (q: any) => {
+      if (vehicleId) return q.or(`driver_id.eq.${userId},vehicle_id.eq.${vehicleId}`)
+      return q.eq('driver_id', userId)
+    }
+
+    const [pendingRes, deliveredRes] = await Promise.all([
+      buildFilter(supabase.from('deliveries').select(selectFields))
+        .in('status', ['pending', 'assigned', 'delivering'])
+        .order('planned_date'),
+      buildFilter(supabase.from('deliveries').select(selectFields))
+        .eq('status', 'delivered')
+        .gte('actual_date', todayStart.toISOString())
+        .order('actual_date', { ascending: false }),
+    ])
+
+    // Dedup (phòng trường hợp trùng từ 2 điều kiện)
+    const dedup = (arr: any[]) => arr.filter((d, i, a) => a.findIndex(x => x.id === d.id) === i)
+    setPending(dedup(pendingRes.data ?? []))
+    setDelivered(dedup(deliveredRes.data ?? []))
+    setLoading(false)
+  }
+  useEffect(() => {
+    if (!userId) return
+    load()
+    const channel = supabase
+      .channel(`driver-view-${userId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'deliveries' }, () => load())
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [userId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const getToken = async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    return session?.access_token ?? ''
+  }
+
+  const handleConfirm = async () => {
+    if (!confirmId) return
+    setSubmitting(true)
+    const d = pending.find(x => x.id === confirmId)
+    const codAmount = Number((d?.sales_order as any)?.final_amount ?? 0)
+    const token = await getToken()
+    await fetch(`/api/deliveries/${confirmId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ status: 'delivered', cod_collected: codAmount }),
+    })
+    setConfirmId(null); setSubmitting(false)
+  }
+
+  const handleFail = async () => {
+    if (!failId || !failReason) return
+    setSubmitting(true)
+    const token = await getToken()
+    await fetch(`/api/deliveries/${failId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ status: 'failed' }),
+    })
+    setFailId(null); setFailReason(''); setSubmitting(false)
+  }
+
+  const totalCodCollected = delivered.reduce((s, d) => s + Number(d.cod_collected ?? 0), 0)
+  const totalCodPending   = pending.reduce((s, d) => s + Number((d.sales_order as any)?.final_amount ?? 0), 0)
+
+  if (loading) return <div className="p-10 text-center text-gray-400 text-sm">Đang tải đơn giao hàng...</div>
+
+  return (
+    <div>
+      <PageHeader title="Kế hoạch giao hàng" subtitle="Đơn hàng được phân công cho bạn hôm nay" />
+
+      {/* COD summary */}
+      <div className="grid grid-cols-2 gap-4 mb-5">
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+          <p className="text-xs text-green-600 font-medium mb-1">COD đã thu</p>
+          <p className="text-xl font-bold text-green-700">{formatVND(totalCodCollected)}</p>
+          <p className="text-[10px] text-green-500 mt-0.5">{delivered.length} đơn hoàn thành</p>
+        </div>
+        <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
+          <p className="text-xs text-orange-600 font-medium mb-1">COD còn phải thu</p>
+          <p className="text-xl font-bold text-orange-700">{formatVND(totalCodPending)}</p>
+          <p className="text-[10px] text-orange-500 mt-0.5">{pending.length} đơn chưa giao</p>
+        </div>
+      </div>
+
+      {/* Pending deliveries */}
+      {pending.length === 0 && delivered.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-[#e5e7eb] p-16 text-center">
+          <CheckCircle2 size={40} className="mx-auto text-green-400 mb-3" />
+          <p className="text-base font-semibold text-gray-600">Không có đơn giao hàng nào hôm nay</p>
+          <p className="text-sm text-gray-400 mt-1">Liên hệ điều phối nếu bạn đã được phân công</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {pending.map((d, idx) => {
+            const so = d.sales_order as any
+            const customer = so?.customer
+            const items: any[] = so?.items ?? []
+            const cod = Number(so?.final_amount ?? 0)
+            return (
+              <div key={d.id} className="bg-white rounded-2xl border border-[#e5e7eb] p-5">
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-[var(--mia-primary)]">Điểm {idx + 1}</span>
+                      <span className="text-xs text-gray-400">{d.code}</span>
+                    </div>
+                    <p className="text-base font-bold text-[#1e2a3a] mt-0.5">{customer?.name ?? '—'}</p>
+                    {customer?.address && <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1"><MapPin size={10} />{customer.address}</p>}
+                    {customer?.phone  && <a href={`tel:${customer.phone}`} className="text-xs text-blue-600 mt-1 block">{customer.phone}</a>}
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-xs text-gray-400">COD</p>
+                    <p className="text-base font-bold text-green-700">{formatVND(cod)}</p>
+                  </div>
+                </div>
+
+                {items.length > 0 && (
+                  <div className="bg-gray-50 rounded-xl p-3 mb-3 space-y-0.5">
+                    {items.map((it, i) => (
+                      <p key={i} className="text-xs text-gray-600">{it.quantity} {it.product?.unit} {it.product?.name}</p>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <button onClick={() => setConfirmId(d.id)}
+                    className="flex-1 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-xl hover:bg-green-700 transition-all active:scale-95">
+                    <CheckCircle2 size={14} className="inline mr-1.5" />Đã giao · {formatVND(cod)}
+                  </button>
+                  <button onClick={() => setFailId(d.id)}
+                    className="px-4 py-2.5 bg-red-50 text-red-600 text-sm font-semibold rounded-xl border border-red-200 hover:bg-red-100 transition-all active:scale-95">
+                    Thất bại
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+
+          {/* Delivered today */}
+          {delivered.length > 0 && (
+            <div className="mt-2">
+              <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Đã giao hôm nay</p>
+              {delivered.map(d => {
+                const so = d.sales_order as any
+                return (
+                  <div key={d.id} className="bg-gray-50 rounded-xl border border-[#e5e7eb] px-4 py-3 flex items-center justify-between mb-2">
+                    <div>
+                      <p className="text-xs font-semibold text-gray-700">{so?.customer?.name ?? '—'}</p>
+                      <p className="text-[10px] text-gray-400">{d.code}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs font-bold text-green-700">+{formatVND(Number(d.cod_collected ?? 0))}</p>
+                      <span className="text-[10px] text-green-600">✓ Đã thu</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Confirm modal — không cần nhập COD, tự lấy từ đơn hàng */}
+      {confirmId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <h3 className="text-base font-bold text-[#1e2a3a] mb-2">Xác nhận đã giao?</h3>
+            {(() => {
+              const d = pending.find(x => x.id === confirmId)
+              const cod = Number((d?.sales_order as any)?.final_amount ?? 0)
+              return (
+                <div className="bg-green-50 rounded-xl p-4 mb-4 text-center">
+                  <p className="text-xs text-green-600 mb-1">COD thu được</p>
+                  <p className="text-2xl font-bold text-green-700">{formatVND(cod)}</p>
+                </div>
+              )
+            })()}
+            <div className="flex gap-2">
+              <button onClick={() => setConfirmId(null)} className="flex-1 py-2 text-sm border border-[#e5e7eb] rounded-lg hover:bg-gray-50">Hủy</button>
+              <button onClick={handleConfirm} disabled={submitting}
+                className="flex-1 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 disabled:opacity-50">
+                {submitting ? 'Đang lưu...' : 'Xác nhận'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fail modal */}
+      {failId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <h3 className="text-base font-bold text-[#1e2a3a] mb-4">Báo giao thất bại</h3>
+            <div className="space-y-2 mb-4">
+              {FAIL_REASONS_DV.map(r => (
+                <label key={r} className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer ${failReason === r ? 'border-red-300 bg-red-50' : 'border-[#e5e7eb]'}`}>
+                  <input type="radio" name="failreason" value={r} checked={failReason === r} onChange={() => setFailReason(r)} className="accent-red-500" />
+                  <span className="text-sm text-gray-700">{r}</span>
+                </label>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => { setFailId(null); setFailReason('') }} className="flex-1 py-2 text-sm border border-[#e5e7eb] rounded-lg hover:bg-gray-50">Hủy</button>
+              <button onClick={handleFail} disabled={!failReason || submitting}
+                className="flex-1 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 disabled:opacity-40">
+                {submitting ? 'Đang lưu...' : 'Xác nhận'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function KeHoachGiaoHangPage() {
   const { id: tenantId } = useTenant()
   const today = new Date().toISOString().slice(0, 10)
+  const [currentRole, setCurrentRole] = useState<string | null>(null)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setCurrentRole(session?.user?.user_metadata?.role ?? null)
+      setCurrentUserId(session?.user?.id ?? null)
+    })
+  }, [])
   const [routes, setRoutes]         = useState<RouteGroup[]>([])
   const [unassigned, setUnassigned] = useState<UnassignedOrder[]>([])
+  const [orphanedDelivering, setOrphanedDelivering] = useState<{ id: string; code: string; customer: string }[]>([])
+  const [fixingOrphan, setFixingOrphan] = useState<string | null>(null)
+  const [orphanError, setOrphanError]   = useState<string | null>(null)
   const [availableVehicles, setAvailableVehicles] = useState<{ plate: string; type: string; driver: string; status: string }[]>([])
   const [loading, setLoading]       = useState(true)
   const [addModal, setAddModal]     = useState<UnassignedOrder | null>(null)
@@ -472,7 +787,7 @@ export default function KeHoachGiaoHangPage() {
 
   const loadAll = useCallback(async () => {
     if (!tenantId) return
-    const [{ data: deliveries }, { data: pickedOrders }, { data: vehiclesData }] = await Promise.all([
+    const [{ data: deliveries }, { data: pickedOrders }, { data: vehiclesData }, { data: driversData }, { data: deliveringOrders }] = await Promise.all([
       supabase
         .from('deliveries')
         .select(`id, code, route, planned_date, distance_km, status, vehicle_id, driver_id,
@@ -485,14 +800,24 @@ export default function KeHoachGiaoHangPage() {
         .from('sales_orders')
         .select(`id, code, final_amount, delivery_date, customer:customers(name, address)`)
         .eq('tenant_id', tenantId)
-        .eq('status', 'picked')
+        .in('status', ['picked', 'pending_ship'])
         .order('delivery_date'),
+      // vehicles không có driver_id — fetch riêng và match qua drivers.vehicle_id
       supabase
         .from('vehicles')
-        .select(`plate, type, status, drivers:driver_id(name)`)
+        .select(`id, plate, type, status`)
         .eq('tenant_id', tenantId)
         .neq('status', 'inactive')
         .order('plate'),
+      supabase.from('drivers').select('id, name, vehicle_id').eq('tenant_id', tenantId),
+      // Đơn đang giao nhưng chưa đi qua module logistics (không có delivery record)
+      supabase
+        .from('sales_orders')
+        .select(`id, code, customer:customers(name)`)
+        .eq('tenant_id', tenantId)
+        .eq('status', 'delivering')
+        .order('created_at', { ascending: false })
+        .limit(50),
     ])
 
     // Group deliveries by route name (multi-stop support)
@@ -539,21 +864,46 @@ export default function KeHoachGiaoHangPage() {
       return [...Array.from(routeMap.values()), ...localRoutes]
     })
 
-    setUnassigned((pickedOrders ?? []).map((o: any) => ({
-      id: o.id,
-      code: o.code,
-      customer: o.customer?.name ?? '—',
-      address: o.customer?.address ?? '',
-      cod: Number(o.final_amount ?? 0),
-      weight_kg: 0,
-      priority: 'normal' as const,
-      date_needed: o.delivery_date ?? today,
-    })))
+    // Đơn được coi là "đã phân" chỉ khi delivery có tài xế hoặc xe → tránh delivery rỗng chặn đơn
+    const assignedOrderIds = new Set<string>()
+    for (const group of routeMap.values()) {
+      if (group.driver_id || group.vehicle_id) {
+        for (const stop of group.stops) assignedOrderIds.add(stop.order_id)
+      }
+    }
 
+    setUnassigned((pickedOrders ?? [])
+      .filter((o: any) => !assignedOrderIds.has(o.id))
+      .map((o: any) => ({
+        id: o.id,
+        code: o.code,
+        customer: o.customer?.name ?? '—',
+        address: o.customer?.address ?? '',
+        cod: Number(o.final_amount ?? 0),
+        weight_kg: 0,
+        priority: 'normal' as const,
+        date_needed: o.delivery_date ?? today,
+      })))
+
+    // Đơn "delivering" nhưng không có delivery record → cần cảnh báo
+    const ordersWithDelivery = new Set(
+      (deliveries ?? []).map((d: any) => (d.sales_order as any)?.id).filter(Boolean)
+    )
+    setOrphanedDelivering((deliveringOrders ?? [])
+      .filter((o: any) => !ordersWithDelivery.has(o.id))
+      .map((o: any) => ({
+        id: o.id,
+        code: o.code ?? '',
+        customer: (o.customer as any)?.name ?? '—',
+      }))
+    )
+
+    const driverByVehicle2: Record<string, string> = {}
+    ;(driversData ?? []).forEach((d: any) => { if (d.vehicle_id) driverByVehicle2[d.vehicle_id] = d.name })
     setAvailableVehicles((vehiclesData ?? []).map((v: any) => ({
       plate: v.plate,
       type: v.type ?? '—',
-      driver: (Array.isArray(v.drivers) ? v.drivers[0] : v.drivers)?.name ?? 'Chưa phân tài xế',
+      driver: driverByVehicle2[v.id] ?? 'Chưa phân tài xế',
       status: v.status,
     })))
 
@@ -568,7 +918,73 @@ export default function KeHoachGiaoHangPage() {
   useOrdersRealtime(loadAll)
   useAutoRefresh(loadAll, 15_000)
 
-  const filteredRoutes = routes.filter(r => !dateFilter || r.date === dateFilter)
+  const fixOrphan = async (orderId: string, orderCode: string) => {
+    setFixingOrphan(orderId)
+    setOrphanError(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token ?? ''
+
+      // Kiểm tra đã có delivery chưa — dùng tenant_id filter tường minh tránh RLS edge case
+      const { data: existingRows, error: checkErr } = await supabase
+        .from('deliveries')
+        .select('id, status')
+        .eq('sales_order_id', orderId)
+        .eq('tenant_id', tenantId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+
+      if (checkErr) throw new Error(`Lỗi kiểm tra: ${checkErr.message}`)
+      const existing = existingRows?.[0] ?? null
+
+      if (existing?.id) {
+        // Delivery đã tồn tại — đẩy lên delivering nếu chưa
+        if (existing.status !== 'delivering' && existing.status !== 'delivered') {
+          const patchRes = await fetch(`/api/deliveries/${existing.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ status: 'delivering' }),
+          })
+          if (!patchRes.ok) {
+            const err = await patchRes.json().catch(() => ({}))
+            throw new Error(err.error ?? `Cập nhật thất bại (${patchRes.status})`)
+          }
+        }
+      } else {
+        // Chưa có → tạo mới
+        const today = new Date()
+        const prefix = `DV-${today.getFullYear().toString().slice(2)}${String(today.getMonth()+1).padStart(2,'0')}${String(today.getDate()).padStart(2,'0')}`
+        const { count: dvCount } = await supabase.from('deliveries').select('id', { count: 'exact', head: true }).like('code', `${prefix}-%`)
+        const code = `${prefix}-${String((dvCount ?? 0) + 1).padStart(3, '0')}`
+        const postRes = await fetch('/api/deliveries', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            code,
+            sales_order_id: orderId,
+            status: 'delivering',
+            planned_date: today.toISOString(),
+            carrier_type: 'own',
+          }),
+        })
+        if (!postRes.ok) {
+          const err = await postRes.json().catch(() => ({}))
+          throw new Error(err.error ?? `Tạo bản ghi thất bại (${postRes.status})`)
+        }
+      }
+
+      // Xóa filter ngày để tuyến mới (hôm nay) luôn hiển thị
+      setDateFilter('')
+      await loadAll()
+    } catch (e: any) {
+      setOrphanError(e?.message ?? 'Lỗi không xác định')
+    } finally {
+      setFixingOrphan(null)
+    }
+  }
+
+  // Route "dispatched" luôn hiện dù có filter ngày (tránh ẩn đơn đang giao)
+  const filteredRoutes = routes.filter(r => !dateFilter || r.date === dateFilter || r.status === 'dispatched')
   const dates = [...new Set(routes.map(r => r.date))].sort()
 
   const handleDispatch = async (routeId: string) => {
@@ -580,25 +996,26 @@ export default function KeHoachGiaoHangPage() {
 
     setRoutes(prev => prev.map(r => r.id === routeId ? { ...r, status: 'dispatched' } : r))
 
+    // Re-fetch driver_id mới nhất từ bảng drivers tại thời điểm dispatch (tránh stale state khi vừa tái gán xe)
+    let currentDriverId = route.driver_id ?? null
+    if (route.vehicle_id) {
+      const { data: drv } = await supabase.from('drivers').select('id').eq('vehicle_id', route.vehicle_id).maybeSingle()
+      if (drv?.id) currentDriverId = drv.id
+    }
+
     const results = await Promise.all(deliveryIds.map(id =>
       fetch(`/api/deliveries/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'delivering' }),
+        body: JSON.stringify({
+          status: 'delivering',
+          driver_id: currentDriverId,
+          vehicle_id: route.vehicle_id ?? null,
+        }),
       })
     ))
 
     if (results.some(r => !r.ok)) return
-
-    const tasks: PromiseLike<any>[] = []
-    if (route.vehicle_id)
-      tasks.push(supabase.from('vehicles').update({ status: 'on_trip' }).eq('id', route.vehicle_id))
-    if (route.driver_id)
-      tasks.push(supabase.from('drivers').update({ status: 'on_trip' }).eq('id', route.driver_id))
-    for (const stop of route.stops)
-      tasks.push(supabase.from('sales_orders').update({ status: 'delivering' }).eq('id', stop.order_id))
-
-    if (tasks.length) await Promise.all(tasks)
   }
 
   const fetchAiRoute = async (orders: UnassignedOrder[]) => {
@@ -667,31 +1084,60 @@ export default function KeHoachGiaoHangPage() {
     if (!route.vehicle_id) return
 
     const now = new Date()
-    const prefix = `DV-${now.getFullYear().toString().slice(2)}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`
-    const { count: dvCount } = await supabase
+    const plannedDate = route.date ? new Date(route.date + 'T00:00:00').toISOString() : now.toISOString()
+
+    // Kiểm tra delivery cũ (không có driver/vehicle) → cập nhật thay vì tạo mới
+    const { data: existingDeliveries } = await supabase
       .from('deliveries')
-      .select('id', { count: 'exact', head: true })
-      .like('code', `${prefix}-%`)
-    const code = `${prefix}-${String((dvCount ?? 0) + 1).padStart(3, '0')}`
+      .select('id')
+      .eq('sales_order_id', order.id)
+      .is('driver_id', null)
+      .limit(1)
 
-    const res = await fetch('/api/deliveries', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        code,
-        sales_order_id: order.id,
-        vehicle_id: route.vehicle_id,
-        driver_id: route.driver_id ?? null,
-        planned_date: route.date ? new Date(route.date + 'T00:00:00').toISOString() : now.toISOString(),
-        route: route.route_name,
-        carrier_type: 'own',
-        status: 'pending',
-      }),
-    })
+    let deliveryId: string
 
-    if (!res.ok) return
+    if (existingDeliveries && existingDeliveries.length > 0) {
+      deliveryId = existingDeliveries[0].id
+      await fetch(`/api/deliveries/${deliveryId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vehicle_id: route.vehicle_id,
+          driver_id: route.driver_id ?? null,
+          route: route.route_name,
+          planned_date: plannedDate,
+        }),
+      })
+    } else {
+      const prefix = `DV-${now.getFullYear().toString().slice(2)}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`
+      const { count: dvCount } = await supabase
+        .from('deliveries')
+        .select('id', { count: 'exact', head: true })
+        .like('code', `${prefix}-%`)
+      const code = `${prefix}-${String((dvCount ?? 0) + 1).padStart(3, '0')}`
 
-    const { id: deliveryId } = await res.json()
+      const res = await fetch('/api/deliveries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code,
+          sales_order_id: order.id,
+          vehicle_id: route.vehicle_id,
+          driver_id: route.driver_id ?? null,
+          planned_date: plannedDate,
+          route: route.route_name,
+          carrier_type: 'own',
+          status: 'pending',
+        }),
+      })
+
+      if (!res.ok) return
+      const json = await res.json()
+      deliveryId = json.id
+    }
+
+    // Chuyển SO sang pending_ship để logistics biết đơn đã có kế hoạch giao
+    await supabase.from('sales_orders').update({ status: 'pending_ship' }).eq('id', order.id)
 
     // Attach delivery_id to the stop so dispatch works
     setRoutes(prev => prev.map(r => {
@@ -709,6 +1155,11 @@ export default function KeHoachGiaoHangPage() {
   const totalKm = filteredRoutes.reduce((s, r) => s + r.total_km, 0)
   const dispatched = filteredRoutes.filter(r => r.status === 'dispatched').length
 
+  // Driver mode: chỉ thấy đơn của mình
+  if (currentRole === 'driver' && currentUserId) {
+    return <DriverView userId={currentUserId} />
+  }
+
   return (
     <div>
       <PageHeader title="Kế hoạch giao hàng" subtitle="Lập tuyến, tối ưu lộ trình và điều phối xe">
@@ -717,6 +1168,12 @@ export default function KeHoachGiaoHangPage() {
           <Plus size={15} /> Tạo kế hoạch
         </button>
       </PageHeader>
+
+      <WorkflowBanner
+        count={unassigned.length}
+        label="đơn đã soạn xong, chưa có tuyến giao"
+        hint="Kéo xuống → chọn đơn → thêm vào tuyến"
+      />
 
       {showCreate && (
         <CreateRouteModal onSave={handleCreateRoute} onClose={() => setShowCreate(false)} />
@@ -729,6 +1186,41 @@ export default function KeHoachGiaoHangPage() {
           onAdd={handleAddToRoute}
           onClose={() => setAddModal(null)}
         />
+      )}
+
+      {/* Cảnh báo đơn đang giao không có kế hoạch */}
+      {orphanedDelivering.length > 0 && (
+        <div className="bg-orange-50 border border-orange-300 rounded-xl p-4 mb-5 flex items-start gap-3">
+          <AlertCircle size={18} className="text-orange-500 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-sm font-bold text-orange-800">
+              {orphanedDelivering.length} đơn hàng đang giao chưa có kế hoạch vận chuyển
+            </p>
+            <p className="text-xs text-orange-600 mt-1">
+              Các đơn này ở trạng thái "Đang giao" nhưng chưa có bản ghi logistics.
+              Nhấn <strong>Tạo bản ghi giao hàng</strong> để hệ thống theo dõi được — driver xác nhận hoàn thành bình thường.
+            </p>
+            {orphanError && (
+              <p className="mt-2 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                Lỗi: {orphanError}
+              </p>
+            )}
+            <div className="flex flex-col gap-2 mt-3">
+              {orphanedDelivering.map(o => (
+                <div key={o.id} className="flex items-center justify-between bg-orange-100 rounded-lg px-3 py-2">
+                  <span className="text-xs font-semibold text-orange-800">{o.code} · {o.customer}</span>
+                  <button
+                    onClick={() => fixOrphan(o.id, o.code)}
+                    disabled={!!fixingOrphan}
+                    className="ml-3 shrink-0 px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold rounded-lg transition-all disabled:opacity-50 flex items-center gap-1"
+                  >
+                    {fixingOrphan === o.id ? <><Loader2 size={11} className="animate-spin" /> Đang xử lý...</> : 'Tạo bản ghi giao hàng'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* AI Suggestion */}
@@ -878,7 +1370,7 @@ export default function KeHoachGiaoHangPage() {
                     v.status === 'maintenance' ? 'bg-red-100 text-red-700' :
                     'bg-gray-100 text-gray-500'
                   }`}>
-                    {v.status === 'available' ? 'Rảnh' : v.status === 'on_trip' ? 'Đang chạy' : v.status === 'maintenance' ? 'Bảo trì' : v.status}
+                    {v.status === 'available' ? 'Rảnh' : v.status === 'on_trip' ? 'Đang giao' : v.status === 'maintenance' ? 'Bảo trì' : v.status}
                   </span>
                 </div>
               ))}

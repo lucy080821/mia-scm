@@ -4,6 +4,7 @@ import { Printer, Download, Plus, X, ChevronDown, Pencil, Building2, Upload, Che
 import PageHeader from '@/components/layout/PageHeader'
 import { formatVND, formatDate } from '@/lib/utils'
 import { useTenant } from '@/contexts/TenantContext'
+import { useUnits } from '@/hooks/useUnits'
 
 interface LineItem { id: number; name: string; unit: string; qty: number; price: number; discount: number }
 type Customer = { id: string; name: string; address: string; tax_code: string; phone: string }
@@ -29,6 +30,7 @@ function genNo() {
 
 export default function InvoicePage() {
   const tenant = useTenant()
+  const units = useUnits()
 
   const tenantCompany: CompanyInfo = {
     name:     tenant.name,
@@ -566,9 +568,11 @@ export default function InvoicePage() {
                           </div>
                         )}
                       </td>
-                      <td className="px-3 py-2 w-16">
-                        <input value={item.unit} onChange={e => handleItemChange(item.id, 'unit', e.target.value)}
-                          className="w-full text-xs border-0 outline-none bg-transparent text-gray-500" />
+                      <td className="px-3 py-2 w-20">
+                        <select value={item.unit} onChange={e => handleItemChange(item.id, 'unit', e.target.value)}
+                          className="w-full text-xs border border-[#e5e7eb] rounded outline-none bg-white text-gray-500 h-7 px-1">
+                          {units.map(u => <option key={u}>{u}</option>)}
+                        </select>
                       </td>
                       <td className="px-3 py-2 w-16">
                         <input type="number" min={0} value={item.qty} onChange={e => handleItemChange(item.id, 'qty', Number(e.target.value))}
