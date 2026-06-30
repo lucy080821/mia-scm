@@ -1,9 +1,5 @@
-'use client'
-import { useEffect } from 'react'
+import { redirect } from 'next/navigation'
 
 export default function GiaoHangIndex() {
-  useEffect(() => {
-    window.location.replace('/logistics/ke-hoach-giao-hang')
-  }, [])
-  return null
+  redirect('/logistics/ke-hoach-giao-hang')
 }
