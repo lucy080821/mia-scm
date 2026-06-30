@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { canAccessModule, type Role } from '@/lib/permissions'
+import { canAccess } from '@/lib/auth-client'
 
 // Prefix route → module cần quyền truy cập
 const ROUTE_MODULE: Record<string, string> = {
@@ -16,7 +17,12 @@ const ROUTE_MODULE: Record<string, string> = {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Bỏ qua static assets và trang giao hàng công khai cho tài xế
+  // /giao-hang (không token) → redirect luôn về trang logistics (tài xế)
+  if (pathname === '/giao-hang') {
+    return NextResponse.redirect(new URL('/logistics/ke-hoach-giao-hang', request.url))
+  }
+
+  // Bỏ qua static assets và trang giao hàng công khai có token
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||
@@ -59,10 +65,10 @@ export async function middleware(request: NextRequest) {
 
     // Đã đăng nhập đang vào login → về đúng home theo role
     if (pathname === '/login') {
-      return NextResponse.redirect(new URL(
-        role === 'owner' ? '/owner/dashboard' : '/dashboard',
-        request.url,
-      ))
+      const home = role === 'owner'  ? '/owner/dashboard'
+                 : role === 'driver' ? '/logistics/ke-hoach-giao-hang'
+                 : '/dashboard'
+      return NextResponse.redirect(new URL(home, request.url))
     }
 
     // Owner chỉ được ở /owner/* — mọi route khác đều về owner dashboard
@@ -75,9 +81,9 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/dashboard?denied=1', request.url))
     }
 
-    // Tài xế chỉ được vào app tài xế
-    if (role === 'driver' && !pathname.startsWith('/mobile') && !pathname.startsWith('/giao-hang')) {
-      return NextResponse.redirect(new URL('/giao-hang', request.url))
+    // Tài xế: kiểm tra từng route cụ thể (danh sách trong auth-client.ts)
+    if (role === 'driver' && pathname !== '/dashboard' && !canAccess('driver', pathname)) {
+      return NextResponse.redirect(new URL('/logistics/ke-hoach-giao-hang', request.url))
     }
 
     // Kiểm tra quyền theo module (không áp dụng cho owner)
