@@ -116,6 +116,40 @@ Trả về JSON hợp lệ (KHÔNG có markdown):
   return JSON.parse(cleaned) as InventorySuggestResult
 }
 
+// ── Phân tích so sánh kỳ kinh doanh ──────────────────────────────────────────
+export interface CompareAnalysisResult {
+  headline: string
+  sentiment: 'positive' | 'negative' | 'mixed' | 'neutral'
+  insights: string[]
+  risks: string[]
+  suggestions: string[]
+}
+
+export async function compareBusinessMetrics(
+  domain: string,
+  periodA: string,
+  periodB: string,
+  metrics: { label: string; cur: number; prev: number; change_pct: number }[]
+): Promise<CompareAnalysisResult> {
+  const domainLabel = domain === 'tai-chinh' ? 'Tài chính' : domain === 'ban-hang' ? 'Bán hàng' : domain === 'logistics' ? 'Logistics' : 'Kho hàng'
+  const systemPrompt = `Bạn là chuyên gia phân tích kinh doanh FMCG tại Việt Nam. Phân tích dữ liệu so sánh giữa 2 kỳ kinh doanh và đưa ra nhận xét ngắn gọn, thiết thực, bằng tiếng Việt.
+Trả về JSON hợp lệ (KHÔNG có markdown):
+{
+  "headline": "một câu tóm tắt quan trọng nhất (tối đa 12 từ)",
+  "sentiment": "positive|negative|mixed|neutral",
+  "insights": ["nhận xét 1 (bắt đầu bằng chỉ số cụ thể)", "nhận xét 2", "nhận xét 3"],
+  "risks": ["rủi ro hoặc điểm cần chú ý 1", "rủi ro 2"],
+  "suggestions": ["đề xuất hành động cụ thể 1", "đề xuất 2"]
+}
+Ngắn gọn, xúc tích. Mỗi mục tối đa 1-2 câu. Dùng con số thực tế từ dữ liệu.`
+
+  const userMsg = `Module: ${domainLabel}\nSo sánh: ${periodA} vs ${periodB}\nDữ liệu:\n${metrics.map(m => `- ${m.label}: ${periodA}=${m.cur}, ${periodB}=${m.prev}, thay đổi=${m.change_pct > 0 ? '+' : ''}${m.change_pct}%`).join('\n')}`
+
+  const raw = await groqChat(systemPrompt, userMsg)
+  const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+  return JSON.parse(cleaned) as CompareAnalysisResult
+}
+
 // ── Gợi ý tối ưu tuyến giao hàng ─────────────────────────────────────────────
 export interface RouteOptimization {
   grouped_orders: { order_ids: string[]; vehicle_suggestion: string; route_name: string; reason: string; est_km: number }[]

@@ -200,6 +200,7 @@ Tất cả API đều yêu cầu `Authorization: Bearer <token>` trừ `/api/del
 - `/api/me` — Profile người dùng hiện tại
 - `/api/tenants/` — Quản lý tenant (owner only)
 - `/api/sales-orders/` — Đơn hàng bán
+- `/api/sales-orders/bulk` — Tạo nhiều đơn từ CSV (POST, body: `{ orders: [{customer_code, delivery_date?, note?, items: [{product_sku, quantity, unit_price}]}] }`)
 - `/api/customers/` — Khách hàng
 - `/api/products/` — Sản phẩm
 - `/api/stock-receipts/` `/api/stock-issues/` `/api/stock-transfers/` — Kho
@@ -213,7 +214,7 @@ Tất cả API đều yêu cầu `Authorization: Bearer <token>` trừ `/api/del
 - `/api/finance/` `/api/expenses/` — Tài chính
 - `/api/reports/` `/api/export/` — Báo cáo & xuất dữ liệu
 - `/api/import/[type]/` — Nhập liệu (CSV/Excel)
-- `/api/ai/parse-order/` `/api/ai/inventory-suggest/` `/api/ai/delivery-route/` `/api/ai/supplier-analysis/` — AI
+- `/api/ai/parse-order/` `/api/ai/inventory-suggest/` `/api/ai/delivery-route/` `/api/ai/supplier-analysis/` `/api/ai/compare-analysis/` — AI
 - `/api/owner/stats/` `/api/owner/activity/` — Owner dashboard
 - `/api/favicon` `/api/logo` `/api/manifest` — PWA & tenant branding
 
@@ -267,7 +268,7 @@ SUPABASE_SERVICE_ROLE_KEY          # server-only
 |---|---|---|
 | Dashboard | `/dashboard` | ✅ Real — `/api/dashboard`, realtime Supabase channel |
 | Bán hàng | Khách hàng | ✅ Real — `/api/customers` |
-| Bán hàng | Đơn hàng bán | ✅ Real — `/api/sales-orders`, đầy đủ workflow status |
+| Bán hàng | Đơn hàng bán | ✅ Real — `/api/sales-orders`, đầy đủ workflow status. Bulk import CSV qua `/api/sales-orders/bulk` (nút "Nhập CSV" trong PageHeader). |
 | Bán hàng | Báo giá | ✅ Real — `/api/quotes` + supabase |
 | Bán hàng | Trả hàng | ✅ Real — `/api/sales-returns` |
 | Bán hàng | Hóa đơn | ✅ Real — `/api/invoices` GET/POST/PATCH; lưu nháp vào DB, danh sách hóa đơn đã lưu ở right panel. Cần tạo bảng `invoices` trong Supabase (xem SQL bên dưới). Company info vẫn lưu localStorage. |
@@ -281,9 +282,9 @@ SUPABASE_SERVICE_ROLE_KEY          # server-only
 | Mua hàng | Nhà cung cấp | ✅ Real — `/api/suppliers` |
 | Logistics | Tổng quan | ✅ Real — supabase, KPI deliveries; `total_trips` tài xế self-heal khi delivery = delivered |
 | Logistics | Đơn vận chuyển | ✅ Real — `/api/deliveries`; hiện mã SO dưới mã DV |
-| Logistics | Kế hoạch giao hàng | ✅ Real — auto-save deliveries khi thêm đơn vào tuyến, dispatch multi-stop |
-| Logistics | Phương tiện | ✅ Real — `/api/vehicles` |
-| Logistics | Tài xế | ✅ Real — `/api/users` + `drivers` table, self-heal on_trip status |
+| Logistics | Kế hoạch giao hàng | ✅ Real — luồng mới: tạo kế hoạch (tên + ngày) → thêm đơn → gán xe+tài xế → dispatch. Chỉ role logistics/admin tạo và gán xe. |
+| Logistics | Phương tiện | ✅ Real — `/api/vehicles`, có `warehouse_id` phân kho |
+| Logistics | Tài xế | ✅ Real — `/api/users` + `drivers` table, self-heal on_trip status, có `warehouse_id` phân kho |
 | Logistics | Đối soát COD | ✅ Real — supabase query deliveries + drivers |
 | Tài chính | Tổng quan | ✅ Real — `/api/finance?type=monthly` (12 tháng P&L) |
 | Tài chính | Doanh thu | ✅ Real — `/api/finance?type=orders` |
@@ -291,11 +292,47 @@ SUPABASE_SERVICE_ROLE_KEY          # server-only
 | Tài chính | Chi phí phát sinh | ✅ Real — `/api/expenses` CRUD; danh mục tùy chỉnh lưu `business_settings` DB (shared per tenant) |
 | Tài chính | Lợi nhuận | ✅ Real — `/api/finance?type=monthly` |
 | Tài chính | Công nợ | ✅ Real — `/api/finance?type=receivables/payables` |
-| Báo cáo | Tất cả | ✅ Real — `/api/reports` (top_products, kpi_users, drilldown, inventory); plan-gated (growth/enterprise) |
+| Báo cáo | Tất cả | ✅ Real — `/api/reports`; **plan-gating đã bỏ hoàn toàn**, tất cả tab mở cho mọi gói. Xem chi tiết bên dưới. |
 | Cài đặt | Danh mục | ✅ Real — `/api/categories` |
 | Cài đặt | Nhân viên | ✅ Real — `/api/users`, warehouse assignments |
 | Cài đặt | Nhập liệu | ✅ Real — `/api/import/[type]` |
 | Cài đặt | Nghiệp vụ | ✅ Real — `saveBusinessSettingsAsync()` / `loadBusinessSettingsAsync()` — lưu vào bảng `business_settings` (Supabase) + localStorage fallback. Debounce 800ms. Cần tạo bảng (xem SQL bên dưới). |
+
+### Module Báo cáo — Chi tiết tính năng
+
+**Plan-gating**: Đã bỏ hoàn toàn — tất cả tab (Dự báo, So sánh kỳ, Drill-down, KPI nhân viên) mở cho mọi gói.
+
+#### Tab Dự báo (Dự báo doanh thu + Sản phẩm & Tồn kho)
+Có 2 sub-tab:
+- **Doanh thu**: Forecast doanh thu tháng tới dùng WMA/WLS/Seasonal với hệ số mùa vụ có thể cài đặt per-tenant trong `business_settings.forecastSeasonalFactors` (12 tháng T1..T12).
+- **Sản phẩm & Tồn kho**: Forecast từng SKU — tồn kho, dự báo T+1/T+2/T+3, số tháng còn lại, risk badge (out/critical/low/dead/ok).
+
+**Thuật toán forecast số bán:**
+- n < 3 tháng: trung bình đơn giản
+- n = 3–5: WMA (Weighted Moving Average), weight tăng dần theo thứ tự mới nhất
+- n ≥ 6: WLS (Weighted Least Squares) linear trend
+- n ≥ 12 + model seasonal: áp dụng hệ số mùa vụ tự động từ data thực tế (multiplicative decomposition) hoặc hệ số thủ công từ cài đặt
+- `months_remaining`: simulate từng tháng dùng forecast (không chia đơn giản), dừng khi stock = 0
+- Dead stock: tồn kho > 0 nhưng 0 bán trong 12 tháng
+
+**API**: `forecast_products` trong `/api/reports` — 2-step query (sales_orders → sales_order_items), trả về `{ product_id, sku, name, unit, current_stock, monthly_sales: [{key: 'YYYY-MM', qty}] }`. Tính toán forecast xảy ra client-side.
+
+**Recharts XAxis note**: Dùng data key dạng `YYYY-MM` (không phải `T6/2026`) + `tickFormatter={keyToLabel}` để tránh Recharts parse "/" thành NaN trên tất cả labels.
+
+#### Tab So sánh kỳ
+- **Preset buttons**: MoM (tháng trước) / YoY (cùng kỳ năm ngoái) / Tùy chỉnh — auto-set 2 dropdown kỳ khi click
+- Khi user sửa dropdown thủ công → tự chuyển về "Tùy chỉnh"
+- YoY: nếu chưa có data cùng kỳ năm ngoái → hiện cảnh báo cam
+- **AI Analysis panel** (tất cả 4 domain — Tài chính/Bán hàng/Logistics/Kho): Sau khi data load → tự gọi `/api/ai/compare-analysis` (POST), Groq trả về `{ headline, sentiment, insights[], risks[], suggestions[] }`. Cache theo cặp `${domain}-${periodA}-${periodB}`, không gọi lại khi click qua lại.
+- API so sánh: `compare_sales`, `compare_logistics`, `compare_warehouse` trong `/api/reports`
+- Groq function: `compareBusinessMetrics` trong `lib/groq.ts`
+
+#### Tab Drill-down
+Tự động detect có danh mục hay không:
+- **Có danh mục thật** (sản phẩm được gán category): 3 tầng — Danh mục → Sản phẩm → Khách hàng
+- **Không có danh mục** (toàn bộ uncategorized): 2 tầng — Sản phẩm → Khách hàng
+- Cả 2 API (`drilldown_categories` + `drilldown_products`) được fetch song song khi mount để detect
+- Breadcrumb tự điều chỉnh theo số tầng
 
 ---
 
@@ -322,8 +359,11 @@ CREATE TABLE invoices (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "tenant_isolation" ON invoices
-  USING (tenant_id = (auth.jwt()->>'tenant_id')::uuid);
+CREATE POLICY "tenant_read" ON invoices FOR SELECT TO authenticated
+  USING (tenant_id = public.get_tenant_id());
+CREATE POLICY "tenant_write" ON invoices FOR ALL TO authenticated
+  USING (tenant_id = public.get_tenant_id())
+  WITH CHECK (tenant_id = public.get_tenant_id());
 ```
 
 ### Bảng `business_settings`
@@ -334,11 +374,47 @@ CREATE TABLE business_settings (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 ALTER TABLE business_settings ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "tenant_isolation" ON business_settings
-  USING (tenant_id = (auth.jwt()->>'tenant_id')::uuid);
+CREATE POLICY "tenant_read" ON business_settings FOR SELECT TO authenticated
+  USING (tenant_id = public.get_tenant_id());
+CREATE POLICY "tenant_write" ON business_settings FOR ALL TO authenticated
+  USING (tenant_id = public.get_tenant_id())
+  WITH CHECK (tenant_id = public.get_tenant_id());
 ```
 
+> **Lưu ý RLS**: Dùng `public.get_tenant_id()` (PostgreSQL function) thay vì `auth.jwt()->>'tenant_id'`. Lý do: tenant_id không nằm trong JWT payload mà trong bảng `users`. Function `public.get_tenant_id()` dùng SECURITY DEFINER để đọc bảng users an toàn.
+
 API graceful-fail nếu bảng chưa tồn tại (trả về [] / null thay vì crash).
+
+---
+
+## Trạng thái MVP
+
+**Đủ để thử nghiệm multi-tenant sau khi chạy RLS migration.**
+
+### ✅ RLS tenant isolation — đã có migration
+File: `supabase/migration_rls_tenant_isolation.sql`
+
+**Cơ chế**: Tạo function `public.get_tenant_id()` (SECURITY DEFINER) đọc `tenant_id` từ bảng `users` → dùng trong tất cả RLS policies.
+
+**Lý do không dùng `auth.jwt()->>'tenant_id'`**: tenant_id không nằm trong JWT payload của Supabase. Nó được lưu trong bảng `users` và đọc qua `server-auth.ts` bằng supabaseAdmin. Function `public.get_tenant_id()` giải quyết vấn đề này phía DB layer.
+
+**Bảng được bảo vệ**: users, customers, customer_groups, suppliers, products, warehouses, inventory, sales_orders, sales_order_items, purchase_orders, purchase_order_items, stock_receipts, stock_receipt_items, stock_issues, vehicles, drivers, deliveries, business_settings, invoices, employee_warehouses.
+
+**Không thay đổi**: categories (dùng chung toàn platform, `USING (true)` giữ nguyên).
+
+**Lưu ý**: `supabaseAdmin` (service role) bypass RLS hoàn toàn — các API routes không bị ảnh hưởng bởi migration này. RLS chỉ bảo vệ direct client-side Supabase queries.
+
+### Bulk import đơn hàng — CSV format
+```
+stt_don,ma_khach_hang,ngay_giao_hang,ma_san_pham,so_luong,don_gia,ghi_chu
+1,KH001,2026-07-02,SKU001,10,50000,
+1,KH001,2026-07-02,SKU002,5,30000,
+2,KH002,,SKU003,3,80000,
+```
+- `stt_don`: số thứ tự để nhóm (cùng số = cùng đơn, nhiều sản phẩm)
+- `ngay_dat_hang`: auto = ngày upload
+- Mã đơn SO-YYMMDD-NNN: hệ thống tự sinh
+- Resolve khách hàng theo `code` hoặc `name`, sản phẩm theo `sku`
 
 ---
 
@@ -387,4 +463,15 @@ const { count } = await supabase.from('table').select('id', { count: 'exact', he
 Dữ liệu cần chia sẻ giữa các user của cùng tenant (danh mục tùy chỉnh, cấu hình nghiệp vụ...) phải lưu `business_settings` JSONB trong DB, không dùng localStorage. Dùng `saveBusinessSettingsAsync` + `loadBusinessSettingsAsync` từ `lib/business-settings.ts`.
 
 ### Kế hoạch giao hàng (ke-hoach-giao-hang) — DB model
-Multi-stop routes: mỗi đơn hàng = 1 bản ghi `deliveries`. Các delivery cùng 1 tuyến được nhóm bằng cột `route` TEXT (tên tuyến). Khi thêm đơn vào tuyến → POST `/api/deliveries` ngay lập tức (không chờ dispatch). Khi dispatch → PATCH tất cả `delivery_id` trong tuyến để gán xe + tài xế.
+Multi-stop routes: mỗi đơn hàng = 1 bản ghi `deliveries`. Các delivery cùng 1 tuyến được nhóm bằng cột `route` TEXT (tên tuyến).
+
+**Luồng mới (3 bước tách biệt):**
+1. Tạo kế hoạch: chỉ cần tên tuyến + ngày (không cần xe ngay)
+2. Thêm đơn vào tuyến → POST `/api/deliveries` ngay lập tức với `vehicle_id=null`
+3. Gán xe + tài xế (nút "Gán xe & tài xế") → PATCH tất cả deliveries trong tuyến với `vehicle_id` + `driver_id`
+4. Dispatch → PATCH status → `delivering`
+
+**Role gate**: Chỉ `logistics` và `admin` mới thấy nút "Tạo kế hoạch", "Gán xe", "Đổi xe", "Điều xe xuất phát".
+
+### Phân kho cho xe & tài xế
+Bảng `vehicles` và `drivers` có cột `warehouse_id` (FK → `warehouses`). Dùng để lọc xe/tài xế theo kho khi gán vào tuyến. Gán kho qua modal chỉnh sửa trong trang Phương tiện và Tài xế.

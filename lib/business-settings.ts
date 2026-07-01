@@ -64,6 +64,9 @@ export interface BusinessSettings {
 
   // Đơn vị tính (per-tenant)
   units?: string[]
+
+  // Hệ số mùa vụ dự báo (12 tháng, T1..T12)
+  forecastSeasonalFactors?: number[]
 }
 
 export const DEFAULT_NUMBERING: Record<string, NumberingRule> = {
